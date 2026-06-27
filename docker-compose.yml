@@ -41,6 +41,7 @@ services:
 models:
   llm:
     model: ${LLM_IMAGE:-ai/mistral:7B-Q4_K_M}
+    context_size: 2048
 
 volumes:
   aidock_pgdata:

@@ -1,4 +1,5 @@
 import os
+import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile, File
@@ -6,6 +7,14 @@ from pydantic import BaseModel
 from backend.db.session import init_db
 from backend.agent.graph import create_agent_graph
 from langchain_core.messages import HumanMessage
+
+# Configure backend logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("aidock.backend")
+client_logger = logging.getLogger("aidock.client")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,8 +34,27 @@ class ExportRequest(BaseModel):
     filename: str
     content: str
 
+class LogRequest(BaseModel):
+    level: str
+    message: str
+
+@app.post("/log")
+def log_client_message(request: LogRequest):
+    lvl = request.level.upper()
+    msg = f"CLIENT: {request.message}"
+    if lvl == "DEBUG":
+        client_logger.debug(msg)
+    elif lvl == "WARNING":
+        client_logger.warning(msg)
+    elif lvl == "ERROR":
+        client_logger.error(msg)
+    else:
+        client_logger.info(msg)
+    return {"status": "ok"}
+
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
+    logger.info(f"Chat request received - Session: {request.session_id} - Length: {len(request.message)} chars")
     try:
         # Initialize state with user message and session_id
         initial_state = {
@@ -40,11 +68,13 @@ async def chat_endpoint(request: ChatRequest):
         # Get the last message
         last_message = result["messages"][-1]
         
+        logger.info(f"Chat request succeeded - Session: {request.session_id} - Response length: {len(last_message.content)} chars")
         return {
             "response": last_message.content,
             "workspace_used": result.get("workspace_path")
         }
     except Exception as e:
+        logger.error(f"Chat request failed - Session: {request.session_id} - Error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/export")

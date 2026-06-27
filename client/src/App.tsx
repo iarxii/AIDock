@@ -263,6 +263,18 @@ function App() {
     }
   };
 
+  const logToContainer = async (level: string, message: string) => {
+    try {
+      await fetch('/api/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level, message })
+      });
+    } catch (e) {
+      console.error('Failed to log to container:', e);
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim() || loading) return;
     
@@ -277,6 +289,8 @@ function App() {
     setInput('');
     setLoading(true);
     const startTime = Date.now();
+    
+    logToContainer('info', `User interaction submitted - Session: ${sessionId} - Prompt: "${currentInput.substring(0, 60)}..."`);
     
     try {
       const res = await fetch('/api/chat', {
@@ -298,18 +312,22 @@ function App() {
       
       const data = await res.json();
       const endTime = Date.now();
+      const latency = endTime - startTime;
+      
+      logToContainer('info', `LLM handler success - Session: ${sessionId} - Latency: ${latency}ms - Output: "${data.response.substring(0, 60)}..."`);
       
       const botMessage: Message = {
         id: `msg_${Date.now()}_b`,
         sender: 'bot',
         content: data.response,
         workspaceUsed: data.workspace_used,
-        latencyMs: endTime - startTime
+        latencyMs: latency
       };
       
       setMessages(prev => [...prev, botMessage]);
     } catch (err: any) {
       const isConnectionError = err.message === 'Failed to fetch';
+      logToContainer('error', `Handler output failure - Session: ${sessionId} - Error: ${err.message}`);
       const errorMessage: Message = {
         id: `msg_${Date.now()}_e`,
         sender: 'bot',

@@ -1,9 +1,12 @@
 import os
+import logging
 from pathlib import Path
 import dotenv
 from backend.agent.state import AgentState
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_ollama import ChatOllama
+
+logger = logging.getLogger("aidock.agent.nodes")
 
 # Load .env looking upwards from this file
 dotenv.load_dotenv(dotenv.find_dotenv())
@@ -44,5 +47,7 @@ def reason_node(state: AgentState):
     # In a full implementation, bind tools here:
     # llm_with_tools = llm.bind_tools(tools)
     
+    logger.info(f"LLM Reasoning - invoking model: {model} with {len(state['messages'])} messages...")
     response = llm.invoke(state["messages"])
+    logger.info(f"LLM Reasoning - model response received (length: {len(response.content)} chars)")
     return {"messages": [response], "is_complete": True} # Placeholder for completeness check
