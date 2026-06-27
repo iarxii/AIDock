@@ -23,7 +23,7 @@ ROOT_DIR = Path(__file__).parent.parent
 ENV_FILE = ROOT_DIR / ".env"
 
 PROFILES = {
-    "general": ["ai/mistral:7B-Q4_K_M", "ai/gemma4:4B"],
+    "general": ["ai/mistral:7B-Q4_K_M", "ai/gemma4:E4B"],
     "coding": ["ai/deepseek-r1-distill-llama:8B-Q4_0", "ai/granite-4.0-h-tiny:7B"],
     "data_analyst": ["ai/qwen3.5:9B-UD-Q4_K_XL"],
     "business_analyst": ["ai/ministral3:8B"],

@@ -127,7 +127,7 @@ body {
   right: -1px;
   width: 50%;
   height: 4px;
-  background: linear-gradient(to left, rgba(0, 0, 0, 0.8), transparent);
+  background: linear-gradient(to left, #ffffff, transparent);
   border-radius: 0;
   z-index: 10;
 }
@@ -138,7 +138,7 @@ body {
   right: -1px;
   width: 4px;
   height: 50%;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent);
+  background: linear-gradient(to bottom, #ffffff, transparent);
   border-radius: 0;
   z-index: 10;
 }
@@ -153,7 +153,7 @@ body {
   left: -1px;
   width: 50%;
   height: 4px;
-  background: linear-gradient(to right, #ffffff, transparent);
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.8), transparent);
   border-radius: 0 0 0 1rem;
   z-index: 10;
 }
@@ -164,7 +164,7 @@ body {
   left: -1px;
   width: 4px;
   height: 50%;
-  background: linear-gradient(to top, #ffffff, transparent);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
   border-radius: 0 0 0 1rem;
   z-index: 10;
 }
