@@ -1,8 +1,12 @@
 import os
 from pathlib import Path
+import dotenv
 from backend.agent.state import AgentState
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_ollama import ChatOllama
+
+# Load .env looking upwards from this file
+dotenv.load_dotenv(dotenv.find_dotenv())
 
 def init_node(state: AgentState):
     """Initialize the workspace for this session."""
@@ -18,9 +22,23 @@ def init_node(state: AgentState):
 
 def reason_node(state: AgentState):
     """Reasoning node that calls the local LLM."""
+    # Detect if running inside a Docker container
+    in_docker = os.path.exists('/.dockerenv') or Path('/workspace').exists()
+    
+    # Default model-runner base URL: internal DNS in Docker, localhost on the host
+    default_base_url = "http://model-runner.docker.internal" if in_docker else "http://localhost:12434"
+    base_url = os.getenv("LLM_BASE_URL", default_base_url)
+    
+    # Resolve the model name
+    model = os.getenv("LLM_MODEL_NAME")
+    if not model:
+        # Fall back to constructed name using LLM_IMAGE from .env if available
+        image = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
+        model = f"docker.io/{image}"
+        
     llm = ChatOllama(
-        model=os.getenv("LLM_MODEL_NAME", "mistral"),
-        base_url=os.getenv("LLM_BASE_URL", "http://model-runner:8000/v1")
+        model=model,
+        base_url=base_url
     )
     
     # In a full implementation, bind tools here:
