@@ -1,0 +1,46 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: aidock_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: aidock
+    ports:
+      - "5433:5432"
+    volumes:
+      - aidock_pgdata:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+    container_name: aidock_backend
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    models:
+      - llm
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/aidock
+      - LLM_BASE_URL=http://model-runner.docker.internal
+      - LLM_MODEL_NAME=docker.io/${LLM_IMAGE:-ai/mistral:7B-Q4_K_M}
+    volumes:
+      - ${WORKSPACE_MOUNT_PATH}:/workspace
+    depends_on:
+      - db
+
+  client:
+    build:
+      context: ./client
+    container_name: aidock_client
+    ports:
+      - "${CLIENT_PORT:-3000}:80"
+    depends_on:
+      - backend
+
+models:
+  llm:
+    model: ${LLM_IMAGE:-ai/mistral:7B-Q4_K_M}
+
+volumes:
+  aidock_pgdata:
