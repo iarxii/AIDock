@@ -180,5 +180,13 @@ def prune():
         subprocess.run(["docker", "image", "prune", "-a", "-f"])
         console.print("[green]✓ Pruning complete.[/]")
 
+@cli.command()
+@click.pass_context
+def reload(ctx):
+    """Reload AIDock: Stop containers, rebuild, and restart."""
+    console.print("\n[bold blue]Reloading AIDock...[/]")
+    ctx.invoke(stop)
+    ctx.invoke(start)
+
 if __name__ == "__main__":
     cli()

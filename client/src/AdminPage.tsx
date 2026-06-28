@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function AdminPage() {
@@ -54,14 +54,15 @@ function AdminPage() {
     } finally { setModelsLoading(false); }
   };
 
-  const addSlug = async () => {
-    if (!adminKey || !newSlug) return alert('Admin key and slug required');
+  const addSlug = async (slug?: string) => {
+    const slugToAdd = slug || newSlug;
+    if (!adminKey || !slugToAdd) return alert('Admin key and slug required');
     try {
-      const res = await fetch(getBackendUrl('admin/whitelist'), { method: 'POST', headers: headers(), body: JSON.stringify({ slug: newSlug }) });
+      const res = await fetch(getBackendUrl('admin/whitelist'), { method: 'POST', headers: headers(), body: JSON.stringify({ slug: slugToAdd }) });
       if (res.ok) {
         const data = await res.json();
         setWhitelist(data.slugs || []);
-        setNewSlug('');
+        if (!slug) setNewSlug('');
       } else alert('Add failed');
     } catch (e) { alert('Add failed'); }
   };
@@ -113,7 +114,7 @@ function AdminPage() {
           <label className="block text-sm font-medium mb-1">Add Slug</label>
           <div className="flex gap-2">
             <input value={newSlug} onChange={(e) => setNewSlug(e.target.value)} className="flex-1 p-2 rounded border" placeholder="owner/model:tag" />
-            <button onClick={addSlug} className="px-3 py-2 bg-[#0db7ed] text-white rounded">Add</button>
+            <button onClick={() => addSlug()} className="px-3 py-2 bg-[#0db7ed] text-white rounded">Add</button>
           </div>
         </div>
 

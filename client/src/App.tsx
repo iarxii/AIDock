@@ -96,11 +96,6 @@ function App() {
   const [localSelectedModel, setLocalSelectedModel] = useState<string>(() =>
     localStorage.getItem('aidock_local_model') || ''
   );
-  const [adminKey, setAdminKey] = useState<string>(() => localStorage.getItem('aidock_admin_key') || '');
-  const [whitelist, setWhitelist] = useState<string[]>([]);
-  const [whitelistLoading, setWhitelistLoading] = useState(false);
-  const [newWhitelistSlug, setNewWhitelistSlug] = useState('');
-  const [auditEntries, setAuditEntries] = useState<any[]>([]);
   const [cloudSelectedProvider, setCloudSelectedProvider] = useState<string>(() =>
     localStorage.getItem('aidock_cloud_provider') || ''
   );
@@ -232,66 +227,7 @@ function App() {
     return headers;
   };
 
-  // Admin whitelist management helpers
-  const adminHeaders = (): Record<string, string> => {
-    const h: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (adminKey) h['X-Admin-Key'] = adminKey;
-    return h;
-  };
-
-  const fetchWhitelist = async () => {
-    if (!adminKey) { alert('Admin key required'); return; }
-    setWhitelistLoading(true);
-    try {
-      const res = await fetch(getBackendUrl('admin/whitelist'), { headers: adminHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        setWhitelist(data.slugs || []);
-        localStorage.setItem('aidock_admin_key', adminKey);
-      } else {
-        const e = await res.json().catch(() => ({}));
-        alert('Failed to fetch whitelist: ' + (e.detail || res.status));
-      }
-    } catch (e) {
-      console.error('fetchWhitelist error', e);
-      alert('Error fetching whitelist');
-    } finally {
-      setWhitelistLoading(false);
-    }
-  };
-
-  const addWhitelist = async (slug: string) => {
-    if (!adminKey) { alert('Admin key required'); return; }
-    try {
-      const res = await fetch(getBackendUrl('admin/whitelist'), { method: 'POST', headers: adminHeaders(), body: JSON.stringify({ slug }) });
-      if (res.ok) {
-        const data = await res.json();
-        setWhitelist(data.slugs || []);
-      } else { alert('Add failed'); }
-    } catch (e) { console.error(e); alert('Add failed'); }
-  };
-
-  const removeWhitelist = async (slug: string) => {
-    if (!adminKey) { alert('Admin key required'); return; }
-    try {
-      const res = await fetch(getBackendUrl('admin/whitelist'), { method: 'DELETE', headers: adminHeaders(), body: JSON.stringify({ slug }) });
-      if (res.ok) {
-        const data = await res.json();
-        setWhitelist(data.slugs || []);
-      } else { alert('Remove failed'); }
-    } catch (e) { console.error(e); alert('Remove failed'); }
-  };
-
-  const fetchAudit = async () => {
-    if (!adminKey) { alert('Admin key required'); return; }
-    try {
-      const res = await fetch(getBackendUrl('admin/whitelist/audit'), { headers: adminHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        setAuditEntries(data.entries || []);
-      } else { alert('Failed to fetch audit'); }
-    } catch (e) { console.error(e); alert('Failed to fetch audit'); }
-  };
+  // Admin functions moved to dedicated AdminPage
 
   // ── Routing helper ────────────────────────────────────────────────────────
   const isCloudMode = (): boolean =>
