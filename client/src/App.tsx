@@ -6,6 +6,9 @@ import {
 } from 'lucide-react';
 import routeMap from './route_map.json';
 import SessionHistoryPanel from './components/SessionHistoryPanel';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import MermaidDiagram from './components/MermaidDiagram';
 
 interface Message {
   id: string;
@@ -1040,37 +1043,38 @@ function App() {
                 {/* Model Selection Dropdown */}
                 <div className="flex items-center gap-2">
                   {isCloudMode() ? (
-                    cloudModels.length > 0 && (
-                      <select
-                        value={cloudSelectedModel}
-                        disabled={cloudModelsLoading}
-                        onChange={(e) => {
-                          setCloudSelectedModel(e.target.value);
-                          localStorage.setItem('aidock_cloud_model', e.target.value);
-                        }}
-                        className="text-[10px] font-bold bg-[#E8ECF2] border border-black/5 text-[#4A4D5E] rounded-lg px-2 py-1 outline-none cursor-pointer w-32 truncate"
-                        title={cloudSelectedProvider ? `via ${cloudSelectedProvider}` : ''}
-                      >
-                        {cloudModels.map(m => (
-                          <option key={m.id} value={m.id}>{m.name || m.id}</option>
-                        ))}
-                      </select>
-                    )
+                    <select
+                      value={cloudSelectedModel}
+                      disabled={cloudModelsLoading || cloudModels.length === 0}
+                      onChange={(e) => {
+                        setCloudSelectedModel(e.target.value);
+                        localStorage.setItem('aidock_cloud_model', e.target.value);
+                      }}
+                      className="text-[10px] font-bold bg-[#E8ECF2] border border-black/5 text-[#4A4D5E] rounded-lg px-2 py-1 outline-none cursor-pointer w-32 truncate"
+                      title={cloudSelectedProvider ? `via ${cloudSelectedProvider}` : ''}
+                    >
+                      {cloudModels.length > 0 ? cloudModels.map(m => (
+                        <option key={m.id} value={m.id}>{m.name || m.id}</option>
+                      )) : (
+                        <option value="">{cloudModelsLoading ? "Loading..." : "No models"}</option>
+                      )}
+                    </select>
                   ) : (
-                    localModels.length > 0 && (
-                      <select
-                        value={localSelectedModel}
-                        onChange={(e) => {
-                          setLocalSelectedModel(e.target.value);
-                          localStorage.setItem('aidock_local_model', e.target.value);
-                        }}
-                        className="text-[10px] font-bold bg-[#E8ECF2] border border-black/5 text-[#4A4D5E] rounded-lg px-2 py-1 outline-none cursor-pointer w-32 truncate"
-                      >
-                        {localModels.map(m => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
-                      </select>
-                    )
+                    <select
+                      value={localSelectedModel}
+                      disabled={localModelsLoading || localModels.length === 0}
+                      onChange={(e) => {
+                        setLocalSelectedModel(e.target.value);
+                        localStorage.setItem('aidock_local_model', e.target.value);
+                      }}
+                      className="text-[10px] font-bold bg-[#E8ECF2] border border-black/5 text-[#4A4D5E] rounded-lg px-2 py-1 outline-none cursor-pointer w-32 truncate"
+                    >
+                      {localModels.length > 0 ? localModels.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      )) : (
+                        <option value="">{localModelsLoading ? "Loading..." : "No models"}</option>
+                      )}
+                    </select>
                   )}
                 </div>
 
@@ -1188,14 +1192,40 @@ function App() {
                         </div>
                       )}
                       
-                      <div
-                        className={`p-4 rounded-2xl shadow-sm text-sm border border-black/5 ${
+                      <div 
+                        className={`p-4 rounded-2xl shadow-sm text-sm border border-black/5 font-medium ${
                           msg.sender === 'user'
-                            ? 'bg-[#0db7ed] text-white user-corner-glow user-corner-glow-secondary font-medium rounded-tr-none'
-                            : 'bg-[#E2E6EC] text-[#1A1D2E] bot-corner-glow bot-corner-glow-secondary whitespace-pre-wrap'
+                            ? 'bg-[#0db7ed] text-white user-corner-glow'
+                            : 'bg-[#E2E6EC] text-[#1A1D2E] bot-corner-glow bot-corner-glow-secondary'
                         }`}
                       >
-                        {msg.content}
+                        <div className="prose prose-sm prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-[#1A1D2E] prose-pre:text-[#E8ECF2] prose-pre:border prose-pre:border-black/10">
+                          <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]} 
+                            components={{
+                            code({node, inline, className, children, ...props}: any) {
+                              const match = /language-(\w+)/.exec(className || '');
+                              const lang = match ? match[1] : '';
+                              if (!inline && lang === 'mermaid') {
+                                return <MermaidDiagram chart={String(children).replace(/\n$/, '')} />;
+                              }
+                              return !inline ? (
+                                <pre className={className} {...props}>
+                                  <code className={className} {...props}>
+                                    {children}
+                                  </code>
+                                </pre>
+                              ) : (
+                                <code className="bg-black/5 text-[#008bb9] px-1 py-0.5 rounded font-mono text-[11px]" {...props}>
+                                  {children}
+                                </code>
+                              );
+                            }
+                          }}
+                        >
+                          {msg.content}
+                          </ReactMarkdown>
+                        </div>
                       </div>
                       
                       <div className="flex items-center justify-between gap-4 px-2 text-[10px] text-[#7A7D8E]">

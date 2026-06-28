@@ -138,7 +138,7 @@ export default function SessionHistoryPanel({
               <button
                 key={session.id || session.session_id}
                 onClick={() => {
-                  onSelectSession(session.session_id);
+                  onSelectSession(session.session_id || String(session.id));
                   onClose();
                 }}
                 className={`w-full text-left p-3 rounded-lg border transition-all group relative ${
