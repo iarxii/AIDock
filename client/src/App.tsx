@@ -56,7 +56,11 @@ function MascotLogo({ className }: { className?: string }) {
 function App() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-  const [sessionId] = useState(`session_${Date.now()}`);
+  const [sessionId, setSessionId] = useState(`session_${Date.now()}`);
+  const [isEditingSession, setIsEditingSession] = useState(false);
+  const [tempSessionId, setTempSessionId] = useState('');
+  const [isCreatingFile, setIsCreatingFile] = useState(false);
+  const [newFileName, setNewFileName] = useState('');
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(true);
   
@@ -393,7 +397,7 @@ function App() {
       if (isCloudMode()) return;
       setLocalModelsLoading(true);
       try {
-        const res = await fetch(getBackendUrl('models'));
+        const res = await fetch(getBackendUrl('models/local'));
         if (res.ok) {
           const data = await res.json();
           const slugs: string[] = data.models || [];
@@ -432,6 +436,28 @@ function App() {
       }
     } catch (err: any) {
       alert(`Error loading file: ${err.message}`);
+    }
+  };
+
+  const createNewFile = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!newFileName.trim()) return;
+    try {
+      const res = await fetch(getBackendUrl('export'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, filename: newFileName.trim(), content: '' })
+      });
+      if (res.ok) {
+        fetchFiles();
+        openFileInEditor(newFileName.trim());
+        setIsCreatingFile(false);
+        setNewFileName('');
+      } else {
+        alert("Failed to create file");
+      }
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
     }
   };
 
@@ -697,8 +723,18 @@ function App() {
               {connected ? 'Neural Link Active' : 'Offline'}
             </span>
           </div>
-          <div className="text-xs text-[#7A7D8E]">
-            Session ID: <span className="font-mono bg-[#BFC4CC]/50 px-2 py-0.5 rounded text-[#1A1D2E] font-semibold">{sessionId}</span>
+          <div className="text-xs text-[#7A7D8E] flex items-center gap-1">
+            Session ID: 
+            {isEditingSession ? (
+              <form onSubmit={(e) => { e.preventDefault(); if (tempSessionId.trim()) setSessionId(tempSessionId.trim()); setIsEditingSession(false); }} className="flex items-center gap-1">
+                <input value={tempSessionId} onChange={e => setTempSessionId(e.target.value)} className="bg-white border border-[#0db7ed] px-1 py-0.5 rounded text-[#1A1D2E] font-semibold text-xs outline-none w-32" autoFocus onBlur={() => setIsEditingSession(false)} />
+              </form>
+            ) : (
+              <div className="flex items-center gap-1 cursor-pointer group" onClick={() => { setTempSessionId(sessionId); setIsEditingSession(true); }}>
+                <span className="font-mono bg-[#BFC4CC]/50 px-2 py-0.5 rounded text-[#1A1D2E] font-semibold group-hover:bg-[#BFC4CC] transition-colors">{sessionId}</span>
+                <Edit className="w-3 h-3 text-[#7A7D8E] group-hover:text-[#0db7ed] transition-colors" />
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -768,19 +804,35 @@ function App() {
 
           {/* Mount Collapsible Node File-Tree */}
           <div className="bg-[#D8DCE4] rounded-2xl border border-black/5 p-5 shadow-lg flex flex-col gap-3">
-            <button 
-              onClick={() => setIsFileTreeExpanded(!isFileTreeExpanded)}
-              className="text-sm font-bold text-[#1A1D2E] uppercase tracking-wider flex items-center justify-between w-full focus:outline-none"
-            >
-              <span className="flex items-center gap-2">
+            <div className="flex items-center justify-between">
+              <button 
+                onClick={() => setIsFileTreeExpanded(!isFileTreeExpanded)}
+                className="text-sm font-bold text-[#1A1D2E] uppercase tracking-wider flex items-center gap-2 focus:outline-none"
+              >
                 <Folder className="w-4 h-4 text-[#0db7ed]" /> Workspace Files
-              </span>
-              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isFileTreeExpanded ? '' : '-rotate-90'}`} />
-            </button>
+                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isFileTreeExpanded ? '' : '-rotate-90'}`} />
+              </button>
+              <button onClick={() => { setIsCreatingFile(true); setIsFileTreeExpanded(true); }} className="p-1 hover:bg-[#E8ECF2] rounded text-[#0db7ed] transition-colors" title="New File">
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
             
             {isFileTreeExpanded && (
               <div className="space-y-1.5 mt-1 max-h-[220px] overflow-y-auto pr-1">
-                {files.length === 0 ? (
+                {isCreatingFile && (
+                  <form onSubmit={createNewFile} className="flex items-center gap-2 bg-[#E8ECF2] p-1.5 rounded-xl border border-[#0db7ed]">
+                    <FileText className="w-3.5 h-3.5 text-[#0db7ed] ml-1" />
+                    <input 
+                      value={newFileName} 
+                      onChange={e => setNewFileName(e.target.value)} 
+                      placeholder="filename.txt" 
+                      className="bg-white px-2 py-1 text-xs outline-none w-full rounded border border-black/5" 
+                      autoFocus 
+                      onBlur={() => { setTimeout(() => { if (!newFileName.trim()) setIsCreatingFile(false); }, 200); }}
+                    />
+                  </form>
+                )}
+                {files.length === 0 && !isCreatingFile ? (
                   <div className="text-[11px] text-[#7A7D8E] italic p-3 bg-[#E8ECF2] rounded-xl border border-black/5 text-center">
                     No files in workspace yet. Click the + uploader below to attach one.
                   </div>
@@ -958,11 +1010,27 @@ function App() {
                       </div>
                       
                       <div className="flex items-center justify-between gap-4 px-2 text-[10px] text-[#7A7D8E]">
-                        {msg.workspaceUsed && (
-                          <div className="font-mono truncate max-w-[150px]" title={msg.workspaceUsed}>
-                            Workspace: {msg.workspaceUsed}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {msg.workspaceUsed && (
+                            <div className="font-mono truncate max-w-[150px]" title={msg.workspaceUsed}>
+                              Workspace: {msg.workspaceUsed}
+                            </div>
+                          )}
+                          {msg.sender === 'bot' && (
+                            <button 
+                              onClick={() => {
+                                setEditorFormat('markdown');
+                                setEditorFilename(`message_${msg.id}.md`);
+                                setEditorContent(msg.content);
+                                setEditorSaved(true);
+                                setIsTextEditorOpen(true);
+                              }}
+                              className="flex items-center gap-1 hover:text-[#0db7ed] transition-colors bg-[#D8DCE4] px-1.5 py-0.5 rounded"
+                            >
+                              <Edit className="w-3 h-3" /> Edit
+                            </button>
+                          )}
+                        </div>
                         {msg.latencyMs !== undefined && (
                           <div className="font-mono flex items-center gap-1 shrink-0 ml-auto">
                             <Activity className="w-3 h-3 text-[#0db7ed]" />
@@ -1025,6 +1093,37 @@ function App() {
                 </div>
                 
                 <div className="flex items-center gap-2">
+                  {isCloudMode() ? (
+                    cloudModels.length > 0 && (
+                      <select
+                        value={cloudSelectedModel}
+                        onChange={(e) => {
+                          setCloudSelectedModel(e.target.value);
+                          localStorage.setItem('aidock_cloud_model', e.target.value);
+                        }}
+                        className="text-[10px] font-bold bg-[#E8ECF2] border border-black/5 text-[#4A4D5E] rounded-lg px-2 py-1 outline-none cursor-pointer w-32 truncate"
+                      >
+                        {cloudModels.map(m => (
+                          <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                      </select>
+                    )
+                  ) : (
+                    localModels.length > 0 && (
+                      <select
+                        value={localSelectedModel}
+                        onChange={(e) => {
+                          setLocalSelectedModel(e.target.value);
+                          localStorage.setItem('aidock_local_model', e.target.value);
+                        }}
+                        className="text-[10px] font-bold bg-[#E8ECF2] border border-black/5 text-[#4A4D5E] rounded-lg px-2 py-1 outline-none cursor-pointer w-32 truncate"
+                      >
+                        {localModels.map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    )
+                  )}
                   <button
                     onClick={fetchFiles}
                     className="p-1 text-[#7A7D8E] hover:text-[#1A1D2E] transition-colors focus:outline-none"

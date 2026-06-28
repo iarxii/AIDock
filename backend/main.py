@@ -250,6 +250,27 @@ def get_info():
         "raw_model": model
     }
 
+@app.get("/models/local")
+def list_local_models():
+    slugs = _read_whitelist()
+    # Also add the currently active docker model if present
+    model = os.getenv("LLM_MODEL_NAME")
+    if not model:
+        image = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
+        model = f"docker.io/{image}"
+    
+    clean_model_name = model
+    if "/" in clean_model_name:
+        clean_model_name = clean_model_name.split("/")[-1]
+    
+    parts = clean_model_name.replace(":", " ").replace("-", " ").split()
+    clean_model_name = " ".join([p.upper() if p.lower() in ["e4b", "e2b", "llm", "vl", "awq", "gguf"] else p.capitalize() for p in parts])
+    
+    if clean_model_name not in slugs:
+        slugs.insert(0, clean_model_name)
+        
+    return {"models": slugs}
+
 
 @app.get("/models")
 def list_models():
