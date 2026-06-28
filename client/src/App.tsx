@@ -274,6 +274,8 @@ function App() {
   const [editorFormat, setEditorFormat] = useState<'markdown' | 'json'>('markdown');
   const [editorSaved, setEditorSaved] = useState(true);
   const [saveStatusText, setSaveStatusText] = useState('');
+  const [autoSave, setAutoSave] = useState(false);
+  const [isCapabilitiesExpanded, setIsCapabilitiesExpanded] = useState(true);
 
   // Workspace Files state
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
@@ -338,6 +340,25 @@ function App() {
   const handleEditorScroll = () => {
     if (editorTextareaRef.current && lineNumbersRef.current) {
       lineNumbersRef.current.scrollTop = editorTextareaRef.current.scrollTop;
+    }
+  };
+
+  // Autosave effect
+  useEffect(() => {
+    let timeout: any;
+    if (autoSave && !editorSaved) {
+      timeout = setTimeout(() => {
+        handleSaveFile(editorContent, editorFilename);
+      }, 3000);
+    }
+    return () => clearTimeout(timeout);
+  }, [autoSave, editorSaved, editorContent, editorFilename]);
+
+  // Handle Ctrl+S for text editor
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      handleSaveFile(editorContent, editorFilename);
     }
   };
 
@@ -876,25 +897,137 @@ function App() {
           </div>
 
           <div className="bg-[#D8DCE4] rounded-2xl border border-black/5 p-5 shadow-lg flex flex-col gap-3">
-            <h2 className="text-sm font-bold text-[#1A1D2E] uppercase tracking-wider flex items-center gap-2">
-              <Terminal className="w-4 h-4 text-[#0db7ed]" /> Available Capabilities
-            </h2>
-            <ul className="text-xs text-[#4A4D5E] space-y-2 font-medium">
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> File Reader / Writer
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> Sandboxed Code execution
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> Multi-agent reasoning loops
-              </li>
-            </ul>
+            <div className="flex items-center justify-between">
+              <button 
+                onClick={() => setIsCapabilitiesExpanded(!isCapabilitiesExpanded)}
+                className="text-sm font-bold text-[#1A1D2E] uppercase tracking-wider flex items-center gap-2 focus:outline-none"
+              >
+                <Terminal className="w-4 h-4 text-[#0db7ed]" /> Available Capabilities
+                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isCapabilitiesExpanded ? '' : '-rotate-90'}`} />
+              </button>
+            </div>
+            {isCapabilitiesExpanded && (
+              <ul className="text-xs text-[#4A4D5E] space-y-2 font-medium">
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> File Reader / Writer
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> Sandboxed Code execution
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> Multi-agent reasoning loops
+                </li>
+              </ul>
+            )}
           </div>
         </section>
 
+        {/* Right column: Text Editor Pane */}
+        {isTextEditorOpen && (
+          <section className="lg:col-span-6 flex flex-col h-[calc(100vh-140px)] min-h-[500px] bg-[#1A1D2E] text-[#E8ECF2] rounded-2xl border border-black/10 shadow-2xl p-5 overflow-hidden transition-all duration-300">
+            {/* Editor Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-3">
+              <div className="flex items-center gap-2 truncate mr-2">
+                <FileCode className="w-4 h-4 text-[#0db7ed] shrink-0" />
+                <span className="text-xs font-mono font-bold tracking-wide truncate" title={editorFilename}>{editorFilename}</span>
+                <span className={`w-2 h-2 rounded-full shrink-0 ${editorSaved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} title={editorSaved ? 'Saved' : 'Unsaved changes'} />
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1.5 text-xs text-[#7A7D8E] hover:text-white cursor-pointer transition-colors">
+                  <input type="checkbox" checked={autoSave} onChange={(e) => setAutoSave(e.target.checked)} className="accent-[#0db7ed]" />
+                  Autosave
+                </label>
+                <button
+                  onClick={() => setIsTextEditorOpen(false)}
+                  className="text-[#7A7D8E] hover:text-white transition-colors duration-200 focus:outline-none"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Format toggle & status bar */}
+            <div className="flex items-center justify-between mb-3 text-xs">
+              <div className="flex bg-[#2D314E] rounded-lg p-0.5 border border-white/5">
+                <button
+                  onClick={() => {
+                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
+                    setEditorFormat('markdown');
+                    setEditorFilename(`chat_export_${sessionId}.md`);
+                    setEditorContent(generateMarkdown(messages));
+                    setEditorSaved(true);
+                  }}
+                  className={`px-2.5 py-1 rounded-md font-bold transition-all ${editorFormat === 'markdown' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
+                >
+                  MD
+                </button>
+                <button
+                  onClick={() => {
+                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
+                    setEditorFormat('json');
+                    setEditorFilename(`chat_export_${sessionId}.json`);
+                    setEditorContent(generateJSON(messages));
+                    setEditorSaved(true);
+                  }}
+                  className={`px-2.5 py-1 rounded-md font-bold transition-all ${editorFormat === 'json' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
+                >
+                  JSON
+                </button>
+              </div>
+
+              {saveStatusText ? (
+                <span className="text-emerald-400 font-medium animate-pulse">{saveStatusText}</span>
+              ) : (
+                <span className="text-[#7A7D8E] font-mono">
+                  {editorSaved ? 'All changes saved' : 'Unsaved changes*'}
+                </span>
+              )}
+            </div>
+
+            {/* Textarea container */}
+            <div className="flex-1 relative flex bg-[#121420] rounded-xl border border-white/5 overflow-hidden p-3 font-mono text-xs">
+              {/* Line numbers */}
+              <div ref={lineNumbersRef} className="select-none text-right pr-3 border-r border-white/5 text-[#4A4D5E] font-mono leading-6 overflow-hidden">
+                {Array.from({ length: Math.max(editorContent.split('\n').length, 15) }).map((_, i) => (
+                  <div key={i}>{i + 1}</div>
+                ))}
+              </div>
+              <textarea
+                ref={editorTextareaRef}
+                value={editorContent}
+                onScroll={handleEditorScroll}
+                onKeyDown={handleEditorKeyDown}
+                onChange={(e) => {
+                  setEditorContent(e.target.value);
+                  setEditorSaved(false);
+                }}
+                className="flex-1 bg-transparent resize-none pl-3 outline-none border-none text-[#E8ECF2] font-mono leading-6 overflow-y-auto scrollbar-thin placeholder-white/20"
+                placeholder="Edit file contents..."
+              />
+            </div>
+
+            {/* Editor Actions */}
+            <div className="flex gap-2 mt-4 pt-3 border-t border-white/5">
+              <button
+                onClick={() => handleSaveFile(editorContent, editorFilename)}
+                className="flex-1 bg-[#0db7ed] hover:bg-[#008bb9] text-white text-xs font-bold py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save to Workspace</span>
+              </button>
+              <button
+                onClick={() => triggerDownload(editorContent, editorFilename)}
+                className="bg-[#2D314E] hover:bg-[#3D426A] text-white text-xs font-bold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 border border-white/5 transition-all"
+                title="Download locally"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* Middle column: Chat Area */}
-        <section className={`${isTextEditorOpen ? 'lg:col-span-5' : 'lg:col-span-9'} flex flex-col h-[calc(100vh-140px)] min-h-[500px] transition-all duration-300`}>
+        <section className={`${isTextEditorOpen ? 'lg:col-span-3' : 'lg:col-span-9'} flex flex-col h-[calc(100vh-140px)] min-h-[500px] transition-all duration-300`}>
           <div className="flex-1 bg-[#D8DCE4]/60 backdrop-blur-md rounded-2xl border border-black/5 shadow-2xl p-6 flex flex-col overflow-hidden">
             
             {/* Chat Area Header with Export Menu */}
@@ -903,8 +1036,45 @@ function App() {
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs font-bold text-[#1A1D2E] tracking-wide uppercase">Active Session Stream</span>
               </div>
-              
-              {messages.length > 0 && (
+              <div className="flex items-center gap-3">
+                {/* Model Selection Dropdown */}
+                <div className="flex items-center gap-2">
+                  {isCloudMode() ? (
+                    cloudModels.length > 0 && (
+                      <select
+                        value={cloudSelectedModel}
+                        disabled={cloudModelsLoading}
+                        onChange={(e) => {
+                          setCloudSelectedModel(e.target.value);
+                          localStorage.setItem('aidock_cloud_model', e.target.value);
+                        }}
+                        className="text-[10px] font-bold bg-[#E8ECF2] border border-black/5 text-[#4A4D5E] rounded-lg px-2 py-1 outline-none cursor-pointer w-32 truncate"
+                        title={cloudSelectedProvider ? `via ${cloudSelectedProvider}` : ''}
+                      >
+                        {cloudModels.map(m => (
+                          <option key={m.id} value={m.id}>{m.name || m.id}</option>
+                        ))}
+                      </select>
+                    )
+                  ) : (
+                    localModels.length > 0 && (
+                      <select
+                        value={localSelectedModel}
+                        onChange={(e) => {
+                          setLocalSelectedModel(e.target.value);
+                          localStorage.setItem('aidock_local_model', e.target.value);
+                        }}
+                        className="text-[10px] font-bold bg-[#E8ECF2] border border-black/5 text-[#4A4D5E] rounded-lg px-2 py-1 outline-none cursor-pointer w-32 truncate"
+                      >
+                        {localModels.map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    )
+                  )}
+                </div>
+
+                {messages.length > 0 && (
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setShowExportDropdown(!showExportDropdown)}
@@ -977,6 +1147,7 @@ function App() {
                   )}
                 </div>
               )}
+              </div>
             </div>
 
             {/* Message Stream */}
@@ -1111,37 +1282,6 @@ function App() {
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  {isCloudMode() ? (
-                    cloudModels.length > 0 && (
-                      <select
-                        value={cloudSelectedModel}
-                        onChange={(e) => {
-                          setCloudSelectedModel(e.target.value);
-                          localStorage.setItem('aidock_cloud_model', e.target.value);
-                        }}
-                        className="text-[10px] font-bold bg-[#E8ECF2] border border-black/5 text-[#4A4D5E] rounded-lg px-2 py-1 outline-none cursor-pointer w-32 truncate"
-                      >
-                        {cloudModels.map(m => (
-                          <option key={m.id} value={m.id}>{m.name}</option>
-                        ))}
-                      </select>
-                    )
-                  ) : (
-                    localModels.length > 0 && (
-                      <select
-                        value={localSelectedModel}
-                        onChange={(e) => {
-                          setLocalSelectedModel(e.target.value);
-                          localStorage.setItem('aidock_local_model', e.target.value);
-                        }}
-                        className="text-[10px] font-bold bg-[#E8ECF2] border border-black/5 text-[#4A4D5E] rounded-lg px-2 py-1 outline-none cursor-pointer w-32 truncate"
-                      >
-                        {localModels.map(m => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
-                      </select>
-                    )
-                  )}
                   <button
                     onClick={fetchFiles}
                     className="p-1 text-[#7A7D8E] hover:text-[#1A1D2E] transition-colors focus:outline-none"
@@ -1188,102 +1328,6 @@ function App() {
           </div>
         </section>
 
-        {/* Right column: Text Editor Pane */}
-        {isTextEditorOpen && (
-          <section className="lg:col-span-4 flex flex-col h-[calc(100vh-140px)] min-h-[500px] bg-[#1A1D2E] text-[#E8ECF2] rounded-2xl border border-black/10 shadow-2xl p-5 overflow-hidden transition-all duration-300">
-            {/* Editor Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-3">
-              <div className="flex items-center gap-2 truncate mr-2">
-                <FileCode className="w-4 h-4 text-[#0db7ed] shrink-0" />
-                <span className="text-xs font-mono font-bold tracking-wide truncate" title={editorFilename}>{editorFilename}</span>
-                <span className={`w-2 h-2 rounded-full shrink-0 ${editorSaved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} title={editorSaved ? 'Saved' : 'Unsaved changes'} />
-              </div>
-              <button
-                onClick={() => setIsTextEditorOpen(false)}
-                className="text-[#7A7D8E] hover:text-white transition-colors duration-200 focus:outline-none"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Format toggle & status bar */}
-            <div className="flex items-center justify-between mb-3 text-xs">
-              <div className="flex bg-[#2D314E] rounded-lg p-0.5 border border-white/5">
-                <button
-                  onClick={() => {
-                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
-                    setEditorFormat('markdown');
-                    setEditorFilename(`chat_export_${sessionId}.md`);
-                    setEditorContent(generateMarkdown(messages));
-                    setEditorSaved(true);
-                  }}
-                  className={`px-2.5 py-1 rounded-md font-bold transition-all ${editorFormat === 'markdown' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
-                >
-                  MD
-                </button>
-                <button
-                  onClick={() => {
-                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
-                    setEditorFormat('json');
-                    setEditorFilename(`chat_export_${sessionId}.json`);
-                    setEditorContent(generateJSON(messages));
-                    setEditorSaved(true);
-                  }}
-                  className={`px-2.5 py-1 rounded-md font-bold transition-all ${editorFormat === 'json' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
-                >
-                  JSON
-                </button>
-              </div>
-
-              {saveStatusText ? (
-                <span className="text-emerald-400 font-medium animate-pulse">{saveStatusText}</span>
-              ) : (
-                <span className="text-[#7A7D8E] font-mono">
-                  {editorSaved ? 'All changes saved' : 'Unsaved changes*'}
-                </span>
-              )}
-            </div>
-
-            {/* Textarea container */}
-            <div className="flex-1 relative flex bg-[#121420] rounded-xl border border-white/5 overflow-hidden p-3 font-mono text-xs">
-              {/* Line numbers */}
-              <div ref={lineNumbersRef} className="select-none text-right pr-3 border-r border-white/5 text-[#4A4D5E] font-mono leading-6 overflow-hidden">
-                {Array.from({ length: Math.max(editorContent.split('\n').length, 15) }).map((_, i) => (
-                  <div key={i}>{i + 1}</div>
-                ))}
-              </div>
-              <textarea
-                ref={editorTextareaRef}
-                value={editorContent}
-                onScroll={handleEditorScroll}
-                onChange={(e) => {
-                  setEditorContent(e.target.value);
-                  setEditorSaved(false);
-                }}
-                className="flex-1 bg-transparent resize-none pl-3 outline-none border-none text-[#E8ECF2] font-mono leading-6 overflow-y-auto scrollbar-thin placeholder-white/20"
-                placeholder="Edit file contents..."
-              />
-            </div>
-
-            {/* Editor Actions */}
-            <div className="flex gap-2 mt-4 pt-3 border-t border-white/5">
-              <button
-                onClick={() => handleSaveFile(editorContent, editorFilename)}
-                className="flex-1 bg-[#0db7ed] hover:bg-[#008bb9] text-white text-xs font-bold py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all"
-              >
-                <Save className="w-3.5 h-3.5" />
-                <span>Save to Workspace</span>
-              </button>
-              <button
-                onClick={() => triggerDownload(editorContent, editorFilename)}
-                className="bg-[#2D314E] hover:bg-[#3D426A] text-white text-xs font-bold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 border border-white/5 transition-all"
-                title="Download locally"
-              >
-                <Download className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </section>
-        )}
       </main>
 
       {/* Premium Settings Modal */}
@@ -1455,50 +1499,7 @@ function App() {
                     )}
                   </div>
 
-                  {/* ── Model Selector ── */}
-                  {cloudSpaces.find(s => s.slug === cloudSpaceSlug) && (
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[9px] font-bold text-[#7A7D8E] uppercase tracking-wider">
-                          Inference Model
-                        </label>
-                        {cloudModelsLoading && (
-                          <span className="text-[9px] text-[#0db7ed] font-medium flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full border border-[#0db7ed] border-t-transparent animate-spin" />
-                            Loading models…
-                          </span>
-                        )}
-                        {!cloudModelsLoading && cloudSelectedProvider && (
-                          <span className="text-[9px] font-mono text-[#7A7D8E] bg-black/5 px-1.5 py-0.5 rounded">
-                            via {cloudSelectedProvider}
-                          </span>
-                        )}
-                      </div>
-
-                      {cloudModels.length > 0 ? (
-                        <select
-                          value={cloudSelectedModel}
-                          onChange={(e) => {
-                            setCloudSelectedModel(e.target.value);
-                            localStorage.setItem('aidock_cloud_model', e.target.value);
-                          }}
-                          className="w-full bg-white/60 focus:bg-white border border-black/5 rounded-lg px-3 py-2 text-xs font-medium text-[#1A1D2E] outline-none transition-all appearance-none cursor-pointer"
-                        >
-                          {cloudModels.map(m => (
-                            <option key={m.id} value={m.id}>{m.name || m.id}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        !cloudModelsLoading && (
-                          <p className="text-[10px] text-[#7A7D8E] italic">
-                            No models available for this space's provider.
-                          </p>
-                        )
-                      )}
-                    </div>
-                  )}
-
-
+                  {/* Model Selector removed and placed in Chat Area Header */}
                   {/* Auth status feedback */}
                   {cloudAuthStatus === 'error' && (
                     <p className="text-[10px] text-red-600 font-medium">

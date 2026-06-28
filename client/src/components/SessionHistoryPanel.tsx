@@ -105,7 +105,7 @@ export default function SessionHistoryPanel({
       >
         <div className="flex items-center justify-between p-4 border-b border-black/5 bg-white">
           <h2 className="text-sm font-bold text-[#1A1D2E] flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#F97316]" />
+            <Clock className="w-4 h-4 text-[#0db7ed]" />
             History
           </h2>
           <button 
@@ -119,7 +119,7 @@ export default function SessionHistoryPanel({
         <div className="p-4 bg-white border-b border-black/5">
           <button
             onClick={handleNewSession}
-            className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-semibold rounded-lg shadow-sm transition-all"
+            className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-[#0db7ed] hover:bg-[#008bb9] text-white text-xs font-semibold rounded-lg shadow-sm transition-all"
           >
             <Plus className="w-3.5 h-3.5" />
             New Workspace
@@ -143,17 +143,17 @@ export default function SessionHistoryPanel({
                 }}
                 className={`w-full text-left p-3 rounded-lg border transition-all group relative ${
                   activeSessionId === session.session_id || activeSessionId === String(session.id)
-                    ? 'bg-[#FFEDD5] border-[#F97316] shadow-sm'
-                    : 'bg-white border-black/5 hover:border-[#F97316]/30 hover:shadow-sm'
+                    ? 'bg-[#E8F7FD] border-[#0db7ed] shadow-sm'
+                    : 'bg-white border-black/5 hover:border-[#0db7ed]/30 hover:shadow-sm'
                 }`}
               >
                 <div className="flex items-start gap-2">
                   <MessageSquare className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${
-                    activeSessionId === session.session_id ? 'text-[#F97316]' : 'text-[#7A7D8E]'
+                    activeSessionId === session.session_id ? 'text-[#0db7ed]' : 'text-[#7A7D8E]'
                   }`} />
                   <div className="flex-1 min-w-0">
                     <p className={`text-xs font-semibold truncate ${
-                      activeSessionId === session.session_id ? 'text-[#C2410C]' : 'text-[#1A1D2E]'
+                      activeSessionId === session.session_id ? 'text-[#008bb9]' : 'text-[#1A1D2E]'
                     }`}>
                       {session.title || session.session_id}
                     </p>
