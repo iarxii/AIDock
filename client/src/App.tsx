@@ -90,6 +90,17 @@ function App() {
   const [cloudSelectedModel, setCloudSelectedModel] = useState<string>(() =>
     localStorage.getItem('aidock_cloud_model') || ''
   );
+  // Local models fetched from backend `/models`
+  const [localModels, setLocalModels] = useState<string[]>([]);
+  const [localModelsLoading, setLocalModelsLoading] = useState(false);
+  const [localSelectedModel, setLocalSelectedModel] = useState<string>(() =>
+    localStorage.getItem('aidock_local_model') || ''
+  );
+  const [adminKey, setAdminKey] = useState<string>(() => localStorage.getItem('aidock_admin_key') || '');
+  const [whitelist, setWhitelist] = useState<string[]>([]);
+  const [whitelistLoading, setWhitelistLoading] = useState(false);
+  const [newWhitelistSlug, setNewWhitelistSlug] = useState('');
+  const [auditEntries, setAuditEntries] = useState<any[]>([]);
   const [cloudSelectedProvider, setCloudSelectedProvider] = useState<string>(() =>
     localStorage.getItem('aidock_cloud_provider') || ''
   );
@@ -219,6 +230,67 @@ function App() {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (cloudToken) headers['Authorization'] = `Bearer ${cloudToken}`;
     return headers;
+  };
+
+  // Admin whitelist management helpers
+  const adminHeaders = (): Record<string, string> => {
+    const h: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (adminKey) h['X-Admin-Key'] = adminKey;
+    return h;
+  };
+
+  const fetchWhitelist = async () => {
+    if (!adminKey) { alert('Admin key required'); return; }
+    setWhitelistLoading(true);
+    try {
+      const res = await fetch(getBackendUrl('admin/whitelist'), { headers: adminHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setWhitelist(data.slugs || []);
+        localStorage.setItem('aidock_admin_key', adminKey);
+      } else {
+        const e = await res.json().catch(() => ({}));
+        alert('Failed to fetch whitelist: ' + (e.detail || res.status));
+      }
+    } catch (e) {
+      console.error('fetchWhitelist error', e);
+      alert('Error fetching whitelist');
+    } finally {
+      setWhitelistLoading(false);
+    }
+  };
+
+  const addWhitelist = async (slug: string) => {
+    if (!adminKey) { alert('Admin key required'); return; }
+    try {
+      const res = await fetch(getBackendUrl('admin/whitelist'), { method: 'POST', headers: adminHeaders(), body: JSON.stringify({ slug }) });
+      if (res.ok) {
+        const data = await res.json();
+        setWhitelist(data.slugs || []);
+      } else { alert('Add failed'); }
+    } catch (e) { console.error(e); alert('Add failed'); }
+  };
+
+  const removeWhitelist = async (slug: string) => {
+    if (!adminKey) { alert('Admin key required'); return; }
+    try {
+      const res = await fetch(getBackendUrl('admin/whitelist'), { method: 'DELETE', headers: adminHeaders(), body: JSON.stringify({ slug }) });
+      if (res.ok) {
+        const data = await res.json();
+        setWhitelist(data.slugs || []);
+      } else { alert('Remove failed'); }
+    } catch (e) { console.error(e); alert('Remove failed'); }
+  };
+
+  const fetchAudit = async () => {
+    if (!adminKey) { alert('Admin key required'); return; }
+    try {
+      const res = await fetch(getBackendUrl('admin/whitelist/audit'), { headers: adminHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setAuditEntries(data.entries || []);
+      } else { alert('Failed to fetch audit'); }
+    } catch (e) { console.error(e); alert('Failed to fetch audit'); }
   };
 
   // ── Routing helper ────────────────────────────────────────────────────────
@@ -377,6 +449,32 @@ function App() {
       }
     };
     fetchInfo();
+  }, [backendMode]);
+
+  // Fetch local /models when in local backend mode
+  useEffect(() => {
+    const fetchLocalModels = async () => {
+      if (isCloudMode()) return;
+      setLocalModelsLoading(true);
+      try {
+        const res = await fetch(getBackendUrl('models'));
+        if (res.ok) {
+          const data = await res.json();
+          const slugs: string[] = data.models || [];
+          setLocalModels(slugs);
+          // Pre-select first if none selected
+          if (!localSelectedModel && slugs.length > 0) {
+            setLocalSelectedModel(slugs[0]);
+            localStorage.setItem('aidock_local_model', slugs[0]);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch local models:', e);
+      } finally {
+        setLocalModelsLoading(false);
+      }
+    };
+    fetchLocalModels();
   }, [backendMode]);
 
   // Load a file from tree into editor
@@ -563,7 +661,7 @@ function App() {
         : {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: currentInput, session_id: sessionId }),
+              body: JSON.stringify({ message: currentInput, session_id: sessionId, model_slug: localSelectedModel || undefined }),
           };
 
       let res = await fetch(chatUrl, fetchOptions);
@@ -641,6 +739,13 @@ function App() {
 
         <div className="flex items-center gap-4">
           <button 
+            onClick={() => window.location.href = '/admin'}
+            className="p-2 text-[#7A7D8E] hover:text-[#0db7ed] hover:bg-black/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
+            title="Admin"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+          <button 
             onClick={() => setShowSettingsModal(true)}
             className="p-2 text-[#7A7D8E] hover:text-[#0db7ed] hover:bg-black/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
             title="Connection Settings"
@@ -683,9 +788,33 @@ function App() {
 
               <div className="bg-[#E8ECF2] p-3 rounded-xl border border-black/5">
                 <span className="text-[10px] text-[#7A7D8E] block uppercase font-medium">Orchestrator LLM</span>
-                <span className="text-xs font-semibold text-[#4A4D5E] flex items-center gap-1.5 mt-1">
-                  <Database className="w-3.5 h-3.5 text-[#0db7ed]" /> {activeModel}
-                </span>
+                        <div className="text-xs font-semibold text-[#4A4D5E] mt-1 flex items-center gap-2">
+                          <Database className="w-3.5 h-3.5 text-[#0db7ed]" />
+                          <div>{activeModel}</div>
+                        </div>
+
+                        {!isCloudMode() && (
+                          <div className="mt-2">
+                            <label className="text-[10px] text-[#7A7D8E] block uppercase font-medium mb-1">Local Model</label>
+                            <select
+                              value={localSelectedModel}
+                              onChange={(e) => {
+                                setLocalSelectedModel(e.target.value);
+                                localStorage.setItem('aidock_local_model', e.target.value);
+                              }}
+                              className="w-full text-xs p-2 rounded-lg bg-white border border-black/5 text-[#1A1D2E]"
+                              disabled={localModelsLoading || localModels.length === 0}
+                            >
+                              {localModelsLoading ? (
+                                <option>Loading models...</option>
+                              ) : localModels.length === 0 ? (
+                                <option>No local models</option>
+                              ) : (
+                                localModels.map((m) => <option key={m} value={m}>{m}</option>)
+                              )}
+                            </select>
+                          </div>
+                        )}
               </div>
 
               <div className="bg-[#E8ECF2] p-3 rounded-xl border border-black/5">
@@ -696,6 +825,8 @@ function App() {
               </div>
             </div>
           </div>
+            
+              {/* Admin moved to separate page */}
 
           {/* Mount Collapsible Node File-Tree */}
           <div className="bg-[#D8DCE4] rounded-2xl border border-black/5 p-5 shadow-lg flex flex-col gap-3">
