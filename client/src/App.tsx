@@ -525,6 +525,12 @@ function App() {
     return md.trim();
   };
 
+  const handleSelectSession = (newSessionId: string) => {
+    setSessionId(newSessionId);
+    setMessages([]);
+    setFiles([]);
+  };
+
   const generateJSON = (msgs: Message[]) => {
     const data = {
       session_id: sessionId,
@@ -709,7 +715,7 @@ function App() {
             <MascotLogo className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-[#1A1D2E]">AIDOCK</h1>
+            <h1 className="text-xl font-bold tracking-tight text-[#1A1D2E]">AIDock</h1>
             <span className="text-[10px] text-[#7A7D8E] font-medium tracking-widest uppercase">Orchestrator v2.0</span>
           </div>
         </div>
@@ -1585,6 +1591,17 @@ function App() {
           </div>
         </div>
       )}
+
+      <SessionHistoryPanel
+        isOpen={isHistoryPanelOpen}
+        onClose={() => setIsHistoryPanelOpen(false)}
+        activeSessionId={sessionId}
+        onSelectSession={handleSelectSession}
+        isCloudMode={isCloudMode}
+        cloudSpaceSlug={cloudSpaceSlug}
+        cloudToken={cloudToken}
+        customEndpoint={customEndpoint}
+      />
     </div>
   );
 }

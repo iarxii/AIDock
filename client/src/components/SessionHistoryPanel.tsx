@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, MessageSquare, Clock, Plus, Trash2 } from 'lucide-react';
+import { X, MessageSquare, Clock, Plus } from 'lucide-react';
 import routeMap from '../route_map.json';
 
 interface Session {
@@ -43,7 +43,7 @@ export default function SessionHistoryPanel({
     return customEndpoint || `http://localhost:${window.location.port === '3000' ? '8080' : window.location.port}/${endpoint}`;
   };
 
-  const cloudAuthHeaders = () => {
+  const cloudAuthHeaders = (): Record<string, string> => {
     return isCloudMode() ? { 'Authorization': `Bearer ${cloudToken}` } : {};
   };
 
