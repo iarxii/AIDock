@@ -9,11 +9,11 @@
   --bg-input: #BFC4CC;
   --bg-elevated: #E8ECF2;
   --bg-chat-bot: #E2E6EC;
-  --bg-chat-user: #fd3b12;
-  --accent: #fd3b12;
-  --accent-hover: #E65C00;
-  --accent-glow: rgba(253, 59, 18, 0.15);
-  --accent-border: rgba(253, 59, 18, 0.35);
+  --bg-chat-user: #0db7ed;
+  --accent: #0db7ed;
+  --accent-hover: #008bb9;
+  --accent-glow: rgba(13, 183, 237, 0.15);
+  --accent-border: rgba(13, 183, 237, 0.35);
   --text-primary: #1A1D2E;
   --text-secondary: #4A4D5E;
   --text-muted: #7A7D8E;
@@ -51,7 +51,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 102, 0, 0.35);
+  background: rgba(13, 183, 237, 0.35);
 }
 
 /* Animation utilities */
@@ -75,7 +75,7 @@ body {
   left: -1px;
   width: 50%;
   height: 4px;
-  background: linear-gradient(to right, #fd3b12, transparent);
+  background: linear-gradient(to right, #0db7ed, transparent);
   border-radius: 0;
   z-index: 10;
 }
@@ -86,7 +86,7 @@ body {
   left: -1px;
   width: 4px;
   height: 50%;
-  background: linear-gradient(to bottom, #fd3b12, transparent);
+  background: linear-gradient(to bottom, #0db7ed, transparent);
   border-radius: 0;
   z-index: 10;
 }
