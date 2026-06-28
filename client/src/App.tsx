@@ -4,6 +4,7 @@ import {
   Download, FileText, ChevronDown, Save, X, Edit, FileCode,
   Folder, Plus, RefreshCw, Trash2, Settings, ShieldAlert
 } from 'lucide-react';
+import routeMap from './route_map.json';
 
 interface Message {
   id: string;
@@ -66,10 +67,10 @@ function App() {
   
   // Latency timer state
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [activeModel, setActiveModel] = useState('Gemma4 E4B');
+  const [activeModel, setActiveModel] = useState('Detecting...');
   
   // ── Cloud Credentials ─────────────────────────────────────────────────────
-  const CLOUD_BE = 'https://aicodex-be-1096425756328.us-central1.run.app';
+  const CLOUD_BE = routeMap.backend_url;
 
   const [backendMode, setBackendMode] = useState<string>(() =>
     localStorage.getItem('aidock_backend_mode') || 'local'
@@ -144,6 +145,10 @@ function App() {
 
   // Fetch models for the selected space's recommended provider
   const fetchCloudModels = async (token: string, space: CloudSpace) => {
+    // Clear previous models so they don't leak into the new space's requests
+    setCloudSelectedModel('');
+    setCloudSelectedProvider('');
+    
     const provider = space.recommended_provider;
     if (!provider || provider === 'local') {
       setCloudModels([]);
@@ -177,10 +182,14 @@ function App() {
         localStorage.setItem('aidock_cloud_provider', provider);
       } else {
         setCloudModels([]);
+        setCloudSelectedModel('');
+        setCloudSelectedProvider('');
       }
     } catch (e) {
       console.error('Failed to fetch cloud models:', e);
       setCloudModels([]);
+      setCloudSelectedModel('');
+      setCloudSelectedProvider('');
     } finally {
       setCloudModelsLoading(false);
     }
@@ -686,7 +695,13 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#C8CDD5] text-[#1A1D2E]">
+    <div className="flex flex-col min-h-screen bg-[#C8CDD5] text-[#1A1D2E] relative">
+      {/* Global Toast Notification */}
+      {saveStatusText && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-[#1A1D2E] text-emerald-400 text-xs font-bold px-6 py-3 rounded-full shadow-2xl animate-bounce">
+          {saveStatusText}
+        </div>
+      )}
       {/* Premium Header */}
       <header className="sticky top-0 z-50 bg-[#D8DCE4]/80 backdrop-blur-md border-b border-black/5 px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
@@ -1401,6 +1416,9 @@ function App() {
                             onClick={() => {
                               setCloudSpaceSlug(space.slug);
                               localStorage.setItem('aidock_cloud_space', space.slug);
+                              setActiveModel(`AICodex Cloud · ${space.slug}`);
+                              setSaveStatusText(`Switched to: ${space.name}`);
+                              setTimeout(() => setSaveStatusText(''), 3000);
                             }}
                             className={`p-2.5 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
                               cloudSpaceSlug === space.slug
@@ -1526,7 +1544,9 @@ function App() {
 
                 <div className="text-[10px] text-[#7A7D8E] font-medium leading-relaxed">
                   Active Chat Endpoint:<br />
-                  <span className="font-mono text-[#1A1D2E] break-all select-all">{getBackendUrl('chat')}</span>
+                  <span className="font-mono text-[#1A1D2E] break-all select-all">
+                    {isCloudMode() ? 'https://[HIDDEN-FOR-SECURITY]/api/chat' : getBackendUrl('chat')}
+                  </span>
                 </div>
 
                 <button
