@@ -58,6 +58,251 @@ function MascotLogo({ className }: { className?: string }) {
   );
 }
 
+interface CanvasCodeBlockProps {
+  info: string;
+  content: string;
+  setEditorFilename: (name: string) => void;
+  setEditorContent: (content: string) => void;
+  setEditorSaved: (saved: boolean) => void;
+  setIsTextEditorOpen: (open: boolean) => void;
+  setEditorFormat: (format: 'markdown' | 'json') => void;
+}
+
+function CanvasCodeBlock({
+  info,
+  content,
+  setEditorFilename,
+  setEditorContent,
+  setEditorSaved,
+  setIsTextEditorOpen,
+  setEditorFormat
+}: CanvasCodeBlockProps) {
+  const [copied, setCopied] = useState(false);
+
+  let parts = info.split(':');
+  let filePath = info;
+  if (parts.length > 1) {
+    filePath = parts.slice(0, -1).join(':');
+  }
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleLoadInEditor = () => {
+    setEditorFilename(filePath);
+    setEditorContent(content);
+    const ext = filePath.split('.').pop() || '';
+    setEditorFormat(ext === 'json' ? 'json' : 'markdown');
+    setEditorSaved(false);
+    setIsTextEditorOpen(true);
+  };
+
+  const lines = content.split('\n');
+
+  return (
+    <div className="my-4 rounded-xl border border-black/5 bg-[#1E1E2E] text-slate-200 overflow-hidden shadow-md flex flex-col font-mono text-[12px]">
+      <div className="h-10 px-4 flex items-center justify-between border-b border-white/5 bg-black/25">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 mr-2">
+            <div className="w-[8px] h-[8px] rounded-full bg-[#FF5F57]"></div>
+            <div className="w-[8px] h-[8px] rounded-full bg-[#FEBC2E]"></div>
+            <div className="w-[8px] h-[8px] rounded-full bg-[#28C840]"></div>
+          </div>
+          <span className="text-[10px] text-slate-400 font-bold truncate max-w-[200px]" title={filePath}>Canvas Code: {filePath}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleLoadInEditor}
+            className="px-2 py-1 rounded bg-[#0db7ed]/15 hover:bg-[#0db7ed]/25 text-[#0db7ed] border border-[#0db7ed]/20 text-[9px] font-bold transition-all"
+            title="Load this code into the workspace editor"
+          >
+            Open in Editor
+          </button>
+          <button
+            onClick={handleCopy}
+            className={`px-2 py-1 rounded text-[9px] font-bold border transition-all ${
+              copied
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10'
+            }`}
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+      </div>
+      <div className="p-3 overflow-auto max-h-[300px] leading-relaxed select-text">
+        {lines.map((line, i) => (
+          <div key={i} className="flex hover:bg-white/[0.02]">
+            <span className="select-none w-8 shrink-0 text-right pr-3 text-slate-600 text-[10px]">
+              {i + 1}
+            </span>
+            <span className="whitespace-pre flex-1 text-slate-300">{line || '\u00A0'}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TutorBlock({ content }: { content: string }) {
+  return (
+    <div className="my-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="rounded-xl border border-black/5 bg-white/50 backdrop-blur-sm overflow-hidden shadow-sm">
+        <div className="px-4 py-2 border-b border-black/5 bg-[#0db7ed]/10 flex items-center gap-2">
+          <span className="text-xs">💡</span>
+          <span className="text-[10px] font-black uppercase tracking-wider text-[#008bb9]">Neural Tutor</span>
+        </div>
+        <div className="p-4 text-[13px] text-[#1A1D2E] leading-relaxed italic prose prose-sm max-w-none">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SpiritBlock({ content }: { content: string }) {
+  return (
+    <div className="my-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <div className="relative p-5 rounded-2xl bg-white/40 border border-white/50 shadow-sm overflow-hidden group">
+        <div className="relative flex flex-col sm:flex-row gap-4">
+          <div className="shrink-0 flex justify-center sm:justify-start">
+            <div className="relative">
+              <div className="absolute inset-0 bg-[#0db7ed]/20 rounded-full blur-md animate-pulse"></div>
+              <div className="w-12 h-12 rounded-full border-2 border-white bg-white/80 relative z-10 shadow flex items-center justify-center text-xl">
+                🐦
+              </div>
+              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full z-20 shadow-sm"></div>
+            </div>
+          </div>
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#0db7ed]">Spirit Bird</span>
+                <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-white text-[#0db7ed] border border-[#0db7ed]/10 uppercase tracking-widest">Mascot</span>
+              </div>
+            </div>
+            <div className="text-[13px] text-[#4A4D5E] leading-relaxed italic prose prose-sm max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+            </div>
+            <div className="pt-2 flex items-center gap-3">
+              <div className="h-[1px] flex-1 bg-gradient-to-r from-[#0db7ed]/30 to-transparent"></div>
+              <span className="text-[9px] font-serif italic text-[#008bb9] opacity-80">— Spirit Bird</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function preprocessCustomTags(text: string): string {
+  if (!text) return text;
+  
+  const lines = text.split('\n');
+  let output: string[] = [];
+  
+  let activeBlock: 'tutor' | 'spirit' | 'canvas-code' | null = null;
+  let activeBlockContent: string[] = [];
+  let activeBlockInfo: string | null = null;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    const hasTutorOpen = line.includes('[TUTOR]');
+    const hasTutorClose = line.includes('[/TUTOR]');
+    const hasSpiritOpen = line.includes('[SPIRIT]');
+    const hasSpiritClose = line.includes('[/SPIRIT]');
+    const canvasOpenMatch = line.match(/\[CANVAS:CODE:([^\]]+)\]/);
+    const hasCanvasClose = line.includes('[/CANVAS:CODE]');
+    
+    if (hasTutorOpen) {
+      if (activeBlock) {
+        closeActiveBlock(output, activeBlock, activeBlockContent, activeBlockInfo);
+      }
+      activeBlock = 'tutor';
+      activeBlockContent = [];
+      activeBlockInfo = null;
+      
+      let content = line.substring(line.indexOf('[TUTOR]') + 7);
+      if (content.trim()) activeBlockContent.push(content);
+    } else if (hasSpiritOpen) {
+      if (activeBlock) {
+        closeActiveBlock(output, activeBlock, activeBlockContent, activeBlockInfo);
+      }
+      activeBlock = 'spirit';
+      activeBlockContent = [];
+      activeBlockInfo = null;
+      
+      let content = line.substring(line.indexOf('[SPIRIT]') + 8);
+      if (content.trim()) activeBlockContent.push(content);
+    } else if (canvasOpenMatch) {
+      if (activeBlock) {
+        closeActiveBlock(output, activeBlock, activeBlockContent, activeBlockInfo);
+      }
+      activeBlock = 'canvas-code';
+      activeBlockContent = [];
+      activeBlockInfo = canvasOpenMatch[1];
+      
+      let content = line.substring(line.indexOf(canvasOpenMatch[0]) + canvasOpenMatch[0].length);
+      if (content.trim()) activeBlockContent.push(content);
+    } else if (hasTutorClose || hasSpiritClose || hasCanvasClose) {
+      if (activeBlock) {
+        let closeTag = '';
+        if (activeBlock === 'tutor') closeTag = '[/TUTOR]';
+        else if (activeBlock === 'spirit') closeTag = '[/SPIRIT]';
+        else if (activeBlock === 'canvas-code') closeTag = '[/CANVAS:CODE]';
+        
+        let content = line.substring(0, line.indexOf(closeTag));
+        if (content.trim()) activeBlockContent.push(content);
+        
+        closeActiveBlock(output, activeBlock, activeBlockContent, activeBlockInfo);
+      }
+      activeBlock = null;
+      activeBlockContent = [];
+      activeBlockInfo = null;
+      
+      let closeTag = '';
+      if (hasTutorClose) closeTag = '[/TUTOR]';
+      else if (hasSpiritClose) closeTag = '[/SPIRIT]';
+      else if (hasCanvasClose) closeTag = '[/CANVAS:CODE]';
+      
+      let afterContent = line.substring(line.indexOf(closeTag) + closeTag.length);
+      if (afterContent.trim()) output.push(afterContent);
+    } else {
+      if (activeBlock) {
+        activeBlockContent.push(line);
+      } else {
+        output.push(line);
+      }
+    }
+  }
+  
+  if (activeBlock) {
+    closeActiveBlock(output, activeBlock, activeBlockContent, activeBlockInfo);
+  }
+  
+  return output.join('\n');
+}
+
+function closeActiveBlock(
+  output: string[],
+  type: 'tutor' | 'spirit' | 'canvas-code',
+  contentLines: string[],
+  info: string | null
+) {
+  const content = contentLines.join('\n');
+  if (type === 'tutor') {
+    output.push(`\n\`\`\`tutor\n${content}\n\`\`\`\n`);
+  } else if (type === 'spirit') {
+    output.push(`\n\`\`\`spirit\n${content}\n\`\`\`\n`);
+  } else if (type === 'canvas-code') {
+    output.push(`\n\`\`\`canvas-code:${info}\n${content}\n\`\`\`\n`);
+  }
+}
+
 function App() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -277,6 +522,7 @@ function App() {
   const [editorFormat, setEditorFormat] = useState<'markdown' | 'json'>('markdown');
   const [editorSaved, setEditorSaved] = useState(true);
   const [saveStatusText, setSaveStatusText] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [autoSave, setAutoSave] = useState(false);
   const [isCapabilitiesExpanded, setIsCapabilitiesExpanded] = useState(true);
 
@@ -386,6 +632,54 @@ function App() {
       console.error("Error fetching files:", err);
     }
   };
+
+  // Fetch session messages
+  const fetchSessionMessages = async (sid: string) => {
+    if (!sid) return;
+    try {
+      const endpoint = isCloudMode() 
+        ? `conversations/by-session/${sid}` 
+        : `sessions/${sid}/messages`;
+      
+      const url = getBackendUrl(endpoint);
+      const headers: HeadersInit = isCloudMode() ? cloudAuthHeaders() : {};
+      
+      const res = await fetch(url, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        let msgs: Message[] = [];
+        if (isCloudMode()) {
+          const cloudMessages = data.messages || [];
+          msgs = cloudMessages.map((m: any) => {
+            let workspaceUsed = undefined;
+            if (m.metadata_json) {
+              try {
+                workspaceUsed = JSON.parse(m.metadata_json).workspace_used;
+              } catch (e) {}
+            }
+            return {
+              id: String(m.id),
+              sender: m.role === 'user' ? 'user' : 'bot',
+              content: m.content,
+              workspaceUsed
+            };
+          });
+        } else {
+          msgs = data.messages || [];
+        }
+        setMessages(msgs);
+      } else {
+        setMessages([]);
+      }
+    } catch (e) {
+      console.error("Failed to fetch session messages:", e);
+      setMessages([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchSessionMessages(sessionId);
+  }, [sessionId, backendMode, cloudSpaceSlug]);
 
   // Fetch files when messages list changes
   useEffect(() => {
@@ -584,6 +878,8 @@ function App() {
   };
 
   const handleSaveFile = async (content: string, filename: string) => {
+    setIsSaving(true);
+    setSaveStatusText('Saving...');
     try {
       const res = await fetch(getBackendUrl('export'), {
         method: 'POST',
@@ -598,11 +894,16 @@ function App() {
         throw new Error('Save to workspace failed');
       }
       setEditorSaved(true);
-      setSaveStatusText('Saved successfully to workspace!');
+      setSaveStatusText('Saved successfully!');
       fetchFiles();
-      setTimeout(() => setSaveStatusText(''), 3000);
     } catch (err: any) {
+      setSaveStatusText('Save failed');
       alert(`Error saving to workspace: ${err.message}`);
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => {
+        setSaveStatusText(prev => prev === 'Saved successfully!' || prev === 'Saving...' || prev === 'Save failed' ? '' : prev);
+      }, 2000);
     }
   };
 
@@ -649,7 +950,7 @@ function App() {
       const chatUrl = getBackendUrl('chat');
 
       // Cloud uses the codegen spaces endpoint; local uses the standard chat endpoint
-      const cloudBody: Record<string, string> = { prompt: currentInput };
+      const cloudBody: Record<string, string> = { prompt: currentInput, session_id: sessionId };
       if (cloudSelectedModel) cloudBody.model = cloudSelectedModel;
       if (cloudSelectedProvider) cloudBody.provider = cloudSelectedProvider;
 
@@ -936,10 +1237,16 @@ function App() {
                 <span className={`w-2 h-2 rounded-full shrink-0 ${editorSaved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} title={editorSaved ? 'Saved' : 'Unsaved changes'} />
               </div>
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1.5 text-xs text-[#7A7D8E] hover:text-white cursor-pointer transition-colors">
-                  <input type="checkbox" checked={autoSave} onChange={(e) => setAutoSave(e.target.checked)} className="accent-[#0db7ed]" />
-                  Autosave
-                </label>
+                <div className="flex items-center gap-2 select-none">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-[#7A7D8E]">Autosave</span>
+                  <button
+                    onClick={() => setAutoSave(!autoSave)}
+                    className={`relative w-8 h-4 rounded-full transition-colors duration-200 focus:outline-none ${autoSave ? 'bg-[#0db7ed]' : 'bg-[#2D314E]'}`}
+                    title="Toggle Autosave"
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 ${autoSave ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
                 <button
                   onClick={() => setIsTextEditorOpen(false)}
                   className="text-[#7A7D8E] hover:text-white transition-colors duration-200 focus:outline-none"
@@ -1013,10 +1320,15 @@ function App() {
             <div className="flex gap-2 mt-4 pt-3 border-t border-white/5">
               <button
                 onClick={() => handleSaveFile(editorContent, editorFilename)}
-                className="flex-1 bg-[#0db7ed] hover:bg-[#008bb9] text-white text-xs font-bold py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all"
+                disabled={isSaving}
+                className="flex-1 bg-[#0db7ed] hover:bg-[#008bb9] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all"
               >
-                <Save className="w-3.5 h-3.5" />
-                <span>Save to Workspace</span>
+                {isSaving ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Save className="w-3.5 h-3.5" />
+                )}
+                <span>{isSaving ? 'Saving...' : 'Save to Workspace'}</span>
               </button>
               <button
                 onClick={() => triggerDownload(editorContent, editorFilename)}
@@ -1209,6 +1521,26 @@ function App() {
                               if (!inline && lang === 'mermaid') {
                                 return <MermaidDiagram chart={String(children).replace(/\n$/, '')} />;
                               }
+                              if (!inline && lang === 'tutor') {
+                                return <TutorBlock content={String(children).replace(/\n$/, '')} />;
+                              }
+                              if (!inline && lang === 'spirit') {
+                                return <SpiritBlock content={String(children).replace(/\n$/, '')} />;
+                              }
+                              const canvasMatch = /language-canvas-code:(.+)/.exec(className || '');
+                              if (!inline && canvasMatch) {
+                                return (
+                                  <CanvasCodeBlock 
+                                    info={canvasMatch[1]} 
+                                    content={String(children).replace(/\n$/, '')} 
+                                    setEditorFilename={setEditorFilename}
+                                    setEditorContent={setEditorContent}
+                                    setEditorSaved={setEditorSaved}
+                                    setIsTextEditorOpen={setIsTextEditorOpen}
+                                    setEditorFormat={setEditorFormat}
+                                  />
+                                );
+                              }
                               return !inline ? (
                                 <pre className={className} {...props}>
                                   <code className={className} {...props}>
@@ -1223,7 +1555,7 @@ function App() {
                             }
                           }}
                         >
-                          {msg.content}
+                          {preprocessCustomTags(msg.content)}
                           </ReactMarkdown>
                         </div>
                       </div>

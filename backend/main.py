@@ -136,6 +136,17 @@ async def chat_endpoint(request: ChatRequest):
         project_workspace = Path("/workspace") / request.session_id
         project_workspace.mkdir(parents=True, exist_ok=True)
         metadata_path = project_workspace / "metadata.json"
+        
+        # Load past chat history from chat_history.json
+        history_path = project_workspace / "chat_history.json"
+        past_messages = []
+        if history_path.exists():
+            try:
+                with open(history_path, "r", encoding="utf-8") as f:
+                    past_messages = json.load(f).get("messages", [])
+            except Exception:
+                pass
+                
         if not metadata_path.exists():
             asyncio.create_task(generate_local_chat_title(request.session_id, request.message, request.model_slug))
         
@@ -144,6 +155,25 @@ async def chat_endpoint(request: ChatRequest):
         
         # Get the last message
         last_message = result["messages"][-1]
+        
+        # Save messages to history file
+        user_msg = {
+            "id": f"msg_user_{int(datetime.utcnow().timestamp() * 1000)}",
+            "sender": "user",
+            "content": request.message,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        bot_msg = {
+            "id": f"msg_bot_{int(datetime.utcnow().timestamp() * 1000)}",
+            "sender": "bot",
+            "content": last_message.content,
+            "workspaceUsed": result.get("workspace_path"),
+            "created_at": datetime.utcnow().isoformat()
+        }
+        past_messages.append(user_msg)
+        past_messages.append(bot_msg)
+        with open(history_path, "w", encoding="utf-8") as f:
+            json.dump({"messages": past_messages}, f, indent=2)
         
         logger.info(f"Chat request succeeded - Session: {request.session_id} - Response length: {len(last_message.content)} chars")
         return {
@@ -230,6 +260,18 @@ async def list_local_sessions():
     # Sort by created_at descending
     sessions.sort(key=lambda x: x["created_at"], reverse=True)
     return sessions
+
+@app.get("/sessions/{session_id}/messages")
+async def get_local_session_messages(session_id: str):
+    """Loads and returns messages for a local session from chat_history.json."""
+    history_path = Path("/workspace") / session_id / "chat_history.json"
+    if not history_path.exists():
+        return {"messages": []}
+    try:
+        with open(history_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"messages": []}
 
 @app.post("/export")
 async def export_endpoint(request: ExportRequest):
