@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Send, Terminal, Database, Cpu, Activity, User, 
   Download, FileText, ChevronDown, Save, X, Edit, FileCode,
-  Folder, Plus, RefreshCw, Trash2, Settings
+  Folder, Plus, RefreshCw, Trash2, Settings, ShieldAlert
 } from 'lucide-react';
 
 interface Message {
@@ -674,13 +674,15 @@ function App() {
         </div>
 
         <div className="flex items-center gap-4">
-          <button 
-            onClick={() => window.location.href = '/admin'}
-            className="p-2 text-[#7A7D8E] hover:text-[#0db7ed] hover:bg-black/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
-            title="Admin"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
+          {isCloudMode() && cloudToken && (
+            <button 
+              onClick={() => window.location.href = '/admin'}
+              className="p-2 text-[#7A7D8E] hover:text-[#0db7ed] hover:bg-black/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
+              title="Admin"
+            >
+              <ShieldAlert className="w-5 h-5" />
+            </button>
+          )}
           <button 
             onClick={() => setShowSettingsModal(true)}
             className="p-2 text-[#7A7D8E] hover:text-[#0db7ed] hover:bg-black/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
