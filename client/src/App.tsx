@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Send, Terminal, Database, Cpu, Activity, User, 
   Download, FileText, ChevronDown, Save, X, Edit, FileCode,
-  Folder, Plus, RefreshCw, Trash2, Settings, ShieldAlert
+  Folder, Plus, RefreshCw, Trash2, Settings, ShieldAlert, History
 } from 'lucide-react';
 import routeMap from './route_map.json';
+import SessionHistoryPanel from './components/SessionHistoryPanel';
 
 interface Message {
   id: string;
@@ -58,8 +59,7 @@ function App() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionId, setSessionId] = useState(`session_${Date.now()}`);
-  const [isEditingSession, setIsEditingSession] = useState(false);
-  const [tempSessionId, setTempSessionId] = useState('');
+  const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
   const [isCreatingFile, setIsCreatingFile] = useState(false);
   const [newFileName, setNewFileName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -739,17 +739,14 @@ function App() {
             </span>
           </div>
           <div className="text-xs text-[#7A7D8E] flex items-center gap-1">
-            Session ID: 
-            {isEditingSession ? (
-              <form onSubmit={(e) => { e.preventDefault(); if (tempSessionId.trim()) setSessionId(tempSessionId.trim()); setIsEditingSession(false); }} className="flex items-center gap-1">
-                <input value={tempSessionId} onChange={e => setTempSessionId(e.target.value)} className="bg-white border border-[#0db7ed] px-1 py-0.5 rounded text-[#1A1D2E] font-semibold text-xs outline-none w-32" autoFocus onBlur={() => setIsEditingSession(false)} />
-              </form>
-            ) : (
-              <div className="flex items-center gap-1 cursor-pointer group" onClick={() => { setTempSessionId(sessionId); setIsEditingSession(true); }}>
-                <span className="font-mono bg-[#BFC4CC]/50 px-2 py-0.5 rounded text-[#1A1D2E] font-semibold group-hover:bg-[#BFC4CC] transition-colors">{sessionId}</span>
-                <Edit className="w-3 h-3 text-[#7A7D8E] group-hover:text-[#0db7ed] transition-colors" />
-              </div>
-            )}
+            Workspace ID: 
+            <button 
+              onClick={() => setIsHistoryPanelOpen(true)}
+              className="flex items-center gap-1 font-mono bg-[#BFC4CC]/50 hover:bg-[#BFC4CC] px-2 py-0.5 rounded text-[#1A1D2E] font-semibold transition-colors group"
+            >
+              <span>{sessionId}</span>
+              <History className="w-3 h-3 text-[#7A7D8E] group-hover:text-[#0db7ed] transition-colors" />
+            </button>
           </div>
         </div>
       </header>

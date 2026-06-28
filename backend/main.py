@@ -1,4 +1,5 @@
 import os
+import asyncio
 import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -132,6 +133,12 @@ async def chat_endpoint(request: ChatRequest):
             "model_slug": request.model_slug
         }
         
+        project_workspace = Path("/workspace") / request.session_id
+        project_workspace.mkdir(parents=True, exist_ok=True)
+        metadata_path = project_workspace / "metadata.json"
+        if not metadata_path.exists():
+            asyncio.create_task(generate_local_chat_title(request.session_id, request.message, request.model_slug))
+        
         # Invoke LangGraph agent
         result = await graph.ainvoke(initial_state)
         
@@ -146,6 +153,83 @@ async def chat_endpoint(request: ChatRequest):
     except Exception as e:
         logger.error(f"Chat request failed - Session: {request.session_id} - Error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+async def generate_local_chat_title(session_id: str, first_message: str, model_slug: str = None):
+    """Generates a 3-5 word title using the local model and saves it."""
+    try:
+        if not model_slug:
+            model_slug = "gemma"
+            
+        logger.info(f"Generating title for session {session_id} using model {model_slug}")
+        response = requests.post("http://model-runner:11434/api/generate", json={
+            "model": model_slug,
+            "prompt": f"Summarize the following text in a short 3-5 word title. Output ONLY the title, no quotes or prefix.\n\nText: {first_message}",
+            "stream": False,
+            "options": {"temperature": 0.3}
+        }, timeout=10)
+        
+        if response.status_code == 200:
+            title = response.json().get("response", "").strip().strip('"').strip("'")
+            if not title:
+                title = "New Conversation"
+        else:
+            title = "New Conversation"
+            
+        project_workspace = Path("/workspace") / session_id
+        project_workspace.mkdir(parents=True, exist_ok=True)
+        metadata_path = project_workspace / "metadata.json"
+        
+        metadata = {}
+        if metadata_path.exists():
+            with open(metadata_path, "r") as f:
+                try:
+                    metadata = json.load(f)
+                except json.JSONDecodeError:
+                    pass
+                
+        metadata["title"] = title
+        metadata["created_at"] = datetime.utcnow().isoformat()
+        
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f)
+            
+    except Exception as e:
+        logger.error(f"Failed to generate title: {e}")
+
+@app.get("/sessions")
+async def list_local_sessions():
+    """Returns a list of sessions matching the AICodex ConversationRead schema."""
+    sessions = []
+    base_workspace = Path("/workspace")
+    if not base_workspace.exists():
+        return sessions
+        
+    for d in base_workspace.iterdir():
+        if d.is_dir() and d.name.startswith("session_"):
+            metadata_path = d / "metadata.json"
+            title = d.name
+            created_at = datetime.utcnow().isoformat()
+            if metadata_path.exists():
+                try:
+                    with open(metadata_path, "r") as f:
+                        meta = json.load(f)
+                        title = meta.get("title", title)
+                        created_at = meta.get("created_at", created_at)
+                except Exception:
+                    pass
+                    
+            sessions.append({
+                "id": 0,
+                "session_id": d.name,
+                "title": title,
+                "created_at": created_at,
+                "updated_at": created_at,
+                "space_type": "local"
+            })
+            
+    # Sort by created_at descending
+    sessions.sort(key=lambda x: x["created_at"], reverse=True)
+    return sessions
 
 @app.post("/export")
 async def export_endpoint(request: ExportRequest):
