@@ -43,6 +43,12 @@ class ChatRequest(BaseModel):
     message: str
     session_id: str
     model_slug: Optional[str] = None
+    provider: Optional[str] = None
+    api_key: Optional[str] = None
+    cloud_token: Optional[str] = None
+    cloud_api_url: Optional[str] = None
+
+
 
 class ExportRequest(BaseModel):
     session_id: str
@@ -132,11 +138,39 @@ def log_client_message(request: LogRequest):
 async def chat_endpoint(request: ChatRequest):
     logger.info(f"Chat request received - Session: {request.session_id} - Length: {len(request.message)} chars")
     try:
+        provider = request.provider or "local"
+        api_key = request.api_key
+        
+        # If in cloud mode and we have a cloud token, fetch keys from cloud
+        if provider != "local" and not api_key and request.cloud_token and request.cloud_api_url:
+            try:
+                import requests
+                headers = {"Authorization": f"Bearer {request.cloud_token}"}
+                profile_url = f"{request.cloud_api_url.rstrip('/')}/api/v1/auth/me"
+                resp = requests.get(profile_url, headers=headers, timeout=5)
+                if resp.status_code == 200:
+                    profile_data = resp.json()
+                    settings_str = profile_data.get("settings")
+                    if settings_str:
+                        import json
+                        settings_data = json.loads(settings_str)
+                        api_keys = settings_data.get("api_keys", {})
+                        # Normalize key resolution
+                        resolved_prov = provider.lower().strip()
+                        if resolved_prov == "google":
+                            resolved_prov = "gemini"
+                        api_key = api_keys.get(resolved_prov)
+                        logger.info(f"Resolved cloud API key for provider '{provider}' from profile settings")
+            except Exception as e:
+                logger.warning(f"Failed to fetch cloud API keys from profile: {e}")
+
         # Initialize state with user message, session_id and optional model slug
         initial_state = {
             "messages": [HumanMessage(content=request.message)],
             "session_id": request.session_id,
-            "model_slug": request.model_slug
+            "model_slug": request.model_slug,
+            "provider": provider,
+            "api_key": api_key
         }
         
         project_workspace = Path("/workspace") / request.session_id
@@ -154,7 +188,13 @@ async def chat_endpoint(request: ChatRequest):
                 pass
                 
         if not metadata_path.exists():
-            asyncio.create_task(generate_local_chat_title(request.session_id, request.message, request.model_slug))
+            asyncio.create_task(generate_local_chat_title(
+                request.session_id, 
+                request.message, 
+                request.model_slug, 
+                provider, 
+                api_key
+            ))
         
         # Invoke LangGraph agent
         result = await graph.ainvoke(initial_state)
@@ -190,25 +230,21 @@ async def chat_endpoint(request: ChatRequest):
         logger.error(f"Chat request failed - Session: {request.session_id} - Error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-async def generate_local_chat_title(session_id: str, first_message: str, model_slug: str = None):
-    """Generates a 3-5 word title using the local model and saves it."""
+async def generate_local_chat_title(session_id: str, first_message: str, model_slug: str = None, provider: str = None, api_key: str = None):
+    """Generates a 3-5 word title using the configured model and saves it."""
     try:
-        if not model_slug:
-            model_slug = "gemma"
-            
-        logger.info(f"Generating title for session {session_id} using model {model_slug}")
-        response = requests.post("http://model-runner:11434/api/generate", json={
-            "model": model_slug,
-            "prompt": f"Summarize the following text in a short 3-5 word title. Output ONLY the title, no quotes or prefix.\n\nText: {first_message}",
-            "stream": False,
-            "options": {"temperature": 0.3}
-        }, timeout=10)
+        from backend.agent.llm_factory import get_llm
+        from langchain_core.messages import HumanMessage
         
-        if response.status_code == 200:
-            title = response.json().get("response", "").strip().strip('"').strip("'")
-            if not title:
-                title = "New Conversation"
-        else:
+        provider = provider or "local"
+        logger.info(f"Generating title for session {session_id} using provider {provider} and model {model_slug}")
+        
+        llm = get_llm(provider=provider, model=model_slug, api_key=api_key)
+        prompt = f"Summarize the following text in a short 3-5 word title. Output ONLY the title, no quotes or prefix.\n\nText: {first_message}"
+        response = await llm.ainvoke([HumanMessage(content=prompt)])
+        title = response.content.strip().strip('"').strip("'")
+        
+        if not title:
             title = "New Conversation"
             
         project_workspace = Path("/workspace") / session_id

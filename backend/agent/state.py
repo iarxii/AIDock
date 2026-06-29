@@ -7,3 +7,6 @@ class AgentState(TypedDict):
     session_id: str
     workspace_path: str
     is_complete: bool
+    provider: str
+    api_key: str
+

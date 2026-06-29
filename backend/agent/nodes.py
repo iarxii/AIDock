@@ -7,7 +7,7 @@ from pathlib import Path
 import dotenv
 from backend.agent.state import AgentState
 from langchain_core.messages import AIMessage, ToolMessage, SystemMessage
-from langchain_ollama import ChatOllama
+from backend.agent.llm_factory import get_llm
 from langchain_core.tools import tool
 
 logger = logging.getLogger("aidock.agent.nodes")
@@ -206,10 +206,17 @@ def reason_node(state: AgentState):
         # No allow-list configured; accept on pattern match only
         return True
 
+    provider = state.get("provider", "local")
+    api_key = state.get("api_key")
+
     model = None
     model_slug = state.get("model_slug")
-    if model_slug and isinstance(model_slug, str) and is_valid_slug(model_slug):
-        model = model_slug
+    if model_slug and isinstance(model_slug, str):
+        if provider == "local":
+            if is_valid_slug(model_slug):
+                model = model_slug
+        else:
+            model = model_slug
 
     if not model:
         # Fall back to configured environment variables
@@ -218,7 +225,7 @@ def reason_node(state: AgentState):
             image = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
             model = f"docker.io/{image}"
 
-    llm = ChatOllama(model=model, base_url=base_url)
+    llm = get_llm(provider=provider, model=model, api_key=api_key)
     
     session_id = state.get("session_id", "default_session")
     tools = make_workspace_tools(session_id)

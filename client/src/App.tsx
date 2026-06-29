@@ -550,17 +550,14 @@ function App() {
   const getBackendUrl = (path: string): string => {
     const cleanPath = path.startsWith('/') ? path.slice(1) : path;
 
-    // Workspace-bound ops are always local
-    const localPrefixes = ['files', 'file-content', 'export', 'upload', 'log'];
+    // Workspace-bound ops and chat are always local
+    const localPrefixes = ['files', 'file-content', 'export', 'upload', 'log', 'chat'];
     if (localPrefixes.some(pref => cleanPath.startsWith(pref)))
       return `/api/${cleanPath}`;
 
     if (!isCloudMode()) return `/api/${cleanPath}`;
 
     const base = getCloudBase();
-    // chat → codegen spaces endpoint on cloud
-    if (cleanPath === 'chat')
-      return `${base}/api/spaces/${cloudSpaceSlug}/codegen`;
     // info → healthz on cloud
     if (cleanPath === 'info')
       return `${base}/api/healthz`;
@@ -1167,21 +1164,27 @@ function App() {
     try {
       const chatUrl = getBackendUrl('chat');
 
-      // Cloud uses the codegen spaces endpoint; local uses the standard chat endpoint
-      const cloudBody: Record<string, string> = { prompt: textToSend, session_id: sessionId };
-      if (cloudSelectedModel) cloudBody.model = cloudSelectedModel;
-      if (cloudSelectedProvider) cloudBody.provider = cloudSelectedProvider;
-
       const fetchOptions: RequestInit = isCloudMode()
         ? {
             method: 'POST',
-            headers: cloudAuthHeaders(),
-            body: JSON.stringify(cloudBody),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: textToSend,
+              session_id: sessionId,
+              provider: cloudSelectedProvider || undefined,
+              model_slug: cloudSelectedModel || undefined,
+              cloud_token: cloudToken || undefined,
+              cloud_api_url: getCloudBase()
+            }),
           }
         : {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ message: textToSend, session_id: sessionId, model_slug: localSelectedModel || undefined }),
+            body: JSON.stringify({
+              message: textToSend,
+              session_id: sessionId,
+              model_slug: localSelectedModel || undefined
+            }),
           };
 
       let res = await fetch(chatUrl, fetchOptions);
@@ -1191,8 +1194,18 @@ function App() {
         logToContainer('info', 'Cloud token expired, attempting re-auth...');
         const newToken = await loginToCloud();
         if (newToken) {
-          const retryHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${newToken}` };
-          res = await fetch(chatUrl, { ...fetchOptions, headers: retryHeaders });
+          res = await fetch(chatUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: textToSend,
+              session_id: sessionId,
+              provider: cloudSelectedProvider || undefined,
+              model_slug: cloudSelectedModel || undefined,
+              cloud_token: newToken,
+              cloud_api_url: getCloudBase()
+            }),
+          });
         } else {
           throw new Error('Session expired. Please re-enter your credentials in Settings.');
         }

@@ -84,7 +84,16 @@ def get_service_url(service_name, container_port):
 @click.group()
 def cli():
     """AIDock CLI: Streamlined Local LLM Workspace Manager"""
-    pass
+    try:
+        art_path = ROOT_DIR / "cli" / "spiritbird-ascii-art.txt"
+        if art_path.exists():
+            art = art_path.read_text(encoding="utf-8")
+            console.print(f"[bold blue]{art}[/]")
+            console.print("[bold cyan]========================================================================[/]")
+            console.print("[bold cyan]            AIDOCK - Isolated LLM Workspace Harness[/]")
+            console.print("[bold cyan]========================================================================[/]")
+    except Exception:
+        pass
 
 @cli.command()
 def setup():
@@ -233,6 +242,13 @@ def reload(ctx, fe, be, db):
     console.print("\n[bold blue]Reloading AIDock...[/]")
     ctx.invoke(stop)
     ctx.invoke(start)
+
+@cli.command(name="cli")
+@click.option('--session', default=None, help="Specific session ID to bind to.")
+@click.pass_context
+def launch_cli(ctx, session):
+    """Launch the interactive Harness CLI (alias for chat)."""
+    ctx.invoke(chat, session=session)
 
 @cli.command()
 @click.option('--session', default=None, help="Specific session ID to bind to.")

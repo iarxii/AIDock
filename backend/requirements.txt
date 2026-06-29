@@ -12,3 +12,5 @@ python-dotenv>=1.0.0
 psutil>=5.9.0
 requests>=2.31.0
 python-multipart>=0.0.9
+langchain-openai>=0.0.5
+langchain-google-genai>=1.0.0
