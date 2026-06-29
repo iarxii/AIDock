@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Send, Terminal, Database, Cpu, Activity, User, 
   Download, FileText, ChevronDown, Save, X, Edit, FileCode,
-  Folder, Plus, RefreshCw, Trash2, Settings, ShieldAlert, History
+  Folder, Plus, RefreshCw, Trash2, Settings, ShieldAlert, History,
+  Sun, Moon, Monitor
 } from 'lucide-react';
 import routeMap from './route_map.json';
 import SessionHistoryPanel from './components/SessionHistoryPanel';
@@ -150,12 +151,12 @@ function CanvasCodeBlock({
 function TutorBlock({ content }: { content: string }) {
   return (
     <div className="my-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="rounded-xl border border-black/5 bg-white/50 backdrop-blur-sm overflow-hidden shadow-sm">
+      <div className="rounded-xl border border-black/5 bg-white/50 dark:bg-white/5 backdrop-blur-sm overflow-x-auto shadow-sm">
         <div className="px-4 py-2 border-b border-black/5 bg-[#0db7ed]/10 flex items-center gap-2">
           <span className="text-xs">💡</span>
           <span className="text-[10px] font-black uppercase tracking-wider text-[#008bb9]">Neural Tutor</span>
         </div>
-        <div className="p-4 text-[13px] text-[#1A1D2E] leading-relaxed italic prose prose-sm max-w-none">
+        <div className="p-4 text-[13px] text-[var(--text-primary)] leading-relaxed italic prose prose-sm max-w-none break-words overflow-x-auto">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
         </div>
       </div>
@@ -166,7 +167,7 @@ function TutorBlock({ content }: { content: string }) {
 function SpiritBlock({ content }: { content: string }) {
   return (
     <div className="my-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="relative p-5 rounded-2xl bg-white/40 border border-white/50 shadow-sm overflow-hidden group">
+      <div className="relative p-5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 shadow-sm overflow-x-auto group">
         <div className="relative flex flex-col sm:flex-row gap-4">
           <div className="shrink-0 flex justify-center sm:justify-start">
             <div className="relative">
@@ -177,14 +178,14 @@ function SpiritBlock({ content }: { content: string }) {
               <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full z-20 shadow-sm"></div>
             </div>
           </div>
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 space-y-2 min-w-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-[#0db7ed]">Spirit Bird</span>
                 <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-white text-[#0db7ed] border border-[#0db7ed]/10 uppercase tracking-widest">Mascot</span>
               </div>
             </div>
-            <div className="text-[13px] text-[#4A4D5E] leading-relaxed italic prose prose-sm max-w-none">
+            <div className="text-[13px] text-[var(--text-secondary)] leading-relaxed italic prose prose-sm max-w-none break-words overflow-x-auto">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
             </div>
             <div className="pt-2 flex items-center gap-3">
@@ -305,6 +306,37 @@ function closeActiveBlock(
 
 function App() {
   const [input, setInput] = useState('');
+  const [theme, setTheme] = useState<'system' | 'light' | 'dark'>(() => {
+    return (localStorage.getItem('aidock_theme') as 'system' | 'light' | 'dark') || 'system';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const applyTheme = () => {
+      if (theme === 'dark') {
+        root.classList.add('dark');
+      } else if (theme === 'light') {
+        root.classList.remove('dark');
+      } else {
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (systemPrefersDark) {
+          root.classList.add('dark');
+        } else {
+          root.classList.remove('dark');
+        }
+      }
+    };
+    applyTheme();
+
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const listener = () => applyTheme();
+      mediaQuery.addEventListener('change', listener);
+      return () => mediaQuery.removeEventListener('change', listener);
+    }
+    return () => {};
+  }, [theme]);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionId, setSessionId] = useState(`session_${Date.now()}`);
   const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
@@ -415,17 +447,35 @@ function App() {
           }
         }
       );
+      let data: CloudModel[] = [];
       if (res.ok) {
-        const data: CloudModel[] = await res.json();
-        setCloudModels(data);
-        // Pre-select recommended model or first result
-        const recommended = space.recommended_model;
-        const match = recommended ? data.find(m => m.id === recommended) : null;
-        const best = match ? match.id : data[0]?.id || '';
-        if (best) {
-          setCloudSelectedModel(best);
-          localStorage.setItem('aidock_cloud_model', best);
-        }
+        data = await res.json();
+      }
+      
+      // Fallback: if API returned nothing, synthesize from the space's recommended config
+      if ((!data || data.length === 0) && space.recommended_model) {
+        data = [{ id: space.recommended_model, name: `${space.recommended_model} (recommended)` }];
+      }
+      
+      setCloudModels(data);
+      // Pre-select recommended model or first result
+      const recommended = space.recommended_model;
+      const match = recommended ? data.find(m => m.id === recommended) : null;
+      const best = match ? match.id : data[0]?.id || '';
+      if (best) {
+        setCloudSelectedModel(best);
+        localStorage.setItem('aidock_cloud_model', best);
+      }
+      setCloudSelectedProvider(provider);
+      localStorage.setItem('aidock_cloud_provider', provider);
+    } catch (e) {
+      console.error('Failed to fetch cloud models:', e);
+      // Even on failure, provide the recommended model as a fallback
+      if (space.recommended_model) {
+        const fallback = [{ id: space.recommended_model, name: `${space.recommended_model} (recommended)` }];
+        setCloudModels(fallback);
+        setCloudSelectedModel(space.recommended_model);
+        localStorage.setItem('aidock_cloud_model', space.recommended_model);
         setCloudSelectedProvider(provider);
         localStorage.setItem('aidock_cloud_provider', provider);
       } else {
@@ -433,11 +483,6 @@ function App() {
         setCloudSelectedModel('');
         setCloudSelectedProvider('');
       }
-    } catch (e) {
-      console.error('Failed to fetch cloud models:', e);
-      setCloudModels([]);
-      setCloudSelectedModel('');
-      setCloudSelectedProvider('');
     } finally {
       setCloudModelsLoading(false);
     }
@@ -524,6 +569,7 @@ function App() {
   const [saveStatusText, setSaveStatusText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [autoSave, setAutoSave] = useState(false);
+  const [wrapText, setWrapText] = useState(true);
   const [isCapabilitiesExpanded, setIsCapabilitiesExpanded] = useState(true);
 
   // Workspace Files state
@@ -1026,22 +1072,22 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#C8CDD5] text-[#1A1D2E] relative">
+    <div className="flex flex-col min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] relative transition-colors duration-300">
       {/* Global Toast Notification */}
       {saveStatusText && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-[#1A1D2E] text-emerald-400 text-xs font-bold px-6 py-3 rounded-full shadow-2xl animate-bounce">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-[#1A1D2E] dark:bg-[#121420] text-emerald-400 text-xs font-bold px-6 py-3 rounded-full shadow-2xl animate-bounce border border-black/10 dark:border-white/10">
           {saveStatusText}
         </div>
       )}
       {/* Premium Header */}
-      <header className="sticky top-0 z-50 bg-[#D8DCE4]/80 backdrop-blur-md border-b border-black/5 px-6 py-4 flex items-center justify-between shadow-sm">
+      <header className="sticky top-0 z-50 bg-[var(--bg-surface)]/80 backdrop-blur-md border-b border-[var(--border)] px-6 py-4 flex items-center justify-between shadow-sm transition-colors duration-300">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#0db7ed] flex items-center justify-center text-white shadow-[0_4px_20px_rgba(13,183,237,0.35)]">
             <MascotLogo className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-[#1A1D2E]">AIDock</h1>
-            <span className="text-[10px] text-[#7A7D8E] font-medium tracking-widest uppercase">Orchestrator v2.0</span>
+            <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">AIDock</h1>
+            <span className="text-[10px] text-[var(--text-muted)] font-medium tracking-widest uppercase">Orchestrator v2.0</span>
           </div>
         </div>
 
@@ -1049,7 +1095,7 @@ function App() {
           {isCloudMode() && cloudToken && (
             <button 
               onClick={() => window.location.href = '/admin'}
-              className="p-2 text-[#7A7D8E] hover:text-[#0db7ed] hover:bg-black/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
+              className="p-2 text-[var(--text-muted)] hover:text-[#0db7ed] hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
               title="Admin"
             >
               <ShieldAlert className="w-5 h-5" />
@@ -1057,26 +1103,26 @@ function App() {
           )}
           <button 
             onClick={() => setShowSettingsModal(true)}
-            className="p-2 text-[#7A7D8E] hover:text-[#0db7ed] hover:bg-black/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
+            className="p-2 text-[var(--text-muted)] hover:text-[#0db7ed] hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
             title="Connection Settings"
           >
             <Settings className="w-5 h-5" />
           </button>
           
-          <div className="flex items-center gap-2 bg-[#E8ECF2] px-3 py-1.5 rounded-full border border-black/5">
+          <div className="flex items-center gap-2 bg-[var(--bg-elevated)] px-3 py-1.5 rounded-full border border-[var(--border)] transition-colors duration-300">
             <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-            <span className="text-xs font-semibold text-[#4A4D5E]">
+            <span className="text-xs font-semibold text-[var(--text-secondary)]">
               {connected ? 'Neural Link Active' : 'Offline'}
             </span>
           </div>
-          <div className="text-xs text-[#7A7D8E] flex items-center gap-1">
+          <div className="text-xs text-[var(--text-muted)] flex items-center gap-1">
             Workspace ID: 
             <button 
               onClick={() => setIsHistoryPanelOpen(true)}
-              className="flex items-center gap-1 font-mono bg-[#BFC4CC]/50 hover:bg-[#BFC4CC] px-2 py-0.5 rounded text-[#1A1D2E] font-semibold transition-colors group"
+              className="flex items-center gap-1 font-mono bg-[var(--bg-input)]/50 hover:bg-[var(--bg-input)] px-2 py-0.5 rounded text-[var(--text-primary)] font-semibold transition-colors group"
             >
               <span>{sessionId}</span>
-              <History className="w-3 h-3 text-[#7A7D8E] group-hover:text-[#0db7ed] transition-colors" />
+              <History className="w-3 h-3 text-[var(--text-muted)] group-hover:text-[#0db7ed] transition-colors" />
             </button>
           </div>
         </div>
@@ -1087,39 +1133,39 @@ function App() {
         {/* Left column: Sidebar Info */}
         <section className="lg:col-span-3 flex flex-col gap-6">
           {/* Workspace context card */}
-          <div className="bg-[#D8DCE4] rounded-2xl border border-black/5 p-5 shadow-lg flex flex-col gap-4">
-            <h2 className="text-sm font-bold text-[#1A1D2E] uppercase tracking-wider flex items-center gap-2">
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 shadow-lg flex flex-col gap-4 transition-colors duration-300">
+            <h2 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
               <Cpu className="w-4 h-4 text-[#0db7ed]" /> Workspace Context
             </h2>
             
             <div className="space-y-3">
-              <div className="bg-[#E8ECF2] p-3 rounded-xl border border-black/5">
-                <span className="text-[10px] text-[#7A7D8E] block uppercase font-medium">Mount Point</span>
-                <span className="text-xs font-mono font-semibold text-[#4A4D5E] break-all">/workspace/{sessionId}</span>
+              <div className="bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] transition-colors duration-300">
+                <span className="text-[10px] text-[var(--text-muted)] block uppercase font-medium">Mount Point</span>
+                <span className="text-xs font-mono font-semibold text-[var(--text-secondary)] break-all">/workspace/{sessionId}</span>
               </div>
 
-              <div className="bg-[#E8ECF2] p-3 rounded-xl border border-black/5">
-                <span className="text-[10px] text-[#7A7D8E] block uppercase font-medium">Active Backend Mode</span>
-                <span className="text-xs font-bold text-[#4A4D5E] capitalize">{backendMode.replace('-', ' ')}</span>
+              <div className="bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] transition-colors duration-300">
+                <span className="text-[10px] text-[var(--text-muted)] block uppercase font-medium">Active Backend Mode</span>
+                <span className="text-xs font-bold text-[var(--text-secondary)] capitalize">{backendMode.replace('-', ' ')}</span>
               </div>
 
-              <div className="bg-[#E8ECF2] p-3 rounded-xl border border-black/5">
-                <span className="text-[10px] text-[#7A7D8E] block uppercase font-medium">Orchestrator LLM</span>
-                        <div className="text-xs font-semibold text-[#4A4D5E] mt-1 flex items-center gap-2">
+              <div className="bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] transition-colors duration-300">
+                <span className="text-[10px] text-[var(--text-muted)] block uppercase font-medium">Orchestrator LLM</span>
+                        <div className="text-xs font-semibold text-[var(--text-secondary)] mt-1 flex items-center gap-2">
                           <Database className="w-3.5 h-3.5 text-[#0db7ed]" />
                           <div>{activeModel}</div>
                         </div>
 
                         {!isCloudMode() && (
                           <div className="mt-2">
-                            <label className="text-[10px] text-[#7A7D8E] block uppercase font-medium mb-1">Local Model</label>
+                            <label className="text-[10px] text-[var(--text-muted)] block uppercase font-medium mb-1">Local Model</label>
                             <select
                               value={localSelectedModel}
                               onChange={(e) => {
-                                setLocalSelectedModel(e.target.value);
-                                localStorage.setItem('aidock_local_model', e.target.value);
+                                  setLocalSelectedModel(e.target.value);
+                                  localStorage.setItem('aidock_local_model', e.target.value);
                               }}
-                              className="w-full text-xs p-2 rounded-lg bg-white border border-black/5 text-[#1A1D2E]"
+                              className="w-full text-xs p-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] transition-colors duration-300"
                               disabled={localModelsLoading || localModels.length === 0}
                             >
                               {localModelsLoading ? (
@@ -1134,9 +1180,9 @@ function App() {
                         )}
               </div>
 
-              <div className="bg-[#E8ECF2] p-3 rounded-xl border border-black/5">
-                <span className="text-[10px] text-[#7A7D8E] block uppercase font-medium">Docker Network</span>
-                <span className="text-xs font-semibold text-[#4A4D5E] flex items-center gap-1.5 mt-1">
+              <div className="bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] transition-colors duration-300">
+                <span className="text-[10px] text-[var(--text-muted)] block uppercase font-medium">Docker Network</span>
+                <span className="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-1.5 mt-1">
                   <Activity className="w-3.5 h-3.5 text-[#0db7ed]" /> aidock_default
                 </span>
               </div>
@@ -1146,16 +1192,16 @@ function App() {
               {/* Admin moved to separate page */}
 
           {/* Mount Collapsible Node File-Tree */}
-          <div className="bg-[#D8DCE4] rounded-2xl border border-black/5 p-5 shadow-lg flex flex-col gap-3">
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 shadow-lg flex flex-col gap-3 transition-colors duration-300">
             <div className="flex items-center justify-between">
               <button 
                 onClick={() => setIsFileTreeExpanded(!isFileTreeExpanded)}
-                className="text-sm font-bold text-[#1A1D2E] uppercase tracking-wider flex items-center gap-2 focus:outline-none"
+                className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2 focus:outline-none"
               >
                 <Folder className="w-4 h-4 text-[#0db7ed]" /> Workspace Files
                 <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isFileTreeExpanded ? '' : '-rotate-90'}`} />
               </button>
-              <button onClick={() => { setIsCreatingFile(true); setIsFileTreeExpanded(true); }} className="p-1 hover:bg-[#E8ECF2] rounded text-[#0db7ed] transition-colors" title="New File">
+              <button onClick={() => { setIsCreatingFile(true); setIsFileTreeExpanded(true); }} className="p-1 hover:bg-[var(--bg-elevated)] rounded text-[#0db7ed] transition-colors" title="New File">
                 <Plus className="w-4 h-4" />
               </button>
             </div>
@@ -1163,20 +1209,20 @@ function App() {
             {isFileTreeExpanded && (
               <div className="space-y-1.5 mt-1 max-h-[220px] overflow-y-auto pr-1">
                 {isCreatingFile && (
-                  <form onSubmit={createNewFile} className="flex items-center gap-2 bg-[#E8ECF2] p-1.5 rounded-xl border border-[#0db7ed]">
+                  <form onSubmit={createNewFile} className="flex items-center gap-2 bg-[var(--bg-elevated)] p-1.5 rounded-xl border border-[#0db7ed]">
                     <FileText className="w-3.5 h-3.5 text-[#0db7ed] ml-1" />
                     <input 
                       value={newFileName} 
                       onChange={e => setNewFileName(e.target.value)} 
                       placeholder="filename.txt" 
-                      className="bg-white px-2 py-1 text-xs outline-none w-full rounded border border-black/5" 
+                      className="bg-[var(--bg-surface)] px-2 py-1 text-xs outline-none w-full rounded border border-[var(--border)] text-[var(--text-primary)]" 
                       autoFocus 
                       onBlur={() => { setTimeout(() => { if (!newFileName.trim()) setIsCreatingFile(false); }, 200); }}
                     />
                   </form>
                 )}
                 {files.length === 0 && !isCreatingFile ? (
-                  <div className="text-[11px] text-[#7A7D8E] italic p-3 bg-[#E8ECF2] rounded-xl border border-black/5 text-center">
+                  <div className="text-[11px] text-[var(--text-muted)] italic p-3 bg-[var(--bg-elevated)] rounded-xl border border-[var(--border)] text-center transition-colors duration-300">
                     No files in workspace yet. Click the + uploader below to attach one.
                   </div>
                 ) : (
@@ -1184,13 +1230,13 @@ function App() {
                     <button
                       key={file.path}
                       onClick={() => openFileInEditor(file.path)}
-                      className="w-full text-left bg-[#E8ECF2] hover:bg-[#E2E6EC] p-2.5 rounded-xl border border-black/5 text-xs font-semibold text-[#4A4D5E] flex items-center justify-between group transition-all"
+                      className="w-full text-left bg-[var(--bg-elevated)] hover:bg-[var(--bg-surface-hover)] p-2.5 rounded-xl border border-[var(--border)] text-xs font-semibold text-[var(--text-secondary)] flex items-center justify-between group transition-all"
                     >
                       <span className="flex items-center gap-2 truncate">
                         <FileText className="w-3.5 h-3.5 text-[#0db7ed]" />
                         <span className="truncate">{file.path}</span>
                       </span>
-                      <span className="text-[9px] text-[#7A7D8E] font-mono group-hover:text-[#0db7ed] transition-colors shrink-0">
+                      <span className="text-[9px] text-[var(--text-muted)] font-mono group-hover:text-[#0db7ed] transition-colors shrink-0">
                         {(file.size / 1024).toFixed(1)} KB
                       </span>
                     </button>
@@ -1200,18 +1246,18 @@ function App() {
             )}
           </div>
 
-          <div className="bg-[#D8DCE4] rounded-2xl border border-black/5 p-5 shadow-lg flex flex-col gap-3">
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 shadow-lg flex flex-col gap-3 transition-colors duration-300">
             <div className="flex items-center justify-between">
               <button 
                 onClick={() => setIsCapabilitiesExpanded(!isCapabilitiesExpanded)}
-                className="text-sm font-bold text-[#1A1D2E] uppercase tracking-wider flex items-center gap-2 focus:outline-none"
+                className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2 focus:outline-none"
               >
                 <Terminal className="w-4 h-4 text-[#0db7ed]" /> Available Capabilities
                 <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isCapabilitiesExpanded ? '' : '-rotate-90'}`} />
               </button>
             </div>
             {isCapabilitiesExpanded && (
-              <ul className="text-xs text-[#4A4D5E] space-y-2 font-medium">
+              <ul className="text-xs text-[var(--text-secondary)] space-y-2 font-medium">
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> File Reader / Writer
                 </li>
@@ -1228,7 +1274,7 @@ function App() {
 
         {/* Right column: Text Editor Pane */}
         {isTextEditorOpen && (
-          <section className="lg:col-span-6 flex flex-col h-[calc(100vh-140px)] min-h-[500px] bg-[#1A1D2E] text-[#E8ECF2] rounded-2xl border border-black/10 shadow-2xl p-5 overflow-hidden transition-all duration-300">
+          <section className="lg:col-span-5 flex flex-col h-[calc(100vh-140px)] min-h-[500px] bg-[var(--bg-editor)] text-[#E8ECF2] rounded-2xl border border-black/10 shadow-2xl p-5 overflow-hidden transition-all duration-300">
             {/* Editor Header */}
             <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-3">
               <div className="flex items-center gap-2 truncate mr-2">
@@ -1245,6 +1291,16 @@ function App() {
                     title="Toggle Autosave"
                   >
                     <span className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 ${autoSave ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 select-none">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-[#7A7D8E]">Wrap Text</span>
+                  <button
+                    onClick={() => setWrapText(!wrapText)}
+                    className={`relative w-8 h-4 rounded-full transition-colors duration-200 focus:outline-none ${wrapText ? 'bg-[#0db7ed]' : 'bg-[#2D314E]'}`}
+                    title="Toggle Wrap Text"
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 ${wrapText ? 'translate-x-4' : 'translate-x-0'}`} />
                   </button>
                 </div>
                 <button
@@ -1311,7 +1367,10 @@ function App() {
                   setEditorContent(e.target.value);
                   setEditorSaved(false);
                 }}
-                className="flex-1 bg-transparent resize-none pl-3 outline-none border-none text-[#E8ECF2] font-mono leading-6 overflow-y-auto scrollbar-thin placeholder-white/20"
+                wrap={wrapText ? 'soft' : 'off'}
+                className={`flex-1 bg-transparent resize-none pl-3 outline-none border-none text-[#E8ECF2] font-mono leading-6 scrollbar-thin placeholder-white/20 ${
+                  wrapText ? 'whitespace-pre-wrap overflow-x-hidden overflow-y-auto' : 'whitespace-pre overflow-x-auto overflow-y-auto'
+                }`}
                 placeholder="Edit file contents..."
               />
             </div>
@@ -1342,8 +1401,8 @@ function App() {
         )}
 
         {/* Middle column: Chat Area */}
-        <section className={`${isTextEditorOpen ? 'lg:col-span-3' : 'lg:col-span-9'} flex flex-col h-[calc(100vh-140px)] min-h-[500px] transition-all duration-300`}>
-          <div className="flex-1 bg-[#D8DCE4]/60 backdrop-blur-md rounded-2xl border border-black/5 shadow-2xl p-6 flex flex-col overflow-hidden">
+        <section className={`${isTextEditorOpen ? 'lg:col-span-4' : 'lg:col-span-9'} flex flex-col h-[calc(100vh-140px)] min-h-[500px] transition-all duration-300`}>
+          <div className={`flex-1 bg-[var(--bg-card)]/60 backdrop-blur-md rounded-2xl border border-[var(--border)] shadow-2xl ${isTextEditorOpen ? 'p-4' : 'p-6'} flex flex-col overflow-hidden`}>
             
             {/* Chat Area Header with Export Menu */}
             <div className="flex items-center justify-between pb-4 border-b border-black/5 mb-4">
@@ -1353,7 +1412,8 @@ function App() {
               </div>
               <div className="flex items-center gap-3">
                 {/* Model Selection Dropdown */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <Cpu className="w-3.5 h-3.5 text-[#0db7ed] shrink-0" />
                   {isCloudMode() ? (
                     <select
                       value={cloudSelectedModel}
@@ -1397,7 +1457,7 @@ function App() {
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0db7ed] hover:bg-[#008bb9] text-white text-xs font-bold rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>Export Chat</span>
+                    {/* <span>Export Chat</span> */}
                     <ChevronDown className="w-3 h-3" />
                   </button>
                   
@@ -1470,11 +1530,11 @@ function App() {
             <div className="flex-1 overflow-y-auto space-y-6 pr-2 mb-4 scrollbar-thin">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                  <div className="w-16 h-16 rounded-full bg-[#E2E6EC] flex items-center justify-center text-[#7A7D8E] mb-4 shadow-inner">
+                  <div className="w-16 h-16 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center text-[var(--text-muted)] mb-4 shadow-inner border border-[var(--border)]">
                     <MascotLogo className="w-10 h-10 text-[#0db7ed]" />
                   </div>
-                  <h3 className="text-base font-bold text-[#1A1D2E] mb-1">Initialize Your Sandbox</h3>
-                  <p className="text-xs text-[#4A4D5E] max-w-sm">
+                  <h3 className="text-base font-bold text-[var(--text-primary)] mb-1">Initialize Your Sandbox</h3>
+                  <p className="text-xs text-[var(--text-secondary)] max-w-sm">
                     Instruct the local AI model to write code or perform tasks. An isolated project directory will be created under your container workspace.
                   </p>
                 </div>
@@ -1486,32 +1546,34 @@ function App() {
                       msg.sender === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto'
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-md ${
-                      msg.sender === 'user' ? 'bg-[#0db7ed] text-white' : 'bg-[#E2E6EC] text-[#1A1D2E]'
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-md transition-colors duration-300 ${
+                      msg.sender === 'user' ? 'bg-[var(--bg-chat-user)] text-white' : 'bg-[var(--bg-chat-bot)] text-[var(--text-primary)] border border-[var(--border)]'
                     }`}>
                       {msg.sender === 'user' ? <User className="w-4 h-4" /> : <MascotLogo className="w-5 h-5 text-[#0db7ed]" />}
                     </div>
 
-                    <div className="flex flex-col gap-1.5 max-w-[85%]">
+                    <div className="flex flex-col gap-1.5 max-w-full min-w-0">
                       {/* LLM Logo & Model Badge inside Assistant bubbles */}
                       {msg.sender === 'bot' && msg.id.indexOf('_sys') === -1 && (
-                        <div className="flex items-center gap-1.5 pb-1 border-b border-black/5 mb-1 text-[11px] text-[#7A7D8E] font-semibold">
+                        <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)] mb-1 text-[11px] text-[var(--text-muted)] font-semibold transition-colors duration-300">
                           <div className="w-3.5 h-3.5 rounded bg-[#0db7ed] flex items-center justify-center text-white shrink-0">
                             <MascotLogo className="w-2.5 h-2.5 text-white" />
                           </div>
-                          <span className="font-bold text-[#1A1D2E]">{activeModel}</span>
-                          <span className="text-[8px] font-mono bg-[#BFC4CC]/50 px-1 py-0.2 rounded text-[#4A4D5E]">Model Runner</span>
+                          <span className="font-bold text-[var(--text-primary)]">{activeModel}</span>
+                          <span className="text-[8px] font-mono bg-[var(--bg-input)]/50 px-1 py-0.2 rounded text-[var(--text-secondary)]">Model Runner</span>
                         </div>
                       )}
                       
                       <div 
-                        className={`p-4 rounded-2xl shadow-sm text-sm border border-black/5 font-medium ${
+                        className={`p-4 rounded-2xl shadow-sm text-sm border border-[var(--border)] font-medium transition-colors duration-300 ${
                           msg.sender === 'user'
-                            ? 'bg-[#0db7ed] text-white user-corner-glow'
-                            : 'bg-[#E2E6EC] text-[#1A1D2E] bot-corner-glow bot-corner-glow-secondary'
+                            ? 'bg-[var(--bg-chat-user)] text-white user-corner-glow'
+                            : 'bg-[var(--bg-chat-bot)] text-[var(--text-primary)] bot-corner-glow bot-corner-glow-secondary'
                         }`}
                       >
-                        <div className="prose prose-sm prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-[#1A1D2E] prose-pre:text-[#E8ECF2] prose-pre:border prose-pre:border-black/10">
+                        <div className={`prose prose-sm max-w-none break-words overflow-x-auto prose-p:leading-relaxed prose-p:break-words prose-pre:bg-[#1A1D2E] prose-pre:text-[#E8ECF2] prose-pre:border prose-pre:border-black/10 prose-pre:overflow-x-auto ${
+                          msg.sender === 'user' ? 'prose-invert text-white' : 'text-[var(--text-primary)] dark:prose-invert'
+                        }`} style={{ overflowWrap: 'anywhere' }}>
                           <ReactMarkdown 
                             remarkPlugins={[remarkGfm]} 
                             components={{
@@ -1895,6 +1957,41 @@ function App() {
                   )}
                 </div>
               )}
+
+              {/* UI Accessibility Settings */}
+              <div className="bg-[#E8ECF2] dark:bg-white/5 p-4 rounded-xl border border-[#border] dark:border-white/10 flex flex-col gap-2.5">
+                <span className="text-xs font-bold text-[#4A4D5E] dark:text-[#B0B4C0] uppercase tracking-wider">UI Accessibility Settings</span>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] text-[#7A7D8E] font-medium uppercase tracking-wider">Theme Mode</label>
+                  <div className="grid grid-cols-3 gap-2 bg-[#D8DCE4] dark:bg-black/25 p-1 rounded-xl">
+                    {[
+                      { id: 'system', name: 'System', icon: Monitor },
+                      { id: 'light', name: 'Light', icon: Sun },
+                      { id: 'dark', name: 'Dark', icon: Moon }
+                    ].map((t) => {
+                      const Icon = t.icon;
+                      const active = theme === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => {
+                            setTheme(t.id as any);
+                            localStorage.setItem('aidock_theme', t.id);
+                          }}
+                          className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
+                            active
+                              ? 'bg-[#0db7ed] text-white shadow-sm'
+                              : 'text-[#4A4D5E] dark:text-[#B0B4C0] hover:bg-black/5 dark:hover:bg-white/5'
+                          }`}
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                          <span>{t.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
 
               {/* Diagnostics */}
               <div className="bg-[#E8ECF2] p-4 rounded-xl border border-black/5 flex flex-col gap-3">

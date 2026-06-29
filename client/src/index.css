@@ -10,6 +10,9 @@
   --bg-elevated: #E8ECF2;
   --bg-chat-bot: #E2E6EC;
   --bg-chat-user: #0db7ed;
+  --bg-card: #D8DCE4;
+  --bg-modal: #D8DCE4;
+  --bg-editor: #1A1D2E;
   --accent: #0db7ed;
   --accent-hover: #008bb9;
   --accent-glow: rgba(13, 183, 237, 0.15);
@@ -22,18 +25,42 @@
   --border-hover: rgba(0, 0, 0, 0.15);
 }
 
+.dark {
+  --bg-primary: #0F1117;
+  --bg-surface: #181A24;
+  --bg-surface-hover: #1E2030;
+  --bg-input: #242636;
+  --bg-elevated: #1E2030;
+  --bg-chat-bot: #1E2030;
+  --bg-chat-user: #0a8ab5;
+  --bg-card: #181A24;
+  --bg-modal: #181A24;
+  --bg-editor: #0F1117;
+  --accent: #0db7ed;
+  --accent-hover: #3dcaf2;
+  --accent-glow: rgba(13, 183, 237, 0.2);
+  --accent-border: rgba(13, 183, 237, 0.4);
+  --text-primary: #E8ECF2;
+  --text-secondary: #B0B4C0;
+  --text-muted: #7A7D8E;
+  --text-on-accent: #FFFFFF;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.15);
+}
+
 body {
   margin: 0;
   background-color: var(--bg-surface);
   background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.45) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.45) 1px, transparent 1px);
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
   background-size: 40px 40px;
   color: var(--text-primary);
   font-family: 'Poppins', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Custom Scrollbar */
@@ -167,4 +194,40 @@ body {
   background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
   border-radius: 0 0 0 1rem;
   z-index: 10;
+}
+
+/* ── Global Anti-Clipping ── */
+.prose pre,
+.prose code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.prose pre {
+  overflow-x: auto;
+}
+
+.prose p,
+.prose li,
+.prose td {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ── Dark Mode Transitions ── */
+.dark body {
+  background-color: var(--bg-surface);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(13, 183, 237, 0.4);
 }

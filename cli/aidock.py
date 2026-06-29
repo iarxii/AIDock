@@ -181,9 +181,32 @@ def prune():
         console.print("[green]✓ Pruning complete.[/]")
 
 @cli.command()
+@click.option('--fe', is_flag=True, help="Reload only the frontend container (client)")
+@click.option('--be', is_flag=True, help="Reload only the backend container")
+@click.option('--db', is_flag=True, help="Reload only the database container")
 @click.pass_context
-def reload(ctx):
-    """Reload AIDock: Stop containers, rebuild, and restart."""
+def reload(ctx, fe, be, db):
+    """Reload AIDock: Stop containers, rebuild, and restart (or reload specific service)."""
+    check_docker()
+    if fe or be or db:
+        service_name = None
+        service_label = None
+        if fe:
+            service_name = "client"
+            service_label = "Frontend (client)"
+        elif be:
+            service_name = "backend"
+            service_label = "Backend"
+        elif db:
+            service_name = "db"
+            service_label = "Database (db)"
+            
+        console.print(f"\n[bold blue]Reloading {service_label} service...[/]")
+        subprocess.run(["docker", "compose", "stop", service_name], cwd=ROOT_DIR)
+        subprocess.run(["docker", "compose", "up", "-d", "--build", service_name], cwd=ROOT_DIR)
+        console.print(f"[green]✓ {service_label} service reloaded successfully.[/]")
+        return
+
     console.print("\n[bold blue]Reloading AIDock...[/]")
     ctx.invoke(stop)
     ctx.invoke(start)
