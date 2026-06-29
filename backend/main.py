@@ -3,8 +3,14 @@ import asyncio
 import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
+
+try:
+    import pty
+    HAS_PTY = True
+except ImportError:
+    HAS_PTY = False
 from typing import Optional
 import requests
 import json
@@ -477,3 +483,108 @@ def get_audit_log(request: Request, admin: bool = Header(None), limit: int = 100
     except Exception as e:
         logger.warning(f"Failed to read audit log: {e}")
         return {"entries": []}
+
+
+@app.websocket("/ws/terminal")
+async def terminal_websocket(websocket: WebSocket, session_id: str):
+    await websocket.accept()
+    
+    if not HAS_PTY:
+        await websocket.send_text("\r\n[AIDock] Terminal error: PTY is not supported on this host operating system.\r\n")
+        await websocket.close()
+        return
+        
+    import struct
+    try:
+        import termios
+        import fcntl
+        HAS_TERMIOS = True
+    except ImportError:
+        HAS_TERMIOS = False
+        
+    master_fd, slave_fd = pty.openpty()
+    
+    workspace_dir = Path("/workspace") / session_id
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Defaults to our CLI Tool, drops to bash if exited
+    cmd = ["bash", "-c", "python3 /app/cli/aidock.py; exec bash"]
+    
+    if HAS_TERMIOS:
+        try:
+            winsize = struct.pack("HHHH", 24, 80, 0, 0)
+            fcntl.ioctl(master_fd, termios.TIOCSWINSZ, winsize)
+        except Exception:
+            pass
+            
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdin=slave_fd,
+        stdout=slave_fd,
+        stderr=slave_fd,
+        cwd=str(workspace_dir),
+        env={
+            **os.environ,
+            "TERM": "xterm-color",
+            "WORKSPACE_DIR": str(workspace_dir),
+            "PYTHONPATH": "/app",
+            "CONTAINER_MODE": "true"
+        },
+        preexec_fn=os.setsid
+    )
+    
+    os.close(slave_fd)
+    
+    async def read_from_pty():
+        loop = asyncio.get_event_loop()
+        try:
+            while True:
+                data = await loop.run_in_executor(None, os.read, master_fd, 4096)
+                if not data:
+                    break
+                await websocket.send_bytes(data)
+        except Exception:
+            pass
+            
+    async def write_to_pty():
+        try:
+            while True:
+                msg = await websocket.receive()
+                if "text" in msg:
+                    text_data = msg["text"]
+                    if text_data.startswith("{") and text_data.endswith("}"):
+                        try:
+                            parsed = json.loads(text_data)
+                            if parsed.get("event") == "resize" and HAS_TERMIOS:
+                                rows = parsed.get("rows", 24)
+                                cols = parsed.get("cols", 80)
+                                winsize = struct.pack("HHHH", rows, cols, 0, 0)
+                                fcntl.ioctl(master_fd, termios.TIOCSWINSZ, winsize)
+                                continue
+                        except Exception:
+                            pass
+                    
+                    os.write(master_fd, text_data.encode('utf-8'))
+                elif "bytes" in msg:
+                    os.write(master_fd, msg["bytes"])
+        except Exception:
+            pass
+
+    read_task = asyncio.create_task(read_from_pty())
+    write_task = asyncio.create_task(write_to_pty())
+    
+    try:
+        await proc.wait()
+    except Exception:
+        pass
+    finally:
+        read_task.cancel()
+        write_task.cancel()
+        try:
+            os.close(master_fd)
+        except OSError:
+            pass
+        try:
+            proc.terminate()
+        except ProcessLookupError:
+            pass

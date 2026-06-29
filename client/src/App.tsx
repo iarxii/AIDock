@@ -5,6 +5,9 @@ import {
   Folder, Plus, RefreshCw, Trash2, Settings, ShieldAlert, History,
   Sun, Moon, Monitor
 } from 'lucide-react';
+import { Terminal as Xterm } from 'xterm';
+import { FitAddon } from 'xterm-addon-fit';
+import 'xterm/css/xterm.css';
 import routeMap from './route_map.json';
 import SessionHistoryPanel from './components/SessionHistoryPanel';
 import ReactMarkdown from 'react-markdown';
@@ -339,6 +342,11 @@ function App() {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionId, setSessionId] = useState(`session_${Date.now()}`);
+  const [sessionTitle, setSessionTitle] = useState('Active Session Stream');
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const terminalDivRef = useRef<HTMLDivElement>(null);
+  const xtermInstanceRef = useRef<Xterm | null>(null);
+  const terminalWsRef = useRef<WebSocket | null>(null);
   const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
   const [isCreatingFile, setIsCreatingFile] = useState(false);
   const [newFileName, setNewFileName] = useState('');
@@ -614,6 +622,120 @@ function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Terminal WebSocket and Xterm setup
+  useEffect(() => {
+    if (!isTerminalOpen || !terminalDivRef.current) {
+      if (terminalWsRef.current) {
+        terminalWsRef.current.close();
+        terminalWsRef.current = null;
+      }
+      if (xtermInstanceRef.current) {
+        xtermInstanceRef.current.dispose();
+        xtermInstanceRef.current = null;
+      }
+      return;
+    }
+
+    const term = new Xterm({
+      cursorBlink: true,
+      theme: {
+        background: '#0f172a',
+        foreground: '#e2e8f0',
+        cursor: '#f97316',
+        black: '#1e293b',
+        red: '#ef4444',
+        green: '#22c55e',
+        yellow: '#eab308',
+        blue: '#3b82f6',
+        magenta: '#a855f7',
+        cyan: '#06b6d4',
+        white: '#cbd5e1',
+      },
+      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      fontSize: 13,
+      rows: 15,
+      convertEol: true,
+    });
+
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(terminalDivRef.current);
+    
+    setTimeout(() => {
+      try {
+        fitAddon.fit();
+      } catch (err) {
+        console.warn(err);
+      }
+    }, 100);
+
+    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const backendPort = routeMap.backend_url.split(':').pop() || '8080';
+    const wsUrl = `${wsProto}//${window.location.hostname}:${backendPort}/ws/terminal?session_id=${sessionId}`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      try {
+        const dims = fitAddon.proposeDimensions();
+        if (dims) {
+          ws.send(JSON.stringify({ event: 'resize', cols: dims.cols, rows: dims.rows }));
+        }
+      } catch (err) {}
+    };
+
+    ws.onmessage = async (event) => {
+      try {
+        if (event.data instanceof Blob) {
+          const text = await event.data.text();
+          term.write(text);
+        } else {
+          term.write(event.data);
+        }
+      } catch (err) {}
+    };
+
+    term.onData((data) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(data);
+      }
+    });
+
+    const handleResize = () => {
+      try {
+        fitAddon.fit();
+        const dims = fitAddon.proposeDimensions();
+        if (dims && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ event: 'resize', cols: dims.cols, rows: dims.rows }));
+        }
+      } catch (err) {}
+    };
+
+    window.addEventListener('resize', handleResize);
+    xtermInstanceRef.current = term;
+    terminalWsRef.current = ws;
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (ws) {
+        ws.close();
+      }
+      term.dispose();
+      xtermInstanceRef.current = null;
+      terminalWsRef.current = null;
+    };
+  }, [isTerminalOpen, sessionId]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === '`') {
+        e.preventDefault();
+        setIsTerminalOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Latency timer ticker
   useEffect(() => {
     let intervalId: any;
@@ -679,6 +801,46 @@ function App() {
     }
   };
 
+  const formatChatDate = (dateString?: string) => {
+    if (!dateString) return '';
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return '';
+    return ` - ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  };
+
+  const fetchActiveSessionTitle = async (sid: string) => {
+    try {
+      const url = isCloudMode()
+        ? `${getCloudBase()}/api/spaces/${cloudSpaceSlug}/conversations`
+        : getBackendUrl('sessions');
+      const headers: HeadersInit = isCloudMode() ? cloudAuthHeaders() : {};
+      const res = await fetch(url, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const match = data.find(s => s.session_id === sid || String(s.id) === sid);
+          if (match && match.title) {
+            const dateStr = formatChatDate(match.created_at);
+            setSessionTitle(`${match.title}${dateStr}`);
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch session title:", e);
+    }
+    setSessionTitle('Active Session Stream');
+  };
+
+  const getContextTokenCount = (): number => {
+    let charCount = 0;
+    messages.forEach(m => {
+      charCount += m.content.length;
+    });
+    charCount += input.length;
+    return Math.ceil(charCount / 4);
+  };
+
   // Fetch session messages
   const fetchSessionMessages = async (sid: string) => {
     if (!sid) return;
@@ -710,16 +872,23 @@ function App() {
               workspaceUsed
             };
           });
+          if (data.title) {
+            const dateStr = formatChatDate(data.created_at);
+            setSessionTitle(`${data.title}${dateStr}`);
+          }
         } else {
           msgs = data.messages || [];
+          fetchActiveSessionTitle(sid);
         }
         setMessages(msgs);
       } else {
         setMessages([]);
+        fetchActiveSessionTitle(sid);
       }
     } catch (e) {
       console.error("Failed to fetch session messages:", e);
       setMessages([]);
+      fetchActiveSessionTitle(sid);
     }
   };
 
@@ -965,8 +1134,9 @@ function App() {
     }
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
+  const handleSend = async (overrideInput?: string) => {
+    const textToSend = typeof overrideInput === 'string' ? overrideInput : input;
+    if (!textToSend.trim() || loading) return;
 
     // Guard: cloud mode requires a JWT
     if (isCloudMode() && !cloudToken) {
@@ -982,21 +1152,23 @@ function App() {
     const userMessage: Message = {
       id: `msg_${Date.now()}_u`,
       sender: 'user',
-      content: input,
+      content: textToSend,
     };
     setMessages(prev => [...prev, userMessage]);
-    const currentInput = input;
-    setInput('');
+    
+    if (typeof overrideInput !== 'string') {
+      setInput('');
+    }
     setLoading(true);
     const startTime = Date.now();
 
-    logToContainer('info', `User interaction submitted - Session: ${sessionId} - Prompt: "${currentInput.substring(0, 60)}..."`);
+    logToContainer('info', `User interaction submitted - Session: ${sessionId} - Prompt: "${textToSend.substring(0, 60)}..."`);
 
     try {
       const chatUrl = getBackendUrl('chat');
 
       // Cloud uses the codegen spaces endpoint; local uses the standard chat endpoint
-      const cloudBody: Record<string, string> = { prompt: currentInput, session_id: sessionId };
+      const cloudBody: Record<string, string> = { prompt: textToSend, session_id: sessionId };
       if (cloudSelectedModel) cloudBody.model = cloudSelectedModel;
       if (cloudSelectedProvider) cloudBody.provider = cloudSelectedProvider;
 
@@ -1009,7 +1181,7 @@ function App() {
         : {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ message: currentInput, session_id: sessionId, model_slug: localSelectedModel || undefined }),
+              body: JSON.stringify({ message: textToSend, session_id: sessionId, model_slug: localSelectedModel || undefined }),
           };
 
       let res = await fetch(chatUrl, fetchOptions);
@@ -1048,6 +1220,10 @@ function App() {
         workspaceUsed,
         latencyMs: latency,
       }]);
+
+      setTimeout(() => {
+        fetchActiveSessionTitle(sessionId);
+      }, 1000);
 
     } catch (err: any) {
       const isConnectionError = err.message === 'Failed to fetch';
@@ -1101,6 +1277,13 @@ function App() {
               <ShieldAlert className="w-5 h-5" />
             </button>
           )}
+          <button 
+            onClick={() => setIsTerminalOpen(prev => !prev)}
+            className={`p-2 hover:text-[#0db7ed] hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all focus:outline-none flex items-center justify-center ${isTerminalOpen ? 'text-[#0db7ed] bg-black/5 dark:bg-white/5' : 'text-[var(--text-muted)]'}`}
+            title="Toggle Workspace Terminal"
+          >
+            <Terminal className="w-5 h-5" />
+          </button>
           <button 
             onClick={() => setShowSettingsModal(true)}
             className="p-2 text-[var(--text-muted)] hover:text-[#0db7ed] hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
@@ -1406,9 +1589,11 @@ function App() {
             
             {/* Chat Area Header with Export Menu */}
             <div className="flex items-center justify-between pb-4 border-b border-black/5 mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs font-bold text-[#1A1D2E] tracking-wide uppercase">Active Session Stream</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="inline-block text-xs font-bold text-[var(--text-primary)] tracking-wide uppercase truncate max-w-[150px] sm:max-w-[280px] md:max-w-[400px] lg:max-w-[550px]" title={sessionTitle}>
+                  {sessionTitle}
+                </span>
               </div>
               <div className="flex items-center gap-3">
                 {/* Model Selection Dropdown */}
@@ -1567,8 +1752,8 @@ function App() {
                       <div 
                         className={`p-4 rounded-2xl shadow-sm text-sm border border-[var(--border)] font-medium transition-colors duration-300 ${
                           msg.sender === 'user'
-                            ? 'bg-[var(--bg-chat-user)] text-white user-corner-glow'
-                            : 'bg-[var(--bg-chat-bot)] text-[var(--text-primary)] bot-corner-glow bot-corner-glow-secondary'
+                            ? 'bg-[var(--bg-chat-user)] text-white user-corner-glow user-message'
+                            : 'bg-[var(--bg-chat-bot)] text-[var(--text-primary)] bot-corner-glow agent-message'
                         }`}
                       >
                         <div className={`prose prose-sm max-w-none break-words overflow-x-auto prose-p:leading-relaxed prose-p:break-words prose-pre:bg-[#1A1D2E] prose-pre:text-[#E8ECF2] prose-pre:border prose-pre:border-black/10 prose-pre:overflow-x-auto ${
@@ -1692,13 +1877,7 @@ function App() {
                   />
                   
                   <button
-                    onClick={() => setInput("Write a python file-editor tool that can edit a source file.")}
-                    className="px-2.5 py-1 text-[11px] font-bold bg-[#E8ECF2] hover:bg-[#E2E6EC] border border-black/5 text-[#4A4D5E] rounded-lg transition-all"
-                  >
-                    Write Code
-                  </button>
-                  <button
-                    onClick={() => setInput("Scan all workspace files and summarize their contents.")}
+                    onClick={() => handleSend("Scan all workspace files and summarize their contents.")}
                     className="px-2.5 py-1 text-[11px] font-bold bg-[#E8ECF2] hover:bg-[#E2E6EC] border border-black/5 text-[#4A4D5E] rounded-lg transition-all"
                   >
                     Scan Workspace
@@ -1740,12 +1919,28 @@ function App() {
                   placeholder="Instruct the AI model in your workspace..."
                 />
                 <button
-                  onClick={handleSend}
+                  onClick={() => handleSend()}
                   disabled={loading || !input.trim()}
                   className="bg-[#0db7ed] hover:bg-[#008bb9] active:scale-95 disabled:opacity-50 disabled:scale-100 text-white w-12 h-12 rounded-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 shrink-0 mb-[1px]"
                 >
                   <Send className="w-5 h-5" />
                 </button>
+              </div>
+
+              {/* Chat Context Progress Bar & Token Count */}
+              <div className="mt-2 px-1 flex flex-col gap-1.5 select-none">
+                <div className="flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)]">
+                  <span className="uppercase tracking-wider">Chat Context window</span>
+                  <span className="font-mono">
+                    {getContextTokenCount().toLocaleString()} / 2,048 tokens ({Math.min(100, Math.round((getContextTokenCount() / 2048) * 100))}%)
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-[var(--bg-input)] rounded-full overflow-hidden border border-black/5 dark:border-white/5">
+                  <div 
+                    className="h-full bg-gradient-to-r from-[#0db7ed] to-[#3b82f6] rounded-full transition-all duration-500 ease-out" 
+                    style={{ width: `${Math.min(100, (getContextTokenCount() / 2048) * 100)}%` }}
+                  />
+                </div>
               </div>
             </div>
 
@@ -2048,6 +2243,56 @@ function App() {
             >
               Close & Apply
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Terminal Bottom Drawer */}
+      {isTerminalOpen && (
+        <div className="fixed bottom-0 left-0 right-0 h-80 bg-[#0f172a] border-t border-[var(--border)] shadow-2xl flex flex-col z-[100] transition-all duration-300">
+          {/* Terminal Header */}
+          <div className="flex items-center justify-between px-6 py-2 bg-slate-900 border-b border-slate-800 text-xs font-semibold text-slate-400 select-none">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#f97316]" />
+              <span className="text-slate-200">Terminal</span>
+              <span className="text-slate-500">|</span>
+              <span className="font-mono text-slate-400">aidock harness ({sessionId})</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => {
+                  if (xtermInstanceRef.current) {
+                    xtermInstanceRef.current.clear();
+                    xtermInstanceRef.current.focus();
+                  }
+                }}
+                className="hover:text-slate-200 transition-colors py-0.5 px-1.5 hover:bg-slate-800 rounded animate-pulse"
+                title="Clear Screen"
+              >
+                Clear
+              </button>
+              <button 
+                onClick={() => {
+                  setIsTerminalOpen(false);
+                  setTimeout(() => setIsTerminalOpen(true), 150);
+                }}
+                className="hover:text-slate-200 transition-colors py-0.5 px-1.5 hover:bg-slate-800 rounded"
+                title="Restart Terminal Session"
+              >
+                Reset
+              </button>
+              <button 
+                onClick={() => setIsTerminalOpen(false)}
+                className="text-slate-500 hover:text-slate-200 transition-colors p-0.5 hover:bg-slate-800 rounded"
+                title="Close Panel"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          {/* Terminal Canvas Container */}
+          <div className="flex-1 p-2 bg-[#0f172a] overflow-hidden relative">
+            <div ref={terminalDivRef} className="w-full h-full min-h-0" />
           </div>
         </div>
       )}

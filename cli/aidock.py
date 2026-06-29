@@ -33,8 +33,26 @@ PROFILES = {
     "researcher": ["ai/mistral:7B-Q4_K_M"]
 }
 
+def is_in_container() -> bool:
+    return os.getenv("CONTAINER_MODE") == "true" or os.path.exists("/.dockerenv")
+
+def assert_host_only(command_name: str):
+    if is_in_container():
+        console.print(f"[bold red]Error:[/] The command '{command_name}' is host-only and cannot be executed inside the AIDock container.", style="red")
+        sys.exit(1)
+
+def get_active_session_id() -> str:
+    cwd = Path.cwd()
+    if cwd.name.startswith("session_"):
+        return cwd.name
+    if cwd.parent.name.startswith("session_"):
+        return cwd.parent.name
+    return "session_cli_harness"
+
 def check_docker():
     """Check if Docker daemon is running."""
+    if is_in_container():
+        return
     try:
         result = subprocess.run(["docker", "info"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if result.returncode != 0:
@@ -71,6 +89,7 @@ def cli():
 @cli.command()
 def setup():
     """Interactive setup for workspace and profile."""
+    assert_host_only("setup")
     console.print("[bold blue]Welcome to AIDock Setup[/]")
     check_docker()
 
@@ -136,6 +155,7 @@ def setup():
 @cli.command()
 def start():
     """Start the AIDock Docker Compose stack."""
+    assert_host_only("start")
     check_docker()
     if not ENV_FILE.exists():
         console.print("[red]Error:[/] .env file not found. Please run `aidock setup` first.")
@@ -167,6 +187,7 @@ def start():
 @cli.command()
 def stop():
     """Stop the AIDock Docker Compose stack."""
+    assert_host_only("stop")
     check_docker()
     console.print("[blue]Stopping AIDock...[/]")
     subprocess.run(["docker", "compose", "down"], cwd=ROOT_DIR)
@@ -175,6 +196,7 @@ def stop():
 @cli.command()
 def prune():
     """Prune unused Docker images and models."""
+    assert_host_only("prune")
     check_docker()
     if questionary.confirm("This will remove unused Docker images to free up disk space. Continue?").ask():
         subprocess.run(["docker", "image", "prune", "-a", "-f"])
@@ -187,6 +209,7 @@ def prune():
 @click.pass_context
 def reload(ctx, fe, be, db):
     """Reload AIDock: Stop containers, rebuild, and restart (or reload specific service)."""
+    assert_host_only("reload")
     check_docker()
     if fe or be or db:
         service_name = None
@@ -210,6 +233,165 @@ def reload(ctx, fe, be, db):
     console.print("\n[bold blue]Reloading AIDock...[/]")
     ctx.invoke(stop)
     ctx.invoke(start)
+
+@cli.command()
+@click.option('--session', default=None, help="Specific session ID to bind to.")
+def chat(session):
+    """Start an interactive agent chat session harness."""
+    session_id = session or get_active_session_id()
+    
+    console.print(f"[bold blue]AIDock Developer Harness - Interactive Chat[/]")
+    console.print(f"Active Session: [green]{session_id}[/]")
+    console.print("Type [bold yellow]/help[/] to view slash commands, [bold yellow]/exit[/] or [bold yellow]/quit[/] to quit.\n")
+    
+    # Try fetching model info from backend
+    active_model = "Unknown"
+    try:
+        r = requests.get("http://localhost:8080/info", timeout=2)
+        if r.status_code == 200:
+            active_model = r.json().get("model_name", "Unknown")
+    except Exception:
+        pass
+        
+    console.print(f"Agent Model: [cyan]{active_model}[/]\n")
+    
+    while True:
+        try:
+            user_input = questionary.text("User >").ask()
+            if user_input is None:
+                break
+            user_input = user_input.strip()
+            if not user_input:
+                continue
+                
+            if user_input.startswith("/"):
+                parts = user_input.split()
+                cmd = parts[0].lower()
+                if cmd in ["/exit", "/quit"]:
+                    console.print("[yellow]Exiting chat session.[/]")
+                    break
+                elif cmd == "/clear":
+                    click.clear()
+                    console.print(f"[bold blue]AIDock Developer Harness - Interactive Chat[/]")
+                    console.print(f"Active Session: [green]{session_id}[/]")
+                    continue
+                elif cmd == "/model":
+                    try:
+                        info_r = requests.get("http://localhost:8080/info", timeout=2)
+                        active = info_r.json().get("model_name", "Unknown")
+                        console.print(f"Active Model: [cyan]{active}[/]")
+                        
+                        models_r = requests.get("http://localhost:8080/models/local", timeout=2)
+                        available = models_r.json().get("models", [])
+                        console.print("Available Models:")
+                        for m in available:
+                            console.print(f"  - {m}")
+                    except Exception as e:
+                        console.print(f"[red]Error fetching models: {e}[/]")
+                    continue
+                elif cmd == "/files":
+                    try:
+                        r = requests.get(f"http://localhost:8080/files?session_id={session_id}", timeout=2)
+                        files_list = r.json().get("files", [])
+                        if not files_list:
+                            console.print("[yellow]Workspace is empty.[/]")
+                        else:
+                            console.print("[bold green]Workspace Files:[/]")
+                            for f in files_list:
+                                console.print(f"  - {f['path']} ({f['size']} bytes)")
+                    except Exception as e:
+                        console.print(f"[red]Error listing files: {e}[/]")
+                    continue
+                elif cmd == "/help":
+                    console.print("[bold cyan]Slash Commands:[/]")
+                    console.print("  /model  - Show active and available models")
+                    console.print("  /files  - List files in current workspace session")
+                    console.print("  /clear  - Clear the screen")
+                    console.print("  /exit   - Exit the interactive chat")
+                    continue
+                else:
+                    console.print(f"[red]Unknown command: {cmd}. Type /help for assistance.[/]")
+                    continue
+            
+            with console.status("[blue]Agent is thinking...[/]"):
+                try:
+                    res = requests.post(
+                        "http://localhost:8080/chat",
+                        json={"message": user_input, "session_id": session_id},
+                        timeout=120
+                    )
+                    if res.status_code == 200:
+                        data = res.json()
+                        response_text = data.get("response", "")
+                        console.print("\n[bold cyan]AIDock Agent:[/]")
+                        from rich.markdown import Markdown
+                        console.print(Markdown(response_text))
+                        console.print()
+                    else:
+                        console.print(f"[bold red]Error:[/] Server returned code {res.status_code}: {res.text}", style="red")
+                except Exception as e:
+                    console.print(f"[bold red]Error:[/] Failed to reach backend: {e}", style="red")
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[yellow]Exiting chat session.[/]")
+            break
+
+@cli.command()
+@click.argument('prompt')
+@click.option('--session', default=None, help="Session ID to use.")
+def run(prompt, session):
+    """Execute a single prompt/task with the active agent harness."""
+    session_id = session or get_active_session_id()
+    console.print(f"[bold blue]Running task on session '{session_id}':[/] {prompt}")
+    
+    with console.status("[blue]Executing...[/]"):
+        try:
+            res = requests.post(
+                "http://localhost:8080/chat",
+                json={"message": prompt, "session_id": session_id},
+                timeout=120
+            )
+            if res.status_code == 200:
+                data = res.json()
+                response_text = data.get("response", "")
+                console.print("\n[bold cyan]Response:[/]")
+                from rich.markdown import Markdown
+                console.print(Markdown(response_text))
+            else:
+                console.print(f"[bold red]Error:[/] Server returned code {res.status_code}: {res.text}", style="red")
+                sys.exit(1)
+        except Exception as e:
+            console.print(f"[bold red]Error:[/] Failed to reach backend: {e}", style="red")
+            sys.exit(1)
+
+@cli.command()
+@click.option('--session', default=None, help="Session ID to inspect.")
+def status(session):
+    """Display the active workspace status and configurations."""
+    session_id = session or get_active_session_id()
+    console.print("[bold blue]AIDock System Status[/]")
+    console.print(f"Current Workspace Session ID: [green]{session_id}[/]")
+    
+    try:
+        r = requests.get("http://localhost:8080/health", timeout=2)
+        health = r.json().get("status", "unknown")
+        console.print(f"Backend API Status: [green]Active ({health})[/]")
+    except Exception:
+        console.print("Backend API Status: [red]Offline / Unreachable[/]")
+        
+    try:
+        r = requests.get("http://localhost:8080/info", timeout=2)
+        if r.status_code == 200:
+            model = r.json().get("model_name", "Unknown")
+            console.print(f"Active LLM Model: [cyan]{model}[/]")
+    except Exception:
+        pass
+        
+    try:
+        r = requests.get(f"http://localhost:8080/files?session_id={session_id}", timeout=2)
+        files_list = r.json().get("files", [])
+        console.print(f"Workspace Files count: [yellow]{len(files_list)}[/]")
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     cli()

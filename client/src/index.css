@@ -144,6 +144,14 @@ body {
   z-index: 10;
 }
 
+.agent-message {
+  border-top-left-radius: 0 !important;
+}
+
+.user-message {
+  border-top-right-radius: 0 !important;
+}
+
 .user-corner-glow {
   position: relative;
 }
