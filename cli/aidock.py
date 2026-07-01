@@ -54,11 +54,14 @@ def check_docker():
     if is_in_container():
         return
     try:
-        result = subprocess.run(["docker", "info"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        result = subprocess.run(["docker", "info"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
         if result.returncode != 0:
             console.print("[bold red]Error:[/] Docker is not running. Please start Docker Desktop.", style="red")
             sys.exit(1)
         console.print("[green]✓[/] Docker is running.")
+    except subprocess.TimeoutExpired:
+        console.print("[bold red]Error:[/] Docker Desktop is unresponsive (timed out). Please restart Docker Desktop.", style="red")
+        sys.exit(1)
     except FileNotFoundError:
         console.print("[bold red]Error:[/] Docker is not installed or not in PATH.", style="red")
         sys.exit(1)
@@ -84,16 +87,7 @@ def get_service_url(service_name, container_port):
 @click.group()
 def cli():
     """AIDock CLI: Streamlined Local LLM Workspace Manager"""
-    try:
-        art_path = ROOT_DIR / "cli" / "spiritbird-ascii-art.txt"
-        if art_path.exists():
-            art = art_path.read_text(encoding="utf-8")
-            console.print(f"[bold blue]{art}[/]")
-            console.print("[bold cyan]========================================================================[/]")
-            console.print("[bold cyan]            AIDOCK - Isolated LLM Workspace Harness[/]")
-            console.print("[bold cyan]========================================================================[/]")
-    except Exception:
-        pass
+    pass
 
 @cli.command()
 def setup():
@@ -254,7 +248,22 @@ def launch_cli(ctx, session):
 @click.option('--session', default=None, help="Specific session ID to bind to.")
 def chat(session):
     """Start an interactive agent chat session harness."""
+    import dotenv
+    dotenv.load_dotenv(str(ENV_FILE))
+    
+    try:
+        art_path = ROOT_DIR / "cli" / "spiritbird-ascii-art.txt"
+        if art_path.exists():
+            art = art_path.read_text(encoding="utf-8")
+            console.print(f"[bold blue]{art}[/]")
+            console.print("[bold cyan]========================================================================[/]")
+            console.print("[bold cyan]            AIDOCK - Isolated LLM Workspace Harness[/]")
+            console.print("[bold cyan]========================================================================[/]")
+    except Exception:
+        pass
+
     session_id = session or get_active_session_id()
+    backend_url = get_service_url("backend", 8080) or "http://localhost:8080"
     
     console.print(f"[bold blue]AIDock Developer Harness - Interactive Chat[/]")
     console.print(f"Active Session: [green]{session_id}[/]")
@@ -263,13 +272,17 @@ def chat(session):
     # Try fetching model info from backend
     active_model = "Unknown"
     try:
-        r = requests.get("http://localhost:8080/info", timeout=2)
+        r = requests.get(f"{backend_url}/info", timeout=2)
         if r.status_code == 200:
             active_model = r.json().get("model_name", "Unknown")
     except Exception:
         pass
         
-    console.print(f"Agent Model: [cyan]{active_model}[/]\n")
+    current_provider = os.getenv("LLM_PROVIDER", "local")
+    current_model = active_model
+    
+    console.print(f"Agent Model: [cyan]{current_model}[/]")
+    console.print(f"Active Provider: [cyan]{current_provider}[/]\n")
     
     while True:
         try:
@@ -290,24 +303,63 @@ def chat(session):
                     click.clear()
                     console.print(f"[bold blue]AIDock Developer Harness - Interactive Chat[/]")
                     console.print(f"Active Session: [green]{session_id}[/]")
+                    console.print(f"Agent Model: [cyan]{current_model}[/]")
+                    console.print(f"Active Provider: [cyan]{current_provider}[/]\n")
+                    continue
+                elif cmd == "/provider":
+                    if len(parts) < 2:
+                        console.print(f"Current Provider: [cyan]{current_provider}[/]")
+                        console.print("To change: /provider <local|gemini|groq|openrouter>")
+                    else:
+                        new_prov = parts[1].lower().strip()
+                        if new_prov in ["local", "gemini", "google", "groq", "openrouter"]:
+                            current_provider = "gemini" if new_prov == "google" else new_prov
+                            console.print(f"[green]✓ Provider switched to:[/] {current_provider}")
+                        else:
+                            console.print("[red]Invalid provider. Available: local, gemini, groq, openrouter[/]")
                     continue
                 elif cmd == "/model":
-                    try:
-                        info_r = requests.get("http://localhost:8080/info", timeout=2)
-                        active = info_r.json().get("model_name", "Unknown")
-                        console.print(f"Active Model: [cyan]{active}[/]")
-                        
-                        models_r = requests.get("http://localhost:8080/models/local", timeout=2)
-                        available = models_r.json().get("models", [])
-                        console.print("Available Models:")
-                        for m in available:
-                            console.print(f"  - {m}")
-                    except Exception as e:
-                        console.print(f"[red]Error fetching models: {e}[/]")
+                    if len(parts) < 2:
+                        console.print(f"Current Model: [cyan]{current_model or 'Default'}[/]")
+                        console.print("To change: /model <model_slug>")
+                        try:
+                            models_r = requests.get(f"{backend_url}/models/local", timeout=2)
+                            available = models_r.json().get("models", [])
+                            console.print("Available Local Models Whitelist:")
+                            for m in available:
+                                console.print(f"  - {m}")
+                        except Exception:
+                            pass
+                    else:
+                        current_model = parts[1].strip()
+                        console.print(f"[green]✓ Model switched to:[/] {current_model}")
+                    continue
+                elif cmd == "/token":
+                    if len(parts) < 2:
+                        token_preview = (os.getenv("CLOUD_TOKEN") or "None")[:15] + "..." if os.getenv("CLOUD_TOKEN") else "None"
+                        console.print(f"Current Cloud Token: [cyan]{token_preview}[/]")
+                        console.print("To set: /token <jwt_token>")
+                    else:
+                        new_token = parts[1].strip()
+                        os.environ["CLOUD_TOKEN"] = new_token
+                        from dotenv import set_key
+                        set_key(str(ENV_FILE), "CLOUD_TOKEN", new_token)
+                        console.print("[green]✓ Cloud token updated and saved to .env[/]")
+                    continue
+                elif cmd == "/api_url":
+                    if len(parts) < 2:
+                        console.print(f"Current Cloud API URL: [cyan]{os.getenv('CLOUD_API_URL') or 'None'}[/]")
+                        console.print("To set: /api_url <url>")
+                    else:
+                        new_url = parts[1].strip()
+                        os.environ["CLOUD_API_URL"] = new_url
+                        from dotenv import set_key
+                        set_key(str(ENV_FILE), "CLOUD_API_URL", new_url)
+                        console.print("[green]✓ Cloud API URL updated and saved to .env[/]")
                     continue
                 elif cmd == "/files":
                     try:
-                        r = requests.get(f"http://localhost:8080/files?session_id={session_id}", timeout=2)
+                        r = requests.get(f"{backend_url}/files?session_id={session_id}", timeout=2)
                         files_list = r.json().get("files", [])
                         if not files_list:
                             console.print("[yellow]Workspace is empty.[/]")
@@ -318,12 +370,51 @@ def chat(session):
                     except Exception as e:
                         console.print(f"[red]Error listing files: {e}[/]")
                     continue
+                elif cmd == "/skills":
+                    skills_dir = ROOT_DIR / "backend" / "agent" / "skills" / "situational"
+                    if not skills_dir.exists():
+                        console.print("[yellow]No situational skills directory found.[/]")
+                    else:
+                        console.print("[bold green]Available Agent Skills:[/]")
+                        for f in skills_dir.glob("*.md"):
+                            console.print(f"  - {f.stem}")
+                        console.print("\nTo invoke a skill, type: [bold yellow]/skill <skill_name> [optional instructions][/]")
+                    continue
+                elif cmd == "/skill":
+                    if len(parts) < 2:
+                        console.print("Usage: /skill <skill_name> [optional instructions]")
+                        continue
+                    skill_name = parts[1].strip()
+                    extra_instructions = " ".join(parts[2:]).strip()
+                    
+                    skills_dir = ROOT_DIR / "backend" / "agent" / "skills" / "situational"
+                    skill_file = skills_dir / f"{skill_name}.md"
+                    if not skill_file.exists():
+                        console.print(f"[red]Skill '{skill_name}' not found. Type /skills to see available skills.[/]")
+                        continue
+                        
+                    try:
+                        skill_content = skill_file.read_text(encoding="utf-8")
+                        prompt = f"Invoke Skill: {skill_name}\n\n{skill_content}"
+                        if extra_instructions:
+                            prompt += f"\n\nAdditional user instructions:\n{extra_instructions}"
+                            
+                        console.print(f"[blue]Invoking skill '{skill_name}'...[/]")
+                        user_input = prompt
+                    except Exception as e:
+                        console.print(f"[red]Error loading skill: {e}[/]")
+                        continue
                 elif cmd == "/help":
                     console.print("[bold cyan]Slash Commands:[/]")
-                    console.print("  /model  - Show active and available models")
-                    console.print("  /files  - List files in current workspace session")
-                    console.print("  /clear  - Clear the screen")
-                    console.print("  /exit   - Exit the interactive chat")
+                    console.print("  /provider <name> - Show or set active CodexSpace provider (local, gemini, groq, openrouter)")
+                    console.print("  /model <name>    - Show or set active model")
+                    console.print("  /token <jwt>     - Show or set cloud JWT auth token")
+                    console.print("  /api_url <url>   - Show or set cloud base API URL")
+                    console.print("  /skills          - List all available situational agent skills")
+                    console.print("  /skill <name> [inst] - Invoke a specific skill with optional instructions")
+                    console.print("  /files           - List files in current workspace session")
+                    console.print("  /clear           - Clear the screen")
+                    console.print("  /exit            - Exit the interactive chat")
                     continue
                 else:
                     console.print(f"[red]Unknown command: {cmd}. Type /help for assistance.[/]")
@@ -331,9 +422,23 @@ def chat(session):
             
             with console.status("[blue]Agent is thinking...[/]"):
                 try:
+                    payload = {
+                        "message": user_input,
+                        "session_id": session_id,
+                        "provider": current_provider,
+                        "model_slug": current_model if current_model != "Unknown" else None
+                    }
+                    cloud_token = os.getenv("CLOUD_TOKEN")
+                    cloud_api_url = os.getenv("CLOUD_API_URL", "https://api.aicodex.dev")
+                    
+                    if current_provider != "local":
+                        if cloud_token:
+                            payload["cloud_token"] = cloud_token
+                        payload["cloud_api_url"] = cloud_api_url
+                        
                     res = requests.post(
-                        "http://localhost:8080/chat",
-                        json={"message": user_input, "session_id": session_id},
+                        f"{backend_url}/chat",
+                        json=payload,
                         timeout=120
                     )
                     if res.status_code == 200:
@@ -357,12 +462,13 @@ def chat(session):
 def run(prompt, session):
     """Execute a single prompt/task with the active agent harness."""
     session_id = session or get_active_session_id()
+    backend_url = get_service_url("backend", 8080) or "http://localhost:8080"
     console.print(f"[bold blue]Running task on session '{session_id}':[/] {prompt}")
     
     with console.status("[blue]Executing...[/]"):
         try:
             res = requests.post(
-                "http://localhost:8080/chat",
+                f"{backend_url}/chat",
                 json={"message": prompt, "session_id": session_id},
                 timeout=120
             )
@@ -384,18 +490,19 @@ def run(prompt, session):
 def status(session):
     """Display the active workspace status and configurations."""
     session_id = session or get_active_session_id()
+    backend_url = get_service_url("backend", 8080) or "http://localhost:8080"
     console.print("[bold blue]AIDock System Status[/]")
     console.print(f"Current Workspace Session ID: [green]{session_id}[/]")
     
     try:
-        r = requests.get("http://localhost:8080/health", timeout=2)
+        r = requests.get(f"{backend_url}/health", timeout=2)
         health = r.json().get("status", "unknown")
         console.print(f"Backend API Status: [green]Active ({health})[/]")
     except Exception:
         console.print("Backend API Status: [red]Offline / Unreachable[/]")
         
     try:
-        r = requests.get("http://localhost:8080/info", timeout=2)
+        r = requests.get(f"{backend_url}/info", timeout=2)
         if r.status_code == 200:
             model = r.json().get("model_name", "Unknown")
             console.print(f"Active LLM Model: [cyan]{model}[/]")
@@ -403,7 +510,7 @@ def status(session):
         pass
         
     try:
-        r = requests.get(f"http://localhost:8080/files?session_id={session_id}", timeout=2)
+        r = requests.get(f"{backend_url}/files?session_id={session_id}", timeout=2)
         files_list = r.json().get("files", [])
         console.print(f"Workspace Files count: [yellow]{len(files_list)}[/]")
     except Exception:
