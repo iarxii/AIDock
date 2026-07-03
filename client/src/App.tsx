@@ -2,17 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Send, Terminal, Database, Cpu, Activity, User, 
   Download, FileText, ChevronDown, Save, X, Edit, FileCode,
-  Folder, Plus, RefreshCw, Trash2, Settings, ShieldAlert, History,
-  Sun, Moon, Monitor
+  Folder, Plus, RefreshCw, Trash2, Settings
 } from 'lucide-react';
-import { Terminal as Xterm } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
-import 'xterm/css/xterm.css';
-import routeMap from './route_map.json';
-import SessionHistoryPanel from './components/SessionHistoryPanel';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import MermaidDiagram from './components/MermaidDiagram';
 
 interface Message {
   id: string;
@@ -62,303 +53,19 @@ function MascotLogo({ className }: { className?: string }) {
   );
 }
 
-interface CanvasCodeBlockProps {
-  info: string;
-  content: string;
-  setEditorFilename: (name: string) => void;
-  setEditorContent: (content: string) => void;
-  setEditorSaved: (saved: boolean) => void;
-  setIsTextEditorOpen: (open: boolean) => void;
-  setEditorFormat: (format: 'markdown' | 'json') => void;
-}
-
-function CanvasCodeBlock({
-  info,
-  content,
-  setEditorFilename,
-  setEditorContent,
-  setEditorSaved,
-  setIsTextEditorOpen,
-  setEditorFormat
-}: CanvasCodeBlockProps) {
-  const [copied, setCopied] = useState(false);
-
-  let parts = info.split(':');
-  let filePath = info;
-  if (parts.length > 1) {
-    filePath = parts.slice(0, -1).join(':');
-  }
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleLoadInEditor = () => {
-    setEditorFilename(filePath);
-    setEditorContent(content);
-    const ext = filePath.split('.').pop() || '';
-    setEditorFormat(ext === 'json' ? 'json' : 'markdown');
-    setEditorSaved(false);
-    setIsTextEditorOpen(true);
-  };
-
-  const lines = content.split('\n');
-
-  return (
-    <div className="my-4 rounded-xl border border-black/5 bg-[#1E1E2E] text-slate-200 overflow-hidden shadow-md flex flex-col font-mono text-[12px]">
-      <div className="h-10 px-4 flex items-center justify-between border-b border-white/5 bg-black/25">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 mr-2">
-            <div className="w-[8px] h-[8px] rounded-full bg-[#FF5F57]"></div>
-            <div className="w-[8px] h-[8px] rounded-full bg-[#FEBC2E]"></div>
-            <div className="w-[8px] h-[8px] rounded-full bg-[#28C840]"></div>
-          </div>
-          <span className="text-[10px] text-slate-400 font-bold truncate max-w-[200px]" title={filePath}>Canvas Code: {filePath}</span>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={handleLoadInEditor}
-            className="px-2 py-1 rounded bg-[#0db7ed]/15 hover:bg-[#0db7ed]/25 text-[#0db7ed] border border-[#0db7ed]/20 text-[9px] font-bold transition-all"
-            title="Load this code into the workspace editor"
-          >
-            Open in Editor
-          </button>
-          <button
-            onClick={handleCopy}
-            className={`px-2 py-1 rounded text-[9px] font-bold border transition-all ${
-              copied
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10'
-            }`}
-          >
-            {copied ? 'Copied!' : 'Copy'}
-          </button>
-        </div>
-      </div>
-      <div className="p-3 overflow-auto max-h-[300px] leading-relaxed select-text">
-        {lines.map((line, i) => (
-          <div key={i} className="flex hover:bg-white/[0.02]">
-            <span className="select-none w-8 shrink-0 text-right pr-3 text-slate-600 text-[10px]">
-              {i + 1}
-            </span>
-            <span className="whitespace-pre flex-1 text-slate-300">{line || '\u00A0'}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TutorBlock({ content }: { content: string }) {
-  return (
-    <div className="my-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="rounded-xl border border-black/5 bg-white/50 dark:bg-white/5 backdrop-blur-sm overflow-x-auto shadow-sm">
-        <div className="px-4 py-2 border-b border-black/5 bg-[#0db7ed]/10 flex items-center gap-2">
-          <span className="text-xs">💡</span>
-          <span className="text-[10px] font-black uppercase tracking-wider text-[#008bb9]">Neural Tutor</span>
-        </div>
-        <div className="p-4 text-[13px] text-[var(--text-primary)] leading-relaxed italic prose prose-sm max-w-none break-words overflow-x-auto">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SpiritBlock({ content }: { content: string }) {
-  return (
-    <div className="my-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="relative p-5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 shadow-sm overflow-x-auto group">
-        <div className="relative flex flex-col sm:flex-row gap-4">
-          <div className="shrink-0 flex justify-center sm:justify-start">
-            <div className="relative">
-              <div className="absolute inset-0 bg-[#0db7ed]/20 rounded-full blur-md animate-pulse"></div>
-              <div className="w-12 h-12 rounded-full border-2 border-white bg-white/80 relative z-10 shadow flex items-center justify-center text-xl">
-                🐦
-              </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full z-20 shadow-sm"></div>
-            </div>
-          </div>
-          <div className="flex-1 space-y-2 min-w-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-[#0db7ed]">Spirit Bird</span>
-                <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-white text-[#0db7ed] border border-[#0db7ed]/10 uppercase tracking-widest">Mascot</span>
-              </div>
-            </div>
-            <div className="text-[13px] text-[var(--text-secondary)] leading-relaxed italic prose prose-sm max-w-none break-words overflow-x-auto">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-            </div>
-            <div className="pt-2 flex items-center gap-3">
-              <div className="h-[1px] flex-1 bg-gradient-to-r from-[#0db7ed]/30 to-transparent"></div>
-              <span className="text-[9px] font-serif italic text-[#008bb9] opacity-80">— Spirit Bird</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function preprocessCustomTags(text: string): string {
-  if (!text) return text;
-  
-  const lines = text.split('\n');
-  let output: string[] = [];
-  
-  let activeBlock: 'tutor' | 'spirit' | 'canvas-code' | null = null;
-  let activeBlockContent: string[] = [];
-  let activeBlockInfo: string | null = null;
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    
-    const hasTutorOpen = line.includes('[TUTOR]');
-    const hasTutorClose = line.includes('[/TUTOR]');
-    const hasSpiritOpen = line.includes('[SPIRIT]');
-    const hasSpiritClose = line.includes('[/SPIRIT]');
-    const canvasOpenMatch = line.match(/\[CANVAS:CODE:([^\]]+)\]/);
-    const hasCanvasClose = line.includes('[/CANVAS:CODE]');
-    
-    if (hasTutorOpen) {
-      if (activeBlock) {
-        closeActiveBlock(output, activeBlock, activeBlockContent, activeBlockInfo);
-      }
-      activeBlock = 'tutor';
-      activeBlockContent = [];
-      activeBlockInfo = null;
-      
-      let content = line.substring(line.indexOf('[TUTOR]') + 7);
-      if (content.trim()) activeBlockContent.push(content);
-    } else if (hasSpiritOpen) {
-      if (activeBlock) {
-        closeActiveBlock(output, activeBlock, activeBlockContent, activeBlockInfo);
-      }
-      activeBlock = 'spirit';
-      activeBlockContent = [];
-      activeBlockInfo = null;
-      
-      let content = line.substring(line.indexOf('[SPIRIT]') + 8);
-      if (content.trim()) activeBlockContent.push(content);
-    } else if (canvasOpenMatch) {
-      if (activeBlock) {
-        closeActiveBlock(output, activeBlock, activeBlockContent, activeBlockInfo);
-      }
-      activeBlock = 'canvas-code';
-      activeBlockContent = [];
-      activeBlockInfo = canvasOpenMatch[1];
-      
-      let content = line.substring(line.indexOf(canvasOpenMatch[0]) + canvasOpenMatch[0].length);
-      if (content.trim()) activeBlockContent.push(content);
-    } else if (hasTutorClose || hasSpiritClose || hasCanvasClose) {
-      if (activeBlock) {
-        let closeTag = '';
-        if (activeBlock === 'tutor') closeTag = '[/TUTOR]';
-        else if (activeBlock === 'spirit') closeTag = '[/SPIRIT]';
-        else if (activeBlock === 'canvas-code') closeTag = '[/CANVAS:CODE]';
-        
-        let content = line.substring(0, line.indexOf(closeTag));
-        if (content.trim()) activeBlockContent.push(content);
-        
-        closeActiveBlock(output, activeBlock, activeBlockContent, activeBlockInfo);
-      }
-      activeBlock = null;
-      activeBlockContent = [];
-      activeBlockInfo = null;
-      
-      let closeTag = '';
-      if (hasTutorClose) closeTag = '[/TUTOR]';
-      else if (hasSpiritClose) closeTag = '[/SPIRIT]';
-      else if (hasCanvasClose) closeTag = '[/CANVAS:CODE]';
-      
-      let afterContent = line.substring(line.indexOf(closeTag) + closeTag.length);
-      if (afterContent.trim()) output.push(afterContent);
-    } else {
-      if (activeBlock) {
-        activeBlockContent.push(line);
-      } else {
-        output.push(line);
-      }
-    }
-  }
-  
-  if (activeBlock) {
-    closeActiveBlock(output, activeBlock, activeBlockContent, activeBlockInfo);
-  }
-  
-  return output.join('\n');
-}
-
-function closeActiveBlock(
-  output: string[],
-  type: 'tutor' | 'spirit' | 'canvas-code',
-  contentLines: string[],
-  info: string | null
-) {
-  const content = contentLines.join('\n');
-  if (type === 'tutor') {
-    output.push(`\n\`\`\`tutor\n${content}\n\`\`\`\n`);
-  } else if (type === 'spirit') {
-    output.push(`\n\`\`\`spirit\n${content}\n\`\`\`\n`);
-  } else if (type === 'canvas-code') {
-    output.push(`\n\`\`\`canvas-code:${info}\n${content}\n\`\`\`\n`);
-  }
-}
-
 function App() {
   const [input, setInput] = useState('');
-  const [theme, setTheme] = useState<'system' | 'light' | 'dark'>(() => {
-    return (localStorage.getItem('aidock_theme') as 'system' | 'light' | 'dark') || 'system';
-  });
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const applyTheme = () => {
-      if (theme === 'dark') {
-        root.classList.add('dark');
-      } else if (theme === 'light') {
-        root.classList.remove('dark');
-      } else {
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (systemPrefersDark) {
-          root.classList.add('dark');
-        } else {
-          root.classList.remove('dark');
-        }
-      }
-    };
-    applyTheme();
-
-    if (theme === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const listener = () => applyTheme();
-      mediaQuery.addEventListener('change', listener);
-      return () => mediaQuery.removeEventListener('change', listener);
-    }
-    return () => {};
-  }, [theme]);
-
   const [messages, setMessages] = useState<Message[]>([]);
-  const [sessionId, setSessionId] = useState(`session_${Date.now()}`);
-  const [sessionTitle, setSessionTitle] = useState('Active Session Stream');
-  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
-  const terminalDivRef = useRef<HTMLDivElement>(null);
-  const xtermInstanceRef = useRef<Xterm | null>(null);
-  const terminalWsRef = useRef<WebSocket | null>(null);
-  const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
-  const [isCreatingFile, setIsCreatingFile] = useState(false);
-  const [newFileName, setNewFileName] = useState('');
+  const [sessionId] = useState(`session_${Date.now()}`);
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(true);
   
   // Latency timer state
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [activeModel, setActiveModel] = useState('Detecting...');
+  const [activeModel, setActiveModel] = useState('Gemma4 E4B');
   
   // ── Cloud Credentials ─────────────────────────────────────────────────────
-  const CLOUD_BE = routeMap.backend_url;
+  const CLOUD_BE = 'https://aicodex-be-1096425756328.us-central1.run.app';
 
   const [backendMode, setBackendMode] = useState<string>(() =>
     localStorage.getItem('aidock_backend_mode') || 'local'
@@ -433,10 +140,6 @@ function App() {
 
   // Fetch models for the selected space's recommended provider
   const fetchCloudModels = async (token: string, space: CloudSpace) => {
-    // Clear previous models so they don't leak into the new space's requests
-    setCloudSelectedModel('');
-    setCloudSelectedProvider('');
-    
     const provider = space.recommended_provider;
     if (!provider || provider === 'local') {
       setCloudModels([]);
@@ -455,42 +158,25 @@ function App() {
           }
         }
       );
-      let data: CloudModel[] = [];
       if (res.ok) {
-        data = await res.json();
-      }
-      
-      // Fallback: if API returned nothing, synthesize from the space's recommended config
-      if ((!data || data.length === 0) && space.recommended_model) {
-        data = [{ id: space.recommended_model, name: `${space.recommended_model} (recommended)` }];
-      }
-      
-      setCloudModels(data);
-      // Pre-select recommended model or first result
-      const recommended = space.recommended_model;
-      const match = recommended ? data.find(m => m.id === recommended) : null;
-      const best = match ? match.id : data[0]?.id || '';
-      if (best) {
-        setCloudSelectedModel(best);
-        localStorage.setItem('aidock_cloud_model', best);
-      }
-      setCloudSelectedProvider(provider);
-      localStorage.setItem('aidock_cloud_provider', provider);
-    } catch (e) {
-      console.error('Failed to fetch cloud models:', e);
-      // Even on failure, provide the recommended model as a fallback
-      if (space.recommended_model) {
-        const fallback = [{ id: space.recommended_model, name: `${space.recommended_model} (recommended)` }];
-        setCloudModels(fallback);
-        setCloudSelectedModel(space.recommended_model);
-        localStorage.setItem('aidock_cloud_model', space.recommended_model);
+        const data: CloudModel[] = await res.json();
+        setCloudModels(data);
+        // Pre-select recommended model or first result
+        const recommended = space.recommended_model;
+        const match = recommended ? data.find(m => m.id === recommended) : null;
+        const best = match ? match.id : data[0]?.id || '';
+        if (best) {
+          setCloudSelectedModel(best);
+          localStorage.setItem('aidock_cloud_model', best);
+        }
         setCloudSelectedProvider(provider);
         localStorage.setItem('aidock_cloud_provider', provider);
       } else {
         setCloudModels([]);
-        setCloudSelectedModel('');
-        setCloudSelectedProvider('');
       }
+    } catch (e) {
+      console.error('Failed to fetch cloud models:', e);
+      setCloudModels([]);
     } finally {
       setCloudModelsLoading(false);
     }
@@ -550,14 +236,17 @@ function App() {
   const getBackendUrl = (path: string): string => {
     const cleanPath = path.startsWith('/') ? path.slice(1) : path;
 
-    // Workspace-bound ops and chat are always local
-    const localPrefixes = ['files', 'file-content', 'export', 'upload', 'log', 'chat'];
+    // Workspace-bound ops are always local
+    const localPrefixes = ['files', 'file-content', 'export', 'upload', 'log'];
     if (localPrefixes.some(pref => cleanPath.startsWith(pref)))
       return `/api/${cleanPath}`;
 
     if (!isCloudMode()) return `/api/${cleanPath}`;
 
     const base = getCloudBase();
+    // chat → codegen spaces endpoint on cloud
+    if (cleanPath === 'chat')
+      return `${base}/api/spaces/${cloudSpaceSlug}/codegen`;
     // info → healthz on cloud
     if (cleanPath === 'info')
       return `${base}/api/healthz`;
@@ -572,10 +261,6 @@ function App() {
   const [editorFormat, setEditorFormat] = useState<'markdown' | 'json'>('markdown');
   const [editorSaved, setEditorSaved] = useState(true);
   const [saveStatusText, setSaveStatusText] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [autoSave, setAutoSave] = useState(false);
-  const [wrapText, setWrapText] = useState(true);
-  const [isCapabilitiesExpanded, setIsCapabilitiesExpanded] = useState(true);
 
   // Workspace Files state
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
@@ -619,120 +304,6 @@ function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Terminal WebSocket and Xterm setup
-  useEffect(() => {
-    if (!isTerminalOpen || !terminalDivRef.current) {
-      if (terminalWsRef.current) {
-        terminalWsRef.current.close();
-        terminalWsRef.current = null;
-      }
-      if (xtermInstanceRef.current) {
-        xtermInstanceRef.current.dispose();
-        xtermInstanceRef.current = null;
-      }
-      return;
-    }
-
-    const term = new Xterm({
-      cursorBlink: true,
-      theme: {
-        background: '#0f172a',
-        foreground: '#e2e8f0',
-        cursor: '#f97316',
-        black: '#1e293b',
-        red: '#ef4444',
-        green: '#22c55e',
-        yellow: '#eab308',
-        blue: '#3b82f6',
-        magenta: '#a855f7',
-        cyan: '#06b6d4',
-        white: '#cbd5e1',
-      },
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      fontSize: 13,
-      rows: 15,
-      convertEol: true,
-    });
-
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-    term.open(terminalDivRef.current);
-    
-    setTimeout(() => {
-      try {
-        fitAddon.fit();
-      } catch (err) {
-        console.warn(err);
-      }
-    }, 100);
-
-    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const backendPort = routeMap.backend_url.split(':').pop() || '8080';
-    const wsUrl = `${wsProto}//${window.location.hostname}:${backendPort}/ws/terminal?session_id=${sessionId}`;
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      try {
-        const dims = fitAddon.proposeDimensions();
-        if (dims) {
-          ws.send(JSON.stringify({ event: 'resize', cols: dims.cols, rows: dims.rows }));
-        }
-      } catch (err) {}
-    };
-
-    ws.onmessage = async (event) => {
-      try {
-        if (event.data instanceof Blob) {
-          const text = await event.data.text();
-          term.write(text);
-        } else {
-          term.write(event.data);
-        }
-      } catch (err) {}
-    };
-
-    term.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
-      }
-    });
-
-    const handleResize = () => {
-      try {
-        fitAddon.fit();
-        const dims = fitAddon.proposeDimensions();
-        if (dims && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ event: 'resize', cols: dims.cols, rows: dims.rows }));
-        }
-      } catch (err) {}
-    };
-
-    window.addEventListener('resize', handleResize);
-    xtermInstanceRef.current = term;
-    terminalWsRef.current = ws;
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (ws) {
-        ws.close();
-      }
-      term.dispose();
-      xtermInstanceRef.current = null;
-      terminalWsRef.current = null;
-    };
-  }, [isTerminalOpen, sessionId]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === '`') {
-        e.preventDefault();
-        setIsTerminalOpen(prev => !prev);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   // Latency timer ticker
   useEffect(() => {
     let intervalId: any;
@@ -757,25 +328,6 @@ function App() {
     }
   };
 
-  // Autosave effect
-  useEffect(() => {
-    let timeout: any;
-    if (autoSave && !editorSaved) {
-      timeout = setTimeout(() => {
-        handleSaveFile(editorContent, editorFilename);
-      }, 3000);
-    }
-    return () => clearTimeout(timeout);
-  }, [autoSave, editorSaved, editorContent, editorFilename]);
-
-  // Handle Ctrl+S for text editor
-  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-      e.preventDefault();
-      handleSaveFile(editorContent, editorFilename);
-    }
-  };
-
   // Auto-grow chat input textarea
   useEffect(() => {
     if (chatInputRef.current) {
@@ -797,101 +349,6 @@ function App() {
       console.error("Error fetching files:", err);
     }
   };
-
-  const formatChatDate = (dateString?: string) => {
-    if (!dateString) return '';
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return '';
-    return ` - ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
-  };
-
-  const fetchActiveSessionTitle = async (sid: string) => {
-    try {
-      const url = isCloudMode()
-        ? `${getCloudBase()}/api/spaces/${cloudSpaceSlug}/conversations`
-        : getBackendUrl('sessions');
-      const headers: HeadersInit = isCloudMode() ? cloudAuthHeaders() : {};
-      const res = await fetch(url, { headers });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const match = data.find(s => s.session_id === sid || String(s.id) === sid);
-          if (match && match.title) {
-            const dateStr = formatChatDate(match.created_at);
-            setSessionTitle(`${match.title}${dateStr}`);
-            return;
-          }
-        }
-      }
-    } catch (e) {
-      console.error("Failed to fetch session title:", e);
-    }
-    setSessionTitle('Active Session Stream');
-  };
-
-  const getContextTokenCount = (): number => {
-    let charCount = 0;
-    messages.forEach(m => {
-      charCount += m.content.length;
-    });
-    charCount += input.length;
-    return Math.ceil(charCount / 4);
-  };
-
-  // Fetch session messages
-  const fetchSessionMessages = async (sid: string) => {
-    if (!sid) return;
-    try {
-      const endpoint = isCloudMode() 
-        ? `conversations/by-session/${sid}` 
-        : `sessions/${sid}/messages`;
-      
-      const url = getBackendUrl(endpoint);
-      const headers: HeadersInit = isCloudMode() ? cloudAuthHeaders() : {};
-      
-      const res = await fetch(url, { headers });
-      if (res.ok) {
-        const data = await res.json();
-        let msgs: Message[] = [];
-        if (isCloudMode()) {
-          const cloudMessages = data.messages || [];
-          msgs = cloudMessages.map((m: any) => {
-            let workspaceUsed = undefined;
-            if (m.metadata_json) {
-              try {
-                workspaceUsed = JSON.parse(m.metadata_json).workspace_used;
-              } catch (e) {}
-            }
-            return {
-              id: String(m.id),
-              sender: m.role === 'user' ? 'user' : 'bot',
-              content: m.content,
-              workspaceUsed
-            };
-          });
-          if (data.title) {
-            const dateStr = formatChatDate(data.created_at);
-            setSessionTitle(`${data.title}${dateStr}`);
-          }
-        } else {
-          msgs = data.messages || [];
-          fetchActiveSessionTitle(sid);
-        }
-        setMessages(msgs);
-      } else {
-        setMessages([]);
-        fetchActiveSessionTitle(sid);
-      }
-    } catch (e) {
-      console.error("Failed to fetch session messages:", e);
-      setMessages([]);
-      fetchActiveSessionTitle(sid);
-    }
-  };
-
-  useEffect(() => {
-    fetchSessionMessages(sessionId);
-  }, [sessionId, backendMode, cloudSpaceSlug]);
 
   // Fetch files when messages list changes
   useEffect(() => {
@@ -936,7 +393,7 @@ function App() {
       if (isCloudMode()) return;
       setLocalModelsLoading(true);
       try {
-        const res = await fetch(getBackendUrl('models/local'));
+        const res = await fetch(getBackendUrl('models'));
         if (res.ok) {
           const data = await res.json();
           const slugs: string[] = data.models || [];
@@ -975,28 +432,6 @@ function App() {
       }
     } catch (err: any) {
       alert(`Error loading file: ${err.message}`);
-    }
-  };
-
-  const createNewFile = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!newFileName.trim()) return;
-    try {
-      const res = await fetch(getBackendUrl('export'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId, filename: newFileName.trim(), content: '' })
-      });
-      if (res.ok) {
-        fetchFiles();
-        openFileInEditor(newFileName.trim());
-        setIsCreatingFile(false);
-        setNewFileName('');
-      } else {
-        alert("Failed to create file");
-      }
-    } catch (err: any) {
-      alert(`Error: ${err.message}`);
     }
   };
 
@@ -1055,12 +490,6 @@ function App() {
     return md.trim();
   };
 
-  const handleSelectSession = (newSessionId: string) => {
-    setSessionId(newSessionId);
-    setMessages([]);
-    setFiles([]);
-  };
-
   const generateJSON = (msgs: Message[]) => {
     const data = {
       session_id: sessionId,
@@ -1090,8 +519,6 @@ function App() {
   };
 
   const handleSaveFile = async (content: string, filename: string) => {
-    setIsSaving(true);
-    setSaveStatusText('Saving...');
     try {
       const res = await fetch(getBackendUrl('export'), {
         method: 'POST',
@@ -1106,16 +533,11 @@ function App() {
         throw new Error('Save to workspace failed');
       }
       setEditorSaved(true);
-      setSaveStatusText('Saved successfully!');
+      setSaveStatusText('Saved successfully to workspace!');
       fetchFiles();
+      setTimeout(() => setSaveStatusText(''), 3000);
     } catch (err: any) {
-      setSaveStatusText('Save failed');
       alert(`Error saving to workspace: ${err.message}`);
-    } finally {
-      setIsSaving(false);
-      setTimeout(() => {
-        setSaveStatusText(prev => prev === 'Saved successfully!' || prev === 'Saving...' || prev === 'Save failed' ? '' : prev);
-      }, 2000);
     }
   };
 
@@ -1131,9 +553,8 @@ function App() {
     }
   };
 
-  const handleSend = async (overrideInput?: string) => {
-    const textToSend = typeof overrideInput === 'string' ? overrideInput : input;
-    if (!textToSend.trim() || loading) return;
+  const handleSend = async () => {
+    if (!input.trim() || loading) return;
 
     // Guard: cloud mode requires a JWT
     if (isCloudMode() && !cloudToken) {
@@ -1149,42 +570,34 @@ function App() {
     const userMessage: Message = {
       id: `msg_${Date.now()}_u`,
       sender: 'user',
-      content: textToSend,
+      content: input,
     };
     setMessages(prev => [...prev, userMessage]);
-    
-    if (typeof overrideInput !== 'string') {
-      setInput('');
-    }
+    const currentInput = input;
+    setInput('');
     setLoading(true);
     const startTime = Date.now();
 
-    logToContainer('info', `User interaction submitted - Session: ${sessionId} - Prompt: "${textToSend.substring(0, 60)}..."`);
+    logToContainer('info', `User interaction submitted - Session: ${sessionId} - Prompt: "${currentInput.substring(0, 60)}..."`);
 
     try {
       const chatUrl = getBackendUrl('chat');
 
+      // Cloud uses the codegen spaces endpoint; local uses the standard chat endpoint
+      const cloudBody: Record<string, string> = { prompt: currentInput };
+      if (cloudSelectedModel) cloudBody.model = cloudSelectedModel;
+      if (cloudSelectedProvider) cloudBody.provider = cloudSelectedProvider;
+
       const fetchOptions: RequestInit = isCloudMode()
         ? {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: textToSend,
-              session_id: sessionId,
-              provider: cloudSelectedProvider || undefined,
-              model_slug: cloudSelectedModel || undefined,
-              cloud_token: cloudToken || undefined,
-              cloud_api_url: getCloudBase()
-            }),
+            headers: cloudAuthHeaders(),
+            body: JSON.stringify(cloudBody),
           }
         : {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: textToSend,
-              session_id: sessionId,
-              model_slug: localSelectedModel || undefined
-            }),
+              body: JSON.stringify({ message: currentInput, session_id: sessionId, model_slug: localSelectedModel || undefined }),
           };
 
       let res = await fetch(chatUrl, fetchOptions);
@@ -1194,18 +607,8 @@ function App() {
         logToContainer('info', 'Cloud token expired, attempting re-auth...');
         const newToken = await loginToCloud();
         if (newToken) {
-          res = await fetch(chatUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: textToSend,
-              session_id: sessionId,
-              provider: cloudSelectedProvider || undefined,
-              model_slug: cloudSelectedModel || undefined,
-              cloud_token: newToken,
-              cloud_api_url: getCloudBase()
-            }),
-          });
+          const retryHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${newToken}` };
+          res = await fetch(chatUrl, { ...fetchOptions, headers: retryHeaders });
         } else {
           throw new Error('Session expired. Please re-enter your credentials in Settings.');
         }
@@ -1234,10 +637,6 @@ function App() {
         latencyMs: latency,
       }]);
 
-      setTimeout(() => {
-        fetchActiveSessionTitle(sessionId);
-      }, 1000);
-
     } catch (err: any) {
       const isConnectionError = err.message === 'Failed to fetch';
       logToContainer('error', `Handler output failure - Session: ${sessionId} - Error: ${err.message}`);
@@ -1261,65 +660,43 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] relative transition-colors duration-300">
-      {/* Global Toast Notification */}
-      {saveStatusText && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-[#1A1D2E] dark:bg-[#121420] text-emerald-400 text-xs font-bold px-6 py-3 rounded-full shadow-2xl animate-bounce border border-black/10 dark:border-white/10">
-          {saveStatusText}
-        </div>
-      )}
+    <div className="flex flex-col min-h-screen bg-[#C8CDD5] text-[#1A1D2E]">
       {/* Premium Header */}
-      <header className="sticky top-0 z-50 bg-[var(--bg-surface)]/80 backdrop-blur-md border-b border-[var(--border)] px-6 py-4 flex items-center justify-between shadow-sm transition-colors duration-300">
+      <header className="sticky top-0 z-50 bg-[#D8DCE4]/80 backdrop-blur-md border-b border-black/5 px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#0db7ed] flex items-center justify-center text-white shadow-[0_4px_20px_rgba(13,183,237,0.35)]">
             <MascotLogo className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">AIDock</h1>
-            <span className="text-[10px] text-[var(--text-muted)] font-medium tracking-widest uppercase">Orchestrator v2.0</span>
+            <h1 className="text-xl font-bold tracking-tight text-[#1A1D2E]">AIDOCK</h1>
+            <span className="text-[10px] text-[#7A7D8E] font-medium tracking-widest uppercase">Orchestrator v2.0</span>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-          {isCloudMode() && cloudToken && (
-            <button 
-              onClick={() => window.location.href = '/admin'}
-              className="p-2 text-[var(--text-muted)] hover:text-[#0db7ed] hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
-              title="Admin"
-            >
-              <ShieldAlert className="w-5 h-5" />
-            </button>
-          )}
           <button 
-            onClick={() => setIsTerminalOpen(prev => !prev)}
-            className={`p-2 hover:text-[#0db7ed] hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all focus:outline-none flex items-center justify-center ${isTerminalOpen ? 'text-[#0db7ed] bg-black/5 dark:bg-white/5' : 'text-[var(--text-muted)]'}`}
-            title="Toggle Workspace Terminal"
+            onClick={() => window.location.href = '/admin'}
+            className="p-2 text-[#7A7D8E] hover:text-[#0db7ed] hover:bg-black/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
+            title="Admin"
           >
-            <Terminal className="w-5 h-5" />
+            <Settings className="w-5 h-5" />
           </button>
           <button 
             onClick={() => setShowSettingsModal(true)}
-            className="p-2 text-[var(--text-muted)] hover:text-[#0db7ed] hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
+            className="p-2 text-[#7A7D8E] hover:text-[#0db7ed] hover:bg-black/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
             title="Connection Settings"
           >
             <Settings className="w-5 h-5" />
           </button>
           
-          <div className="flex items-center gap-2 bg-[var(--bg-elevated)] px-3 py-1.5 rounded-full border border-[var(--border)] transition-colors duration-300">
+          <div className="flex items-center gap-2 bg-[#E8ECF2] px-3 py-1.5 rounded-full border border-black/5">
             <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-            <span className="text-xs font-semibold text-[var(--text-secondary)]">
+            <span className="text-xs font-semibold text-[#4A4D5E]">
               {connected ? 'Neural Link Active' : 'Offline'}
             </span>
           </div>
-          <div className="text-xs text-[var(--text-muted)] flex items-center gap-1">
-            Workspace ID: 
-            <button 
-              onClick={() => setIsHistoryPanelOpen(true)}
-              className="flex items-center gap-1 font-mono bg-[var(--bg-input)]/50 hover:bg-[var(--bg-input)] px-2 py-0.5 rounded text-[var(--text-primary)] font-semibold transition-colors group"
-            >
-              <span>{sessionId}</span>
-              <History className="w-3 h-3 text-[var(--text-muted)] group-hover:text-[#0db7ed] transition-colors" />
-            </button>
+          <div className="text-xs text-[#7A7D8E]">
+            Session ID: <span className="font-mono bg-[#BFC4CC]/50 px-2 py-0.5 rounded text-[#1A1D2E] font-semibold">{sessionId}</span>
           </div>
         </div>
       </header>
@@ -1329,39 +706,39 @@ function App() {
         {/* Left column: Sidebar Info */}
         <section className="lg:col-span-3 flex flex-col gap-6">
           {/* Workspace context card */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 shadow-lg flex flex-col gap-4 transition-colors duration-300">
-            <h2 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+          <div className="bg-[#D8DCE4] rounded-2xl border border-black/5 p-5 shadow-lg flex flex-col gap-4">
+            <h2 className="text-sm font-bold text-[#1A1D2E] uppercase tracking-wider flex items-center gap-2">
               <Cpu className="w-4 h-4 text-[#0db7ed]" /> Workspace Context
             </h2>
             
             <div className="space-y-3">
-              <div className="bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] transition-colors duration-300">
-                <span className="text-[10px] text-[var(--text-muted)] block uppercase font-medium">Mount Point</span>
-                <span className="text-xs font-mono font-semibold text-[var(--text-secondary)] break-all">/workspace/{sessionId}</span>
+              <div className="bg-[#E8ECF2] p-3 rounded-xl border border-black/5">
+                <span className="text-[10px] text-[#7A7D8E] block uppercase font-medium">Mount Point</span>
+                <span className="text-xs font-mono font-semibold text-[#4A4D5E] break-all">/workspace/{sessionId}</span>
               </div>
 
-              <div className="bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] transition-colors duration-300">
-                <span className="text-[10px] text-[var(--text-muted)] block uppercase font-medium">Active Backend Mode</span>
-                <span className="text-xs font-bold text-[var(--text-secondary)] capitalize">{backendMode.replace('-', ' ')}</span>
+              <div className="bg-[#E8ECF2] p-3 rounded-xl border border-black/5">
+                <span className="text-[10px] text-[#7A7D8E] block uppercase font-medium">Active Backend Mode</span>
+                <span className="text-xs font-bold text-[#4A4D5E] capitalize">{backendMode.replace('-', ' ')}</span>
               </div>
 
-              <div className="bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] transition-colors duration-300">
-                <span className="text-[10px] text-[var(--text-muted)] block uppercase font-medium">Orchestrator LLM</span>
-                        <div className="text-xs font-semibold text-[var(--text-secondary)] mt-1 flex items-center gap-2">
+              <div className="bg-[#E8ECF2] p-3 rounded-xl border border-black/5">
+                <span className="text-[10px] text-[#7A7D8E] block uppercase font-medium">Orchestrator LLM</span>
+                        <div className="text-xs font-semibold text-[#4A4D5E] mt-1 flex items-center gap-2">
                           <Database className="w-3.5 h-3.5 text-[#0db7ed]" />
                           <div>{activeModel}</div>
                         </div>
 
                         {!isCloudMode() && (
                           <div className="mt-2">
-                            <label className="text-[10px] text-[var(--text-muted)] block uppercase font-medium mb-1">Local Model</label>
+                            <label className="text-[10px] text-[#7A7D8E] block uppercase font-medium mb-1">Local Model</label>
                             <select
                               value={localSelectedModel}
                               onChange={(e) => {
-                                  setLocalSelectedModel(e.target.value);
-                                  localStorage.setItem('aidock_local_model', e.target.value);
+                                setLocalSelectedModel(e.target.value);
+                                localStorage.setItem('aidock_local_model', e.target.value);
                               }}
-                              className="w-full text-xs p-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] transition-colors duration-300"
+                              className="w-full text-xs p-2 rounded-lg bg-white border border-black/5 text-[#1A1D2E]"
                               disabled={localModelsLoading || localModels.length === 0}
                             >
                               {localModelsLoading ? (
@@ -1376,9 +753,9 @@ function App() {
                         )}
               </div>
 
-              <div className="bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] transition-colors duration-300">
-                <span className="text-[10px] text-[var(--text-muted)] block uppercase font-medium">Docker Network</span>
-                <span className="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-1.5 mt-1">
+              <div className="bg-[#E8ECF2] p-3 rounded-xl border border-black/5">
+                <span className="text-[10px] text-[#7A7D8E] block uppercase font-medium">Docker Network</span>
+                <span className="text-xs font-semibold text-[#4A4D5E] flex items-center gap-1.5 mt-1">
                   <Activity className="w-3.5 h-3.5 text-[#0db7ed]" /> aidock_default
                 </span>
               </div>
@@ -1388,37 +765,21 @@ function App() {
               {/* Admin moved to separate page */}
 
           {/* Mount Collapsible Node File-Tree */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 shadow-lg flex flex-col gap-3 transition-colors duration-300">
-            <div className="flex items-center justify-between">
-              <button 
-                onClick={() => setIsFileTreeExpanded(!isFileTreeExpanded)}
-                className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2 focus:outline-none"
-              >
+          <div className="bg-[#D8DCE4] rounded-2xl border border-black/5 p-5 shadow-lg flex flex-col gap-3">
+            <button 
+              onClick={() => setIsFileTreeExpanded(!isFileTreeExpanded)}
+              className="text-sm font-bold text-[#1A1D2E] uppercase tracking-wider flex items-center justify-between w-full focus:outline-none"
+            >
+              <span className="flex items-center gap-2">
                 <Folder className="w-4 h-4 text-[#0db7ed]" /> Workspace Files
-                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isFileTreeExpanded ? '' : '-rotate-90'}`} />
-              </button>
-              <button onClick={() => { setIsCreatingFile(true); setIsFileTreeExpanded(true); }} className="p-1 hover:bg-[var(--bg-elevated)] rounded text-[#0db7ed] transition-colors" title="New File">
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
+              </span>
+              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isFileTreeExpanded ? '' : '-rotate-90'}`} />
+            </button>
             
             {isFileTreeExpanded && (
               <div className="space-y-1.5 mt-1 max-h-[220px] overflow-y-auto pr-1">
-                {isCreatingFile && (
-                  <form onSubmit={createNewFile} className="flex items-center gap-2 bg-[var(--bg-elevated)] p-1.5 rounded-xl border border-[#0db7ed]">
-                    <FileText className="w-3.5 h-3.5 text-[#0db7ed] ml-1" />
-                    <input 
-                      value={newFileName} 
-                      onChange={e => setNewFileName(e.target.value)} 
-                      placeholder="filename.txt" 
-                      className="bg-[var(--bg-surface)] px-2 py-1 text-xs outline-none w-full rounded border border-[var(--border)] text-[var(--text-primary)]" 
-                      autoFocus 
-                      onBlur={() => { setTimeout(() => { if (!newFileName.trim()) setIsCreatingFile(false); }, 200); }}
-                    />
-                  </form>
-                )}
-                {files.length === 0 && !isCreatingFile ? (
-                  <div className="text-[11px] text-[var(--text-muted)] italic p-3 bg-[var(--bg-elevated)] rounded-xl border border-[var(--border)] text-center transition-colors duration-300">
+                {files.length === 0 ? (
+                  <div className="text-[11px] text-[#7A7D8E] italic p-3 bg-[#E8ECF2] rounded-xl border border-black/5 text-center">
                     No files in workspace yet. Click the + uploader below to attach one.
                   </div>
                 ) : (
@@ -1426,13 +787,13 @@ function App() {
                     <button
                       key={file.path}
                       onClick={() => openFileInEditor(file.path)}
-                      className="w-full text-left bg-[var(--bg-elevated)] hover:bg-[var(--bg-surface-hover)] p-2.5 rounded-xl border border-[var(--border)] text-xs font-semibold text-[var(--text-secondary)] flex items-center justify-between group transition-all"
+                      className="w-full text-left bg-[#E8ECF2] hover:bg-[#E2E6EC] p-2.5 rounded-xl border border-black/5 text-xs font-semibold text-[#4A4D5E] flex items-center justify-between group transition-all"
                     >
                       <span className="flex items-center gap-2 truncate">
                         <FileText className="w-3.5 h-3.5 text-[#0db7ed]" />
                         <span className="truncate">{file.path}</span>
                       </span>
-                      <span className="text-[9px] text-[var(--text-muted)] font-mono group-hover:text-[#0db7ed] transition-colors shrink-0">
+                      <span className="text-[9px] text-[#7A7D8E] font-mono group-hover:text-[#0db7ed] transition-colors shrink-0">
                         {(file.size / 1024).toFixed(1)} KB
                       </span>
                     </button>
@@ -1442,220 +803,43 @@ function App() {
             )}
           </div>
 
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 shadow-lg flex flex-col gap-3 transition-colors duration-300">
-            <div className="flex items-center justify-between">
-              <button 
-                onClick={() => setIsCapabilitiesExpanded(!isCapabilitiesExpanded)}
-                className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2 focus:outline-none"
-              >
-                <Terminal className="w-4 h-4 text-[#0db7ed]" /> Available Capabilities
-                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isCapabilitiesExpanded ? '' : '-rotate-90'}`} />
-              </button>
-            </div>
-            {isCapabilitiesExpanded && (
-              <ul className="text-xs text-[var(--text-secondary)] space-y-2 font-medium">
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> File Reader / Writer
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> Sandboxed Code execution
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> Multi-agent reasoning loops
-                </li>
-              </ul>
-            )}
+          <div className="bg-[#D8DCE4] rounded-2xl border border-black/5 p-5 shadow-lg flex flex-col gap-3">
+            <h2 className="text-sm font-bold text-[#1A1D2E] uppercase tracking-wider flex items-center gap-2">
+              <Terminal className="w-4 h-4 text-[#0db7ed]" /> Available Capabilities
+            </h2>
+            <ul className="text-xs text-[#4A4D5E] space-y-2 font-medium">
+              <li className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> File Reader / Writer
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> Sandboxed Code execution
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> Multi-agent reasoning loops
+              </li>
+            </ul>
           </div>
         </section>
 
-        {/* Right column: Text Editor Pane */}
-        {isTextEditorOpen && (
-          <section className="lg:col-span-5 flex flex-col h-[calc(100vh-140px)] min-h-[500px] bg-[var(--bg-editor)] text-[#E8ECF2] rounded-2xl border border-black/10 shadow-2xl p-5 overflow-hidden transition-all duration-300">
-            {/* Editor Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-3">
-              <div className="flex items-center gap-2 truncate mr-2">
-                <FileCode className="w-4 h-4 text-[#0db7ed] shrink-0" />
-                <span className="text-xs font-mono font-bold tracking-wide truncate" title={editorFilename}>{editorFilename}</span>
-                <span className={`w-2 h-2 rounded-full shrink-0 ${editorSaved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} title={editorSaved ? 'Saved' : 'Unsaved changes'} />
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 select-none">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-[#7A7D8E]">Autosave</span>
-                  <button
-                    onClick={() => setAutoSave(!autoSave)}
-                    className={`relative w-8 h-4 rounded-full transition-colors duration-200 focus:outline-none ${autoSave ? 'bg-[#0db7ed]' : 'bg-[#2D314E]'}`}
-                    title="Toggle Autosave"
-                  >
-                    <span className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 ${autoSave ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-                <div className="flex items-center gap-2 select-none">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-[#7A7D8E]">Wrap Text</span>
-                  <button
-                    onClick={() => setWrapText(!wrapText)}
-                    className={`relative w-8 h-4 rounded-full transition-colors duration-200 focus:outline-none ${wrapText ? 'bg-[#0db7ed]' : 'bg-[#2D314E]'}`}
-                    title="Toggle Wrap Text"
-                  >
-                    <span className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 ${wrapText ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-                <button
-                  onClick={() => setIsTextEditorOpen(false)}
-                  className="text-[#7A7D8E] hover:text-white transition-colors duration-200 focus:outline-none"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Format toggle & status bar */}
-            <div className="flex items-center justify-between mb-3 text-xs">
-              <div className="flex bg-[#2D314E] rounded-lg p-0.5 border border-white/5">
-                <button
-                  onClick={() => {
-                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
-                    setEditorFormat('markdown');
-                    setEditorFilename(`chat_export_${sessionId}.md`);
-                    setEditorContent(generateMarkdown(messages));
-                    setEditorSaved(true);
-                  }}
-                  className={`px-2.5 py-1 rounded-md font-bold transition-all ${editorFormat === 'markdown' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
-                >
-                  MD
-                </button>
-                <button
-                  onClick={() => {
-                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
-                    setEditorFormat('json');
-                    setEditorFilename(`chat_export_${sessionId}.json`);
-                    setEditorContent(generateJSON(messages));
-                    setEditorSaved(true);
-                  }}
-                  className={`px-2.5 py-1 rounded-md font-bold transition-all ${editorFormat === 'json' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
-                >
-                  JSON
-                </button>
-              </div>
-
-              {saveStatusText ? (
-                <span className="text-emerald-400 font-medium animate-pulse">{saveStatusText}</span>
-              ) : (
-                <span className="text-[#7A7D8E] font-mono">
-                  {editorSaved ? 'All changes saved' : 'Unsaved changes*'}
-                </span>
-              )}
-            </div>
-
-            {/* Textarea container */}
-            <div className="flex-1 relative flex bg-[#121420] rounded-xl border border-white/5 overflow-hidden p-3 font-mono text-xs">
-              {/* Line numbers */}
-              <div ref={lineNumbersRef} className="select-none text-right pr-3 border-r border-white/5 text-[#4A4D5E] font-mono leading-6 overflow-hidden">
-                {Array.from({ length: Math.max(editorContent.split('\n').length, 15) }).map((_, i) => (
-                  <div key={i}>{i + 1}</div>
-                ))}
-              </div>
-              <textarea
-                ref={editorTextareaRef}
-                value={editorContent}
-                onScroll={handleEditorScroll}
-                onKeyDown={handleEditorKeyDown}
-                onChange={(e) => {
-                  setEditorContent(e.target.value);
-                  setEditorSaved(false);
-                }}
-                wrap={wrapText ? 'soft' : 'off'}
-                className={`flex-1 bg-transparent resize-none pl-3 outline-none border-none text-[#E8ECF2] font-mono leading-6 scrollbar-thin placeholder-white/20 ${
-                  wrapText ? 'whitespace-pre-wrap overflow-x-hidden overflow-y-auto' : 'whitespace-pre overflow-x-auto overflow-y-auto'
-                }`}
-                placeholder="Edit file contents..."
-              />
-            </div>
-
-            {/* Editor Actions */}
-            <div className="flex gap-2 mt-4 pt-3 border-t border-white/5">
-              <button
-                onClick={() => handleSaveFile(editorContent, editorFilename)}
-                disabled={isSaving}
-                className="flex-1 bg-[#0db7ed] hover:bg-[#008bb9] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all"
-              >
-                {isSaving ? (
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Save className="w-3.5 h-3.5" />
-                )}
-                <span>{isSaving ? 'Saving...' : 'Save to Workspace'}</span>
-              </button>
-              <button
-                onClick={() => triggerDownload(editorContent, editorFilename)}
-                className="bg-[#2D314E] hover:bg-[#3D426A] text-white text-xs font-bold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 border border-white/5 transition-all"
-                title="Download locally"
-              >
-                <Download className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </section>
-        )}
-
         {/* Middle column: Chat Area */}
-        <section className={`${isTextEditorOpen ? 'lg:col-span-4' : 'lg:col-span-9'} flex flex-col h-[calc(100vh-140px)] min-h-[500px] transition-all duration-300`}>
-          <div className={`flex-1 bg-[var(--bg-card)]/60 backdrop-blur-md rounded-2xl border border-[var(--border)] shadow-2xl ${isTextEditorOpen ? 'p-4' : 'p-6'} flex flex-col overflow-hidden`}>
+        <section className={`${isTextEditorOpen ? 'lg:col-span-5' : 'lg:col-span-9'} flex flex-col h-[calc(100vh-140px)] min-h-[500px] transition-all duration-300`}>
+          <div className="flex-1 bg-[#D8DCE4]/60 backdrop-blur-md rounded-2xl border border-black/5 shadow-2xl p-6 flex flex-col overflow-hidden">
             
             {/* Chat Area Header with Export Menu */}
             <div className="flex items-center justify-between pb-4 border-b border-black/5 mb-4">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span className="inline-block text-xs font-bold text-[var(--text-primary)] tracking-wide uppercase truncate max-w-[150px] sm:max-w-[280px] md:max-w-[400px] lg:max-w-[550px]" title={sessionTitle}>
-                  {sessionTitle}
-                </span>
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-bold text-[#1A1D2E] tracking-wide uppercase">Active Session Stream</span>
               </div>
-              <div className="flex items-center gap-3">
-                {/* Model Selection Dropdown */}
-                <div className="flex items-center gap-1.5">
-                  <Cpu className="w-3.5 h-3.5 text-[#0db7ed] shrink-0" />
-                  {isCloudMode() ? (
-                    <select
-                      value={cloudSelectedModel}
-                      disabled={cloudModelsLoading || cloudModels.length === 0}
-                      onChange={(e) => {
-                        setCloudSelectedModel(e.target.value);
-                        localStorage.setItem('aidock_cloud_model', e.target.value);
-                      }}
-                      className="text-[10px] font-bold bg-[#E8ECF2] border border-black/5 text-[#4A4D5E] rounded-lg px-2 py-1 outline-none cursor-pointer w-32 truncate"
-                      title={cloudSelectedProvider ? `via ${cloudSelectedProvider}` : ''}
-                    >
-                      {cloudModels.length > 0 ? cloudModels.map(m => (
-                        <option key={m.id} value={m.id}>{m.name || m.id}</option>
-                      )) : (
-                        <option value="">{cloudModelsLoading ? "Loading..." : "No models"}</option>
-                      )}
-                    </select>
-                  ) : (
-                    <select
-                      value={localSelectedModel}
-                      disabled={localModelsLoading || localModels.length === 0}
-                      onChange={(e) => {
-                        setLocalSelectedModel(e.target.value);
-                        localStorage.setItem('aidock_local_model', e.target.value);
-                      }}
-                      className="text-[10px] font-bold bg-[#E8ECF2] border border-black/5 text-[#4A4D5E] rounded-lg px-2 py-1 outline-none cursor-pointer w-32 truncate"
-                    >
-                      {localModels.length > 0 ? localModels.map(m => (
-                        <option key={m} value={m}>{m}</option>
-                      )) : (
-                        <option value="">{localModelsLoading ? "Loading..." : "No models"}</option>
-                      )}
-                    </select>
-                  )}
-                </div>
-
-                {messages.length > 0 && (
+              
+              {messages.length > 0 && (
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setShowExportDropdown(!showExportDropdown)}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0db7ed] hover:bg-[#008bb9] text-white text-xs font-bold rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    {/* <span>Export Chat</span> */}
+                    <span>Export Chat</span>
                     <ChevronDown className="w-3 h-3" />
                   </button>
                   
@@ -1721,18 +905,17 @@ function App() {
                   )}
                 </div>
               )}
-              </div>
             </div>
 
             {/* Message Stream */}
             <div className="flex-1 overflow-y-auto space-y-6 pr-2 mb-4 scrollbar-thin">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                  <div className="w-16 h-16 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center text-[var(--text-muted)] mb-4 shadow-inner border border-[var(--border)]">
+                  <div className="w-16 h-16 rounded-full bg-[#E2E6EC] flex items-center justify-center text-[#7A7D8E] mb-4 shadow-inner">
                     <MascotLogo className="w-10 h-10 text-[#0db7ed]" />
                   </div>
-                  <h3 className="text-base font-bold text-[var(--text-primary)] mb-1">Initialize Your Sandbox</h3>
-                  <p className="text-xs text-[var(--text-secondary)] max-w-sm">
+                  <h3 className="text-base font-bold text-[#1A1D2E] mb-1">Initialize Your Sandbox</h3>
+                  <p className="text-xs text-[#4A4D5E] max-w-sm">
                     Instruct the local AI model to write code or perform tasks. An isolated project directory will be created under your container workspace.
                   </p>
                 </div>
@@ -1744,104 +927,40 @@ function App() {
                       msg.sender === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto'
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-md transition-colors duration-300 ${
-                      msg.sender === 'user' ? 'bg-[var(--bg-chat-user)] text-white' : 'bg-[var(--bg-chat-bot)] text-[var(--text-primary)] border border-[var(--border)]'
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-md ${
+                      msg.sender === 'user' ? 'bg-[#0db7ed] text-white' : 'bg-[#E2E6EC] text-[#1A1D2E]'
                     }`}>
                       {msg.sender === 'user' ? <User className="w-4 h-4" /> : <MascotLogo className="w-5 h-5 text-[#0db7ed]" />}
                     </div>
 
-                    <div className="flex flex-col gap-1.5 max-w-full min-w-0">
+                    <div className="flex flex-col gap-1.5 max-w-[85%]">
                       {/* LLM Logo & Model Badge inside Assistant bubbles */}
                       {msg.sender === 'bot' && msg.id.indexOf('_sys') === -1 && (
-                        <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border)] mb-1 text-[11px] text-[var(--text-muted)] font-semibold transition-colors duration-300">
+                        <div className="flex items-center gap-1.5 pb-1 border-b border-black/5 mb-1 text-[11px] text-[#7A7D8E] font-semibold">
                           <div className="w-3.5 h-3.5 rounded bg-[#0db7ed] flex items-center justify-center text-white shrink-0">
                             <MascotLogo className="w-2.5 h-2.5 text-white" />
                           </div>
-                          <span className="font-bold text-[var(--text-primary)]">{activeModel}</span>
-                          <span className="text-[8px] font-mono bg-[var(--bg-input)]/50 px-1 py-0.2 rounded text-[var(--text-secondary)]">Model Runner</span>
+                          <span className="font-bold text-[#1A1D2E]">{activeModel}</span>
+                          <span className="text-[8px] font-mono bg-[#BFC4CC]/50 px-1 py-0.2 rounded text-[#4A4D5E]">Model Runner</span>
                         </div>
                       )}
                       
-                      <div 
-                        className={`p-4 rounded-2xl shadow-sm text-sm border border-[var(--border)] font-medium transition-colors duration-300 ${
+                      <div
+                        className={`p-4 rounded-2xl shadow-sm text-sm border border-black/5 ${
                           msg.sender === 'user'
-                            ? 'bg-[var(--bg-chat-user)] text-white user-corner-glow user-message'
-                            : 'bg-[var(--bg-chat-bot)] text-[var(--text-primary)] bot-corner-glow agent-message'
+                            ? 'bg-[#0db7ed] text-white user-corner-glow user-corner-glow-secondary font-medium rounded-tr-none'
+                            : 'bg-[#E2E6EC] text-[#1A1D2E] bot-corner-glow bot-corner-glow-secondary whitespace-pre-wrap'
                         }`}
                       >
-                        <div className={`prose prose-sm max-w-none break-words overflow-x-auto prose-p:leading-relaxed prose-p:break-words prose-pre:bg-[#1A1D2E] prose-pre:text-[#E8ECF2] prose-pre:border prose-pre:border-black/10 prose-pre:overflow-x-auto ${
-                          msg.sender === 'user' ? 'prose-invert text-white' : 'text-[var(--text-primary)] dark:prose-invert'
-                        }`} style={{ overflowWrap: 'anywhere' }}>
-                          <ReactMarkdown 
-                            remarkPlugins={[remarkGfm]} 
-                            components={{
-                            code({node, inline, className, children, ...props}: any) {
-                              const match = /language-(\w+)/.exec(className || '');
-                              const lang = match ? match[1] : '';
-                              if (!inline && lang === 'mermaid') {
-                                return <MermaidDiagram chart={String(children).replace(/\n$/, '')} />;
-                              }
-                              if (!inline && lang === 'tutor') {
-                                return <TutorBlock content={String(children).replace(/\n$/, '')} />;
-                              }
-                              if (!inline && lang === 'spirit') {
-                                return <SpiritBlock content={String(children).replace(/\n$/, '')} />;
-                              }
-                              const canvasMatch = /language-canvas-code:(.+)/.exec(className || '');
-                              if (!inline && canvasMatch) {
-                                return (
-                                  <CanvasCodeBlock 
-                                    info={canvasMatch[1]} 
-                                    content={String(children).replace(/\n$/, '')} 
-                                    setEditorFilename={setEditorFilename}
-                                    setEditorContent={setEditorContent}
-                                    setEditorSaved={setEditorSaved}
-                                    setIsTextEditorOpen={setIsTextEditorOpen}
-                                    setEditorFormat={setEditorFormat}
-                                  />
-                                );
-                              }
-                              return !inline ? (
-                                <pre className={className} {...props}>
-                                  <code className={className} {...props}>
-                                    {children}
-                                  </code>
-                                </pre>
-                              ) : (
-                                <code className="bg-black/5 text-[#008bb9] px-1 py-0.5 rounded font-mono text-[11px]" {...props}>
-                                  {children}
-                                </code>
-                              );
-                            }
-                          }}
-                        >
-                          {preprocessCustomTags(msg.content)}
-                          </ReactMarkdown>
-                        </div>
+                        {msg.content}
                       </div>
                       
                       <div className="flex items-center justify-between gap-4 px-2 text-[10px] text-[#7A7D8E]">
-                        <div className="flex items-center gap-2">
-                          {msg.workspaceUsed && (
-                            <div className="font-mono truncate max-w-[150px]" title={msg.workspaceUsed}>
-                              Workspace: {msg.workspaceUsed}
-                            </div>
-                          )}
-                          {msg.sender === 'bot' && (
-                            <button 
-                              onClick={() => {
-                                setEditorFormat('markdown');
-                                setEditorFilename(`message_${msg.id}.md`);
-                                setEditorContent(msg.content);
-                                setEditorSaved(true);
-                                setIsTextEditorOpen(true);
-                              }}
-                              className="flex items-center gap-1 hover:text-[#0db7ed] transition-colors bg-[#D8DCE4] px-1.5 py-0.5 rounded"
-                            >
-                              <Edit className="w-3 h-3" /> Edit
-                            </button>
-                          )}
-                        </div>
+                        {msg.workspaceUsed && (
+                          <div className="font-mono truncate max-w-[150px]" title={msg.workspaceUsed}>
+                            Workspace: {msg.workspaceUsed}
+                          </div>
+                        )}
                         {msg.latencyMs !== undefined && (
                           <div className="font-mono flex items-center gap-1 shrink-0 ml-auto">
                             <Activity className="w-3 h-3 text-[#0db7ed]" />
@@ -1890,7 +1009,13 @@ function App() {
                   />
                   
                   <button
-                    onClick={() => handleSend("Scan all workspace files and summarize their contents.")}
+                    onClick={() => setInput("Write a python file-editor tool that can edit a source file.")}
+                    className="px-2.5 py-1 text-[11px] font-bold bg-[#E8ECF2] hover:bg-[#E2E6EC] border border-black/5 text-[#4A4D5E] rounded-lg transition-all"
+                  >
+                    Write Code
+                  </button>
+                  <button
+                    onClick={() => setInput("Scan all workspace files and summarize their contents.")}
                     className="px-2.5 py-1 text-[11px] font-bold bg-[#E8ECF2] hover:bg-[#E2E6EC] border border-black/5 text-[#4A4D5E] rounded-lg transition-all"
                   >
                     Scan Workspace
@@ -1932,34 +1057,114 @@ function App() {
                   placeholder="Instruct the AI model in your workspace..."
                 />
                 <button
-                  onClick={() => handleSend()}
+                  onClick={handleSend}
                   disabled={loading || !input.trim()}
                   className="bg-[#0db7ed] hover:bg-[#008bb9] active:scale-95 disabled:opacity-50 disabled:scale-100 text-white w-12 h-12 rounded-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 shrink-0 mb-[1px]"
                 >
                   <Send className="w-5 h-5" />
                 </button>
               </div>
-
-              {/* Chat Context Progress Bar & Token Count */}
-              <div className="mt-2 px-1 flex flex-col gap-1.5 select-none">
-                <div className="flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)]">
-                  <span className="uppercase tracking-wider">Chat Context window</span>
-                  <span className="font-mono">
-                    {getContextTokenCount().toLocaleString()} / 2,048 tokens ({Math.min(100, Math.round((getContextTokenCount() / 2048) * 100))}%)
-                  </span>
-                </div>
-                <div className="w-full h-1.5 bg-[var(--bg-input)] rounded-full overflow-hidden border border-black/5 dark:border-white/5">
-                  <div 
-                    className="h-full bg-gradient-to-r from-[#0db7ed] to-[#3b82f6] rounded-full transition-all duration-500 ease-out" 
-                    style={{ width: `${Math.min(100, (getContextTokenCount() / 2048) * 100)}%` }}
-                  />
-                </div>
-              </div>
             </div>
 
           </div>
         </section>
 
+        {/* Right column: Text Editor Pane */}
+        {isTextEditorOpen && (
+          <section className="lg:col-span-4 flex flex-col h-[calc(100vh-140px)] min-h-[500px] bg-[#1A1D2E] text-[#E8ECF2] rounded-2xl border border-black/10 shadow-2xl p-5 overflow-hidden transition-all duration-300">
+            {/* Editor Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-3">
+              <div className="flex items-center gap-2 truncate mr-2">
+                <FileCode className="w-4 h-4 text-[#0db7ed] shrink-0" />
+                <span className="text-xs font-mono font-bold tracking-wide truncate" title={editorFilename}>{editorFilename}</span>
+                <span className={`w-2 h-2 rounded-full shrink-0 ${editorSaved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} title={editorSaved ? 'Saved' : 'Unsaved changes'} />
+              </div>
+              <button
+                onClick={() => setIsTextEditorOpen(false)}
+                className="text-[#7A7D8E] hover:text-white transition-colors duration-200 focus:outline-none"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Format toggle & status bar */}
+            <div className="flex items-center justify-between mb-3 text-xs">
+              <div className="flex bg-[#2D314E] rounded-lg p-0.5 border border-white/5">
+                <button
+                  onClick={() => {
+                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
+                    setEditorFormat('markdown');
+                    setEditorFilename(`chat_export_${sessionId}.md`);
+                    setEditorContent(generateMarkdown(messages));
+                    setEditorSaved(true);
+                  }}
+                  className={`px-2.5 py-1 rounded-md font-bold transition-all ${editorFormat === 'markdown' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
+                >
+                  MD
+                </button>
+                <button
+                  onClick={() => {
+                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
+                    setEditorFormat('json');
+                    setEditorFilename(`chat_export_${sessionId}.json`);
+                    setEditorContent(generateJSON(messages));
+                    setEditorSaved(true);
+                  }}
+                  className={`px-2.5 py-1 rounded-md font-bold transition-all ${editorFormat === 'json' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
+                >
+                  JSON
+                </button>
+              </div>
+
+              {saveStatusText ? (
+                <span className="text-emerald-400 font-medium animate-pulse">{saveStatusText}</span>
+              ) : (
+                <span className="text-[#7A7D8E] font-mono">
+                  {editorSaved ? 'All changes saved' : 'Unsaved changes*'}
+                </span>
+              )}
+            </div>
+
+            {/* Textarea container */}
+            <div className="flex-1 relative flex bg-[#121420] rounded-xl border border-white/5 overflow-hidden p-3 font-mono text-xs">
+              {/* Line numbers */}
+              <div ref={lineNumbersRef} className="select-none text-right pr-3 border-r border-white/5 text-[#4A4D5E] font-mono leading-6 overflow-hidden">
+                {Array.from({ length: Math.max(editorContent.split('\n').length, 15) }).map((_, i) => (
+                  <div key={i}>{i + 1}</div>
+                ))}
+              </div>
+              <textarea
+                ref={editorTextareaRef}
+                value={editorContent}
+                onScroll={handleEditorScroll}
+                onChange={(e) => {
+                  setEditorContent(e.target.value);
+                  setEditorSaved(false);
+                }}
+                className="flex-1 bg-transparent resize-none pl-3 outline-none border-none text-[#E8ECF2] font-mono leading-6 overflow-y-auto scrollbar-thin placeholder-white/20"
+                placeholder="Edit file contents..."
+              />
+            </div>
+
+            {/* Editor Actions */}
+            <div className="flex gap-2 mt-4 pt-3 border-t border-white/5">
+              <button
+                onClick={() => handleSaveFile(editorContent, editorFilename)}
+                className="flex-1 bg-[#0db7ed] hover:bg-[#008bb9] text-white text-xs font-bold py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save to Workspace</span>
+              </button>
+              <button
+                onClick={() => triggerDownload(editorContent, editorFilename)}
+                className="bg-[#2D314E] hover:bg-[#3D426A] text-white text-xs font-bold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 border border-white/5 transition-all"
+                title="Download locally"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </section>
+        )}
       </main>
 
       {/* Premium Settings Modal */}
@@ -2095,9 +1300,6 @@ function App() {
                             onClick={() => {
                               setCloudSpaceSlug(space.slug);
                               localStorage.setItem('aidock_cloud_space', space.slug);
-                              setActiveModel(`AICodex Cloud · ${space.slug}`);
-                              setSaveStatusText(`Switched to: ${space.name}`);
-                              setTimeout(() => setSaveStatusText(''), 3000);
                             }}
                             className={`p-2.5 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
                               cloudSpaceSlug === space.slug
@@ -2131,7 +1333,50 @@ function App() {
                     )}
                   </div>
 
-                  {/* Model Selector removed and placed in Chat Area Header */}
+                  {/* ── Model Selector ── */}
+                  {cloudSpaces.find(s => s.slug === cloudSpaceSlug) && (
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[9px] font-bold text-[#7A7D8E] uppercase tracking-wider">
+                          Inference Model
+                        </label>
+                        {cloudModelsLoading && (
+                          <span className="text-[9px] text-[#0db7ed] font-medium flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full border border-[#0db7ed] border-t-transparent animate-spin" />
+                            Loading models…
+                          </span>
+                        )}
+                        {!cloudModelsLoading && cloudSelectedProvider && (
+                          <span className="text-[9px] font-mono text-[#7A7D8E] bg-black/5 px-1.5 py-0.5 rounded">
+                            via {cloudSelectedProvider}
+                          </span>
+                        )}
+                      </div>
+
+                      {cloudModels.length > 0 ? (
+                        <select
+                          value={cloudSelectedModel}
+                          onChange={(e) => {
+                            setCloudSelectedModel(e.target.value);
+                            localStorage.setItem('aidock_cloud_model', e.target.value);
+                          }}
+                          className="w-full bg-white/60 focus:bg-white border border-black/5 rounded-lg px-3 py-2 text-xs font-medium text-[#1A1D2E] outline-none transition-all appearance-none cursor-pointer"
+                        >
+                          {cloudModels.map(m => (
+                            <option key={m.id} value={m.id}>{m.name || m.id}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        !cloudModelsLoading && (
+                          <p className="text-[10px] text-[#7A7D8E] italic">
+                            No models available for this space's provider.
+                          </p>
+                        )
+                      )}
+                    </div>
+                  )}
+
+
                   {/* Auth status feedback */}
                   {cloudAuthStatus === 'error' && (
                     <p className="text-[10px] text-red-600 font-medium">
@@ -2166,41 +1411,6 @@ function App() {
                 </div>
               )}
 
-              {/* UI Accessibility Settings */}
-              <div className="bg-[#E8ECF2] dark:bg-white/5 p-4 rounded-xl border border-[#border] dark:border-white/10 flex flex-col gap-2.5">
-                <span className="text-xs font-bold text-[#4A4D5E] dark:text-[#B0B4C0] uppercase tracking-wider">UI Accessibility Settings</span>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] text-[#7A7D8E] font-medium uppercase tracking-wider">Theme Mode</label>
-                  <div className="grid grid-cols-3 gap-2 bg-[#D8DCE4] dark:bg-black/25 p-1 rounded-xl">
-                    {[
-                      { id: 'system', name: 'System', icon: Monitor },
-                      { id: 'light', name: 'Light', icon: Sun },
-                      { id: 'dark', name: 'Dark', icon: Moon }
-                    ].map((t) => {
-                      const Icon = t.icon;
-                      const active = theme === t.id;
-                      return (
-                        <button
-                          key={t.id}
-                          onClick={() => {
-                            setTheme(t.id as any);
-                            localStorage.setItem('aidock_theme', t.id);
-                          }}
-                          className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
-                            active
-                              ? 'bg-[#0db7ed] text-white shadow-sm'
-                              : 'text-[#4A4D5E] dark:text-[#B0B4C0] hover:bg-black/5 dark:hover:bg-white/5'
-                          }`}
-                        >
-                          <Icon className="w-3.5 h-3.5" />
-                          <span>{t.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
               {/* Diagnostics */}
               <div className="bg-[#E8ECF2] p-4 rounded-xl border border-black/5 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
@@ -2215,9 +1425,7 @@ function App() {
 
                 <div className="text-[10px] text-[#7A7D8E] font-medium leading-relaxed">
                   Active Chat Endpoint:<br />
-                  <span className="font-mono text-[#1A1D2E] break-all select-all">
-                    {isCloudMode() ? 'https://[HIDDEN-FOR-SECURITY]/api/chat' : getBackendUrl('chat')}
-                  </span>
+                  <span className="font-mono text-[#1A1D2E] break-all select-all">{getBackendUrl('chat')}</span>
                 </div>
 
                 <button
@@ -2259,67 +1467,6 @@ function App() {
           </div>
         </div>
       )}
-
-      {/* Terminal Bottom Drawer */}
-      {isTerminalOpen && (
-        <div className="fixed bottom-0 left-0 right-0 h-80 bg-[#0f172a] border-t border-[var(--border)] shadow-2xl flex flex-col z-[100] transition-all duration-300">
-          {/* Terminal Header */}
-          <div className="flex items-center justify-between px-6 py-2 bg-slate-900 border-b border-slate-800 text-xs font-semibold text-slate-400 select-none">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#f97316]" />
-              <span className="text-slate-200">Terminal</span>
-              <span className="text-slate-500">|</span>
-              <span className="font-mono text-slate-400">aidock harness ({sessionId})</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => {
-                  if (xtermInstanceRef.current) {
-                    xtermInstanceRef.current.clear();
-                    xtermInstanceRef.current.focus();
-                  }
-                }}
-                className="hover:text-slate-200 transition-colors py-0.5 px-1.5 hover:bg-slate-800 rounded animate-pulse"
-                title="Clear Screen"
-              >
-                Clear
-              </button>
-              <button 
-                onClick={() => {
-                  setIsTerminalOpen(false);
-                  setTimeout(() => setIsTerminalOpen(true), 150);
-                }}
-                className="hover:text-slate-200 transition-colors py-0.5 px-1.5 hover:bg-slate-800 rounded"
-                title="Restart Terminal Session"
-              >
-                Reset
-              </button>
-              <button 
-                onClick={() => setIsTerminalOpen(false)}
-                className="text-slate-500 hover:text-slate-200 transition-colors p-0.5 hover:bg-slate-800 rounded"
-                title="Close Panel"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-          {/* Terminal Canvas Container */}
-          <div className="flex-1 p-2 bg-[#0f172a] overflow-hidden relative">
-            <div ref={terminalDivRef} className="w-full h-full min-h-0" />
-          </div>
-        </div>
-      )}
-
-      <SessionHistoryPanel
-        isOpen={isHistoryPanelOpen}
-        onClose={() => setIsHistoryPanelOpen(false)}
-        activeSessionId={sessionId}
-        onSelectSession={handleSelectSession}
-        isCloudMode={isCloudMode}
-        cloudSpaceSlug={cloudSpaceSlug}
-        cloudToken={cloudToken}
-        customEndpoint={customEndpoint}
-      />
     </div>
   );
 }
