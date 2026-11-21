@@ -4,7 +4,8 @@ import {
   Download, FileText, ChevronDown, Save, X, Edit, FileCode,
   Folder, Plus, RefreshCw, Trash2, Settings, Moon, Sun,
   PanelLeft, Layers, Search, Check, FolderGit2, ChevronsUpDown,
-  Bot, Boxes, Sparkles, Globe, Cloud, LayoutGrid, Box
+  Bot, Boxes, Sparkles, Globe, Cloud, LayoutGrid, Box,
+  SlidersHorizontal, Key, Eye, EyeOff, Server
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -42,6 +43,44 @@ interface CloudModel {
   id: string;
   name: string;
 }
+
+export interface AIProvider {
+  id: string;
+  label: string;
+  desc: string;
+  badge: string;
+  requiresKey: boolean;
+  defaultUrl: string;
+  coreGroup: 'neural' | 'cloud';
+  placeholder?: boolean;
+  defaultModels: string[];
+}
+
+export const PROVIDERS: AIProvider[] = [
+  // Neural Core (Local)
+  { id: 'local', label: 'Local LLM', desc: 'Ollama or llama-server (Container / Local :11434)', badge: 'LOCAL', requiresKey: false, defaultUrl: 'http://127.0.0.1:11434', coreGroup: 'neural', defaultModels: ['ai/mistral:7B-Q4_K_M', 'llama3.2:3b', 'gemma2:9b', 'qwen2.5:7b'] },
+  { id: 'litert', label: 'LiteRT (Web Local)', desc: 'On-device client inference (WebGPU/WASM)', badge: 'LITERT', requiresKey: false, defaultUrl: '', coreGroup: 'neural', placeholder: true, defaultModels: ['gemma-2b-it-webgpu'] },
+  { id: 'transformers', label: 'Transformers (HF)', desc: 'Local Hugging Face runtime (Coming Soon)', badge: 'TRANSFORMERS', requiresKey: false, defaultUrl: '', coreGroup: 'neural', placeholder: true, defaultModels: ['xenova/gpt2'] },
+
+  // Cloud Core (BYOK Cloud API Providers)
+  { id: 'openai', label: 'OpenAI', desc: 'Direct GPT-4o, o1, and o3-mini models', badge: 'OPENAI', requiresKey: true, defaultUrl: 'https://api.openai.com/v1', coreGroup: 'cloud', defaultModels: ['gpt-4o', 'gpt-4o-mini', 'o3-mini', 'o1', 'gpt-4-turbo'] },
+  { id: 'gemini', label: 'Gemini', desc: 'Google Gemini 2.0 & 1.5 Flash/Pro', badge: 'GEMINI', requiresKey: true, defaultUrl: 'https://generativelanguage.googleapis.com/v1beta', coreGroup: 'cloud', defaultModels: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'] },
+  { id: 'anthropic', label: 'Anthropic', desc: 'Claude 3.7 & 3.5 Sonnet / Haiku', badge: 'ANTHROPIC', requiresKey: true, defaultUrl: 'https://api.anthropic.com', coreGroup: 'cloud', defaultModels: ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'] },
+  { id: 'groq', label: 'Groq', desc: 'Ultra-fast LPU inference (Llama 3.3)', badge: 'GROQ', requiresKey: true, defaultUrl: 'https://api.groq.com/openai/v1', coreGroup: 'cloud', defaultModels: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768', 'gemma2-9b-it'] },
+  { id: 'openrouter', label: 'OpenRouter', desc: 'Multi-model gateway & unified routing', badge: 'OPENROUTER', requiresKey: true, defaultUrl: 'https://openrouter.ai/api/v1', coreGroup: 'cloud', defaultModels: ['meta-llama/llama-3.3-70b-instruct', 'google/gemini-2.0-flash-exp:free', 'anthropic/claude-3.5-sonnet', 'deepseek/deepseek-chat'] },
+  { id: 'deepseek', label: 'DeepSeek', desc: 'DeepSeek-V3 & DeepSeek-R1 reasoning', badge: 'DEEPSEEK', requiresKey: true, defaultUrl: 'https://api.deepseek.com/v1', coreGroup: 'cloud', defaultModels: ['deepseek-chat', 'deepseek-reasoner'] },
+  { id: 'xai', label: 'xAI', desc: 'Grok-2 & Grok-beta models direct', badge: 'XAI', requiresKey: true, defaultUrl: 'https://api.x.ai/v1', coreGroup: 'cloud', defaultModels: ['grok-2-1212', 'grok-beta'] },
+  { id: 'together', label: 'Together AI', desc: 'Fast open-source model hosting', badge: 'TOGETHER', requiresKey: true, defaultUrl: 'https://api.together.xyz/v1', coreGroup: 'cloud', defaultModels: ['meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo', 'mistralai/Mixtral-8x22B-Instruct-v0.1'] },
+  { id: 'fireworks', label: 'Fireworks AI', desc: 'Low-latency serverless model inference', badge: 'FIREWORKS', requiresKey: true, defaultUrl: 'https://api.fireworks.ai/inference/v1', coreGroup: 'cloud', defaultModels: ['accounts/fireworks/models/llama-v3p1-70b-instruct', 'accounts/fireworks/models/deepseek-v3'] },
+  { id: 'mistral', label: 'Mistral AI', desc: 'Mistral Large & Codestral models', badge: 'MISTRAL', requiresKey: true, defaultUrl: 'https://api.mistral.ai/v1', coreGroup: 'cloud', defaultModels: ['mistral-large-latest', 'codestral-latest', 'mistral-small-latest'] },
+  { id: 'perplexity', label: 'Perplexity', desc: 'Search-augmented real-time reasoning', badge: 'PERPLEXITY', requiresKey: true, defaultUrl: 'https://api.perplexity.ai', coreGroup: 'cloud', defaultModels: ['sonar-pro', 'sonar'] },
+  { id: 'cohere', label: 'Cohere', desc: 'Command R+ enterprise multilingual', badge: 'COHERE', requiresKey: true, defaultUrl: 'https://api.cohere.com/v1', coreGroup: 'cloud', defaultModels: ['command-r-plus', 'command-r'] },
+  { id: 'cerebras', label: 'Cerebras', desc: 'Wafer-scale instantaneous generation', badge: 'CEREBRAS', requiresKey: true, defaultUrl: 'https://api.cerebras.ai/v1', coreGroup: 'cloud', defaultModels: ['llama3.1-70b', 'llama3.1-8b'] },
+  { id: 'ollama_cloud', label: 'Ollama Cloud', desc: 'Remote Ollama server instances', badge: 'OLLAMA_CLOUD', requiresKey: false, defaultUrl: 'https://ollama.com', coreGroup: 'cloud', defaultModels: ['llama3.3', 'mistral', 'qwen2.5'] },
+  { id: 'workers_ai', label: 'Cloudflare Workers AI', desc: 'Cloudflare edge serverless AI inference', badge: 'WORKERS_AI', requiresKey: false, defaultUrl: 'https://api.cloudflare.com/client/v4/accounts', coreGroup: 'cloud', defaultModels: ['@cf/meta/llama-3.3-70b-instruct', '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b'] },
+  { id: 'cloudflare_ai_gateway', label: 'Cloudflare AI Gateway', desc: 'Universal AI gateway with smart fallbacks', badge: 'CF_GATEWAY', requiresKey: false, defaultUrl: 'https://gateway.ai.cloudflare.com', coreGroup: 'cloud', defaultModels: ['meta-llama/llama-3.3-70b-instruct'] },
+  { id: 'azure', label: 'Azure OpenAI', desc: 'Enterprise OpenAI deployed on Microsoft Azure', badge: 'AZURE', requiresKey: true, defaultUrl: 'https://{resource}.openai.azure.com/openai/deployments', coreGroup: 'cloud', defaultModels: ['gpt-4o', 'gpt-4o-mini'] },
+];
 
 function MascotLogo({ className }: { className?: string }) {
   return (
@@ -306,22 +345,172 @@ function App() {
   );
   const [cloudSpaces, setCloudSpaces] = useState<CloudSpace[]>([]);
   const [cloudSpacesLoading, setCloudSpacesLoading] = useState(false);
-  const [cloudModels, setCloudModels] = useState<CloudModel[]>([]);
-  const [cloudModelsLoading, setCloudModelsLoading] = useState(false);
-  const [cloudSelectedModel, setCloudSelectedModel] = useState<string>(() =>
-    localStorage.getItem('aidock_cloud_model') || ''
-  );
-  // Local models fetched from backend `/models`
-  const [localModels, setLocalModels] = useState<string[]>([]);
-  const [localModelsLoading, setLocalModelsLoading] = useState(false);
   const [localSelectedModel, setLocalSelectedModel] = useState<string>(() =>
     localStorage.getItem('aidock_local_model') || ''
   );
-  const [cloudSelectedProvider, setCloudSelectedProvider] = useState<string>(() =>
-    localStorage.getItem('aidock_cloud_provider') || ''
-  );
   const [cloudAuthStatus, setCloudAuthStatus] = useState<'idle'|'loading'|'ok'|'error'>('idle');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  // ── AI Provider & Cloud Settings (SpiritLlama Desktop Harness Style) ──────
+  const [activeProviderId, setActiveProviderId] = useState<string>(() =>
+    localStorage.getItem('ai_provider') || 'local'
+  );
+  const [selectedModalProvId, setSelectedModalProvId] = useState<string>(() =>
+    localStorage.getItem('ai_provider') || 'local'
+  );
+  const [settingsTab, setSettingsTab] = useState<'providers' | 'server' | 'cloud' | 'diagnostics'>('providers');
+  const [showKeyPassword, setShowKeyPassword] = useState(false);
+  const [providerConfigStatus, setProviderConfigStatus] = useState<string>('');
+
+  // Per-provider state cache
+  const [providerApiKeys, setProviderApiKeys] = useState<Record<string, string>>(() => {
+    const keys: Record<string, string> = {};
+    PROVIDERS.forEach(p => {
+      const saved = localStorage.getItem(`${p.id}_api_key`);
+      if (saved) keys[p.id] = saved;
+    });
+    return keys;
+  });
+
+  const [providerBaseUrls, setProviderBaseUrls] = useState<Record<string, string>>(() => {
+    const urls: Record<string, string> = {};
+    PROVIDERS.forEach(p => {
+      const saved = localStorage.getItem(`${p.id}_base_url`);
+      if (saved) urls[p.id] = saved;
+    });
+    return urls;
+  });
+
+  const [providerAccountIds, setProviderAccountIds] = useState<Record<string, string>>(() => {
+    const accs: Record<string, string> = {};
+    PROVIDERS.forEach(p => {
+      const saved = localStorage.getItem(`${p.id}_account_id`);
+      if (saved) accs[p.id] = saved;
+    });
+    return accs;
+  });
+
+  const [providerGatewayIds, setProviderGatewayIds] = useState<Record<string, string>>(() => {
+    const gws: Record<string, string> = {};
+    PROVIDERS.forEach(p => {
+      const saved = localStorage.getItem(`${p.id}_gateway_id`);
+      if (saved) gws[p.id] = saved;
+    });
+    return gws;
+  });
+
+  const [providerDiscoveredModels, setProviderDiscoveredModels] = useState<Record<string, string[]>>(() => {
+    const map: Record<string, string[]> = {};
+    PROVIDERS.forEach(p => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(`discovered_models_${p.id}`) || 'null');
+        if (Array.isArray(saved) && saved.length > 0) map[p.id] = saved;
+        else map[p.id] = p.defaultModels;
+      } catch {
+        map[p.id] = p.defaultModels;
+      }
+    });
+    return map;
+  });
+
+  const [providerSelectedModels, setProviderSelectedModels] = useState<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    PROVIDERS.forEach(p => {
+      const saved = localStorage.getItem(`ai_model_${p.id}`);
+      map[p.id] = saved || p.defaultModels[0] || '';
+    });
+    return map;
+  });
+
+  const selectActiveProvider = (provId: string) => {
+    setActiveProviderId(provId);
+    localStorage.setItem('ai_provider', provId);
+    const chosenModel = providerSelectedModels[provId] || PROVIDERS.find(p => p.id === provId)?.defaultModels[0] || 'Default';
+    setActiveModel(chosenModel);
+  };
+
+  const saveAndTestProviderConfig = async (provId: string) => {
+    setProviderConfigStatus('Querying models...');
+    const prov = PROVIDERS.find(p => p.id === provId) || PROVIDERS[0];
+    const key = (providerApiKeys[provId] || '').trim();
+    const url = (providerBaseUrls[provId] || '').trim();
+    const acc = (providerAccountIds[provId] || '').trim();
+    const gw = (providerGatewayIds[provId] || '').trim();
+
+    if (key) localStorage.setItem(`${provId}_api_key`, key);
+    else localStorage.removeItem(`${provId}_api_key`);
+
+    if (url) localStorage.setItem(`${provId}_base_url`, url);
+    else localStorage.removeItem(`${provId}_base_url`);
+
+    if (acc) localStorage.setItem(`${provId}_account_id`, acc);
+    else localStorage.removeItem(`${provId}_account_id`);
+
+    if (gw) localStorage.setItem(`${provId}_gateway_id`, gw);
+    else localStorage.removeItem(`${provId}_gateway_id`);
+
+    if (prov.placeholder) {
+      setProviderConfigStatus('Placeholder provider active.');
+      return;
+    }
+
+    try {
+      let discovered: string[] = [];
+      const effectiveUrl = url || prov.defaultUrl;
+
+      if (provId === 'gemini' && key) {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.models)) {
+            discovered = data.models
+              .map((m: any) => m.name.replace(/^models\//, ''))
+              .filter((id: string) => id.includes('gemini'));
+          }
+        }
+      } else if (provId === 'local') {
+        const res = await fetch(`${effectiveUrl}/api/tags`).catch(() => fetch('/api/models'));
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.models)) {
+            discovered = data.models.map((m: any) => m.name || m.model || m);
+          }
+        }
+      } else if (key || provId === 'ollama_cloud') {
+        const endpoint = effectiveUrl.replace(/\/+$/, '') + (effectiveUrl.includes('/v1') ? '/models' : '/v1/models');
+        const hdrs: Record<string, string> = {};
+        if (key) hdrs['Authorization'] = `Bearer ${key}`;
+        if (provId === 'openrouter') {
+          hdrs['HTTP-Referer'] = 'http://localhost:3000';
+          hdrs['X-Title'] = 'AIDock Orchestrator';
+        }
+        const res = await fetch(endpoint, { headers: hdrs }).catch(() => null);
+        if (res && res.ok) {
+          const data = await res.json();
+          const items = Array.isArray(data.data) ? data.data : Array.isArray(data.models) ? data.models : [];
+          discovered = items.map((m: any) => m.id || m.name).filter(Boolean).slice(0, 40);
+        }
+      }
+
+      if (discovered.length > 0) {
+        setProviderDiscoveredModels(prev => {
+          const updated = { ...prev, [provId]: discovered };
+          localStorage.setItem(`discovered_models_${provId}`, JSON.stringify(discovered));
+          return updated;
+        });
+        setProviderConfigStatus(`✓ Discovered ${discovered.length} live model(s)!`);
+        if (!providerSelectedModels[provId] || !discovered.includes(providerSelectedModels[provId])) {
+          setProviderSelectedModels(prev => ({ ...prev, [provId]: discovered[0] }));
+          localStorage.setItem(`ai_model_${provId}`, discovered[0]);
+          if (activeProviderId === provId) setActiveModel(discovered[0]);
+        }
+      } else {
+        setProviderConfigStatus('Config saved. (Using curated fallback model list)');
+      }
+    } catch (err: any) {
+      setProviderConfigStatus(`Config saved locally. Note: ${err.message || 'Direct probe skipped'}`);
+    }
+  };
 
   // Determine the correct base URL for the active cloud backend
   const getCloudBase = (): string => {
@@ -362,11 +551,7 @@ function App() {
   // Fetch models for the selected space's recommended provider
   const fetchCloudModels = async (token: string, space: CloudSpace) => {
     const provider = space.recommended_provider;
-    if (!provider || provider === 'local') {
-      setCloudModels([]);
-      return;
-    }
-    setCloudModelsLoading(true);
+    if (!provider || provider === 'local') return;
     try {
       const base = getCloudBase();
       const res = await fetch(
@@ -381,25 +566,20 @@ function App() {
       );
       if (res.ok) {
         const data: CloudModel[] = await res.json();
-        setCloudModels(data);
-        // Pre-select recommended model or first result
-        const recommended = space.recommended_model;
-        const match = recommended ? data.find(m => m.id === recommended) : null;
-        const best = match ? match.id : data[0]?.id || '';
-        if (best) {
-          setCloudSelectedModel(best);
-          localStorage.setItem('aidock_cloud_model', best);
+        const modelNames = data.map(m => m.id);
+        if (modelNames.length > 0) {
+          setProviderDiscoveredModels(prev => ({ ...prev, [provider]: modelNames }));
+          const recommended = space.recommended_model;
+          const match = recommended ? data.find(m => m.id === recommended) : null;
+          const best = match ? match.id : data[0]?.id || '';
+          if (best) {
+            setProviderSelectedModels(prev => ({ ...prev, [provider]: best }));
+            localStorage.setItem(`ai_model_${provider}`, best);
+          }
         }
-        setCloudSelectedProvider(provider);
-        localStorage.setItem('aidock_cloud_provider', provider);
-      } else {
-        setCloudModels([]);
       }
     } catch (e) {
       console.error('Failed to fetch cloud models:', e);
-      setCloudModels([]);
-    } finally {
-      setCloudModelsLoading(false);
     }
   };
 
@@ -611,23 +791,22 @@ function App() {
   // Fetch local /models when in local backend mode
   const fetchLocalModels = async () => {
     if (isCloudMode()) return;
-    setLocalModelsLoading(true);
     try {
       const res = await fetch(getBackendUrl('models'));
       if (res.ok) {
         const data = await res.json();
         const slugs: string[] = data.models || [];
-        setLocalModels(slugs);
-        // Pre-select first if none selected
-        if (!localSelectedModel && slugs.length > 0) {
-          setLocalSelectedModel(slugs[0]);
-          localStorage.setItem('aidock_local_model', slugs[0]);
+        if (slugs.length > 0) {
+          setProviderDiscoveredModels(prev => ({ ...prev, local: slugs }));
+          if (!localSelectedModel) {
+            setLocalSelectedModel(slugs[0]);
+            localStorage.setItem('aidock_local_model', slugs[0]);
+            if (activeProviderId === 'local') setActiveModel(slugs[0]);
+          }
         }
       }
     } catch (e) {
       console.error('Failed to fetch local models:', e);
-    } finally {
-      setLocalModelsLoading(false);
     }
   };
 
@@ -778,12 +957,29 @@ function App() {
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
+    const provId = activeProviderId;
+    const provDef = PROVIDERS.find(p => p.id === provId) || PROVIDERS[0];
+    const apiKey = (providerApiKeys[provId] || '').trim();
+    const baseUrl = (providerBaseUrls[provId] || '').trim();
+    const modelSlug = providerSelectedModels[provId] || activeModel;
+
     // Guard: cloud mode requires a JWT
     if (isCloudMode() && !cloudToken) {
       const errorMessage: Message = {
         id: `msg_${Date.now()}_e`,
         sender: 'bot',
         content: '⚠️ Cloud inference requires credentials. Open Settings (⚙️) and sign in to AICodex Cloud first.',
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      return;
+    }
+
+    // Guard: if provider requires API key and not provided
+    if (provDef.requiresKey && !apiKey && !isCloudMode()) {
+      const errorMessage: Message = {
+        id: `msg_${Date.now()}_e`,
+        sender: 'bot',
+        content: `⚠️ API Key required for **${provDef.label}**. Click the **${provDef.label}** pill in the top header or open Connection Settings (⚙️) to enter your API key.`,
       };
       setMessages(prev => [...prev, errorMessage]);
       return;
@@ -800,15 +996,15 @@ function App() {
     setLoading(true);
     const startTime = Date.now();
 
-    logToContainer('info', `User interaction submitted - Session: ${sessionId} - Prompt: "${currentInput.substring(0, 60)}..."`);
+    logToContainer('info', `User interaction submitted - Session: ${sessionId} - Provider: ${provId} - Model: ${modelSlug} - Prompt: "${currentInput.substring(0, 60)}..."`);
 
     try {
       const chatUrl = getBackendUrl('chat');
 
       // Cloud uses the codegen spaces endpoint; local uses the standard chat endpoint
       const cloudBody: Record<string, string> = { prompt: currentInput };
-      if (cloudSelectedModel) cloudBody.model = cloudSelectedModel;
-      if (cloudSelectedProvider) cloudBody.provider = cloudSelectedProvider;
+      if (modelSlug) cloudBody.model = modelSlug;
+      if (provId) cloudBody.provider = provId;
 
       const fetchOptions: RequestInit = isCloudMode()
         ? {
@@ -819,7 +1015,16 @@ function App() {
         : {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ message: currentInput, session_id: sessionId, model_slug: localSelectedModel || undefined }),
+            body: JSON.stringify({ 
+              message: currentInput, 
+              session_id: sessionId, 
+              provider: provId,
+              model_slug: modelSlug || localSelectedModel || undefined,
+              api_key: apiKey || undefined,
+              base_url: baseUrl || undefined,
+              cloud_token: cloudToken || undefined,
+              cloud_api_url: getCloudBase()
+            }),
           };
 
       let res = await fetch(chatUrl, fetchOptions);
@@ -906,6 +1111,25 @@ function App() {
         </div>
 
         <div className="flex items-center gap-2.5 relative z-10">
+          {/* Active Provider Pill (Clickable -> Opens Settings Modal onto Provider tab) */}
+          <button
+            onClick={() => {
+              setSelectedModalProvId(activeProviderId);
+              setSettingsTab('providers');
+              setShowSettingsModal(true);
+            }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/25 text-white transition-all cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
+            title="Active AI Provider — Click to configure API Keys & Base URLs"
+          >
+            <span className="w-2 h-2 rounded-full bg-[#0db7ed] animate-pulse" />
+            <span className="text-[10px] font-bold uppercase tracking-tight text-white/95">
+              {PROVIDERS.find(p => p.id === activeProviderId)?.label || 'LOCAL'}
+            </span>
+            <span className="text-[9px] font-mono font-bold text-[#0db7ed] bg-black/40 px-1.5 py-0.5 rounded border border-[#0db7ed]/30">
+              {(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop()}
+            </span>
+          </button>
+
           <button 
             onClick={() => setIsDark(!isDark)}
             className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-md transition-all focus:outline-none flex items-center gap-1.5 text-xs font-semibold shadow-sm cursor-pointer"
@@ -925,8 +1149,11 @@ function App() {
           </button>
 
           <button 
-            onClick={() => setShowSettingsModal(true)}
-            className="px-3 py-1.5 bg-[#0db7ed] hover:bg-[#0099cc] text-white rounded-md transition-all focus:outline-none flex items-center gap-1.5 text-xs font-medium shadow-sm"
+            onClick={() => {
+              setSettingsTab('providers');
+              setShowSettingsModal(true);
+            }}
+            className="px-3 py-1.5 bg-[#0db7ed] hover:bg-[#0099cc] text-white rounded-md transition-all focus:outline-none flex items-center gap-1.5 text-xs font-medium shadow-sm cursor-pointer"
             title="Connection Settings"
           >
             <Settings className="w-3.5 h-3.5" />
@@ -979,9 +1206,24 @@ function App() {
 
           <div className="h-4 w-px bg-[var(--border-subtle)]" />
 
+          {/* Clickable Provider Badge */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedModalProvId(activeProviderId);
+              setSettingsTab('providers');
+              setShowSettingsModal(true);
+            }}
+            className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] hover:bg-[#0db7ed]/10 border border-[var(--border-subtle)] hover:border-[#0db7ed]/50 px-2.5 py-0.5 rounded text-[var(--text-secondary)] hover:text-[#0db7ed] flex items-center gap-1.5 transition-colors cursor-pointer"
+            title="Configure Active Provider & API Keys"
+          >
+            <span>Provider:</span>
+            <b className="text-[var(--text-primary)]">{PROVIDERS.find(p => p.id === activeProviderId)?.label || 'Local'}</b>
+          </button>
+
           <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
             <span>Model:</span>
-            <b className="text-[var(--text-primary)]">{activeModel}</b>
+            <b className="text-[var(--text-primary)]">{(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop()}</b>
           </div>
 
           <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
@@ -990,7 +1232,7 @@ function App() {
           </div>
 
           <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
-            <span>Mode:</span>
+            <span>Route:</span>
             <b className="text-[var(--text-primary)] capitalize">{backendMode.replace('-', ' ')}</b>
           </div>
         </div>
@@ -1094,52 +1336,61 @@ function App() {
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Models</span>
                 <span className="px-1.5 py-0.2 rounded bg-[#0db7ed]/15 text-[#0db7ed] border border-[#0db7ed]/30 text-[8px] font-mono font-bold uppercase">
-                  {backendMode}
+                  {PROVIDERS.find(p => p.id === activeProviderId)?.badge || 'LOCAL'}
                 </span>
               </div>
               <div className="flex items-center gap-1">
                 <button 
                   type="button" 
-                  onClick={() => fetchLocalModels()}
+                  onClick={() => saveAndTestProviderConfig(activeProviderId)}
                   className="p-0.5 rounded text-[var(--text-muted)] hover:text-[#0db7ed] transition-colors cursor-pointer"
-                  title="Refresh Backend Models"
+                  title="Discover Live Models"
                 >
-                  <RefreshCw className={`w-3 h-3 ${localModelsLoading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className="w-3 h-3" />
                 </button>
                 <button 
                   type="button" 
-                  onClick={() => setShowSettingsModal(true)}
+                  onClick={() => {
+                    setSelectedModalProvId(activeProviderId);
+                    setSettingsTab('providers');
+                    setShowSettingsModal(true);
+                  }}
                   className="text-[9px] font-bold text-[#0db7ed] hover:underline cursor-pointer" 
-                  title="Open Engine & Connection Settings"
+                  title="Configure Providers & API Keys"
                 >
-                  Engine ▸
+                  Providers ▸
                 </button>
               </div>
             </div>
             <div className="text-[11px] font-mono bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-2.5 py-1.5 rounded-lg flex items-center justify-between">
-              <span className="font-bold text-[var(--text-primary)] truncate">{activeModel}</span>
-              <span className="text-[9px] text-[#0db7ed] font-semibold">Active Runner</span>
+              <span className="font-bold text-[var(--text-primary)] truncate">
+                {(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop()}
+              </span>
+              <span className="text-[9px] text-[#0db7ed] font-semibold">Active</span>
             </div>
-            {localModels.length > 0 && (
+            {(providerDiscoveredModels[activeProviderId] || []).length > 0 && (
               <div className="flex flex-wrap gap-1 mt-1.5 max-h-16 overflow-y-auto">
-                {localModels.map(m => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => {
-                      setLocalSelectedModel(m);
-                      setActiveModel(m);
-                      localStorage.setItem('aidock_local_model', m);
-                    }}
-                    className={`px-1.5 py-0.5 rounded text-[9px] font-mono border transition-all cursor-pointer ${
-                      (localSelectedModel === m || activeModel === m)
-                        ? 'border-[#0db7ed] bg-[#0db7ed]/15 text-[#0db7ed] font-bold'
-                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[#0db7ed]/40'
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))}
+                {(providerDiscoveredModels[activeProviderId] || []).map(m => {
+                  const isSelected = (providerSelectedModels[activeProviderId] === m || activeModel === m);
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => {
+                        setProviderSelectedModels(prev => ({ ...prev, [activeProviderId]: m }));
+                        setActiveModel(m);
+                        localStorage.setItem(`ai_model_${activeProviderId}`, m);
+                      }}
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-mono border transition-all cursor-pointer ${
+                        isSelected
+                          ? 'border-[#0db7ed] bg-[#0db7ed]/15 text-[#0db7ed] font-bold'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[#0db7ed]/40'
+                      }`}
+                    >
+                      {m.split('/').pop()}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1931,303 +2182,633 @@ function App() {
       </main>
       </div>
 
-      {/* Premium Settings Modal */}
+      {/* SpiritLlama Harness-style System Settings Modal */}
       {showSettingsModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg w-full max-w-lg shadow-[var(--shadow-modal)] p-6 relative flex flex-col gap-4 max-h-[90vh] overflow-y-auto text-[var(--text-primary)]">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-2xl w-full max-w-4xl shadow-[var(--shadow-modal)] p-6 relative flex flex-col gap-4 h-[86vh] max-h-[760px] text-[var(--text-primary)]">
             <button 
               onClick={() => setShowSettingsModal(false)}
-              className="absolute top-4 right-4 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus:outline-none"
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-elevated)] transition-colors focus:outline-none cursor-pointer"
+              title="Close Settings (Esc)"
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* Header */}
-            <div className="flex items-center gap-2.5 pb-3 border-b border-[var(--border-subtle)]">
-              <div className="w-8 h-8 rounded-md bg-gradient-to-br from-[#0db7ed] to-[#008bb9] flex items-center justify-center text-white shadow-sm">
-                <MascotLogo className="w-5 h-5" />
+            <div className="flex items-center gap-3 pb-3 border-b border-[var(--border-subtle)] shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-white border border-[#0db7ed]/30 flex items-center justify-center p-1.5 shadow-sm shrink-0">
+                <img src={spiritDockLogo} alt="SpiritDock" className="w-7 h-7 object-contain" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-[var(--text-primary)]">Connection Settings</h3>
-                <p className="text-[10px] text-[var(--text-muted)] font-medium uppercase tracking-wider">Orchestration & Backend Routing</p>
+                <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
+                  <span>Connection &amp; Provider Settings</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#0db7ed]/15 text-[#0db7ed] border border-[#0db7ed]/30 font-bold uppercase">
+                    {PROVIDERS.find(p => p.id === activeProviderId)?.label || 'LOCAL'} ACTIVE
+                  </span>
+                </h3>
+                <p className="text-[11px] text-[var(--text-muted)] font-medium">
+                  Configure local neural runtimes, cloud BYOK API providers, server execution routes, and AICodex synchronization.
+                </p>
               </div>
             </div>
 
-            <div className="space-y-4 py-1">
-              {/* Backend Mode Selector */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Active Inference Backend</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: 'local', name: 'Local Ollama', desc: 'WSL Local Container' },
-                    { id: 'cloud-standard', name: 'Cloud Standard', desc: 'AICodex Cloud Run' },
-                    { id: 'cloud-premium', name: 'Cloud Premium', desc: 'Advanced Reasoning' },
-                    { id: 'custom', name: 'Custom URL', desc: 'User-specified base URL' }
-                  ].map((prov) => (
-                    <button
-                      key={prov.id}
-                      onClick={() => {
-                        setBackendMode(prov.id);
-                        localStorage.setItem('aidock_backend_mode', prov.id);
-                      }}
-                      className={`p-3 rounded-md border text-left transition-all flex flex-col gap-0.5 ${
-                        backendMode === prov.id
-                          ? 'border-[#0db7ed] bg-[#0db7ed]/10 text-[var(--text-primary)]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)]'
-                      }`}
-                    >
-                      <span className="text-xs font-bold">{prov.name}</span>
-                      <span className="text-[9px] text-[var(--text-muted)] leading-normal">{prov.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* Modal Tab Bar */}
+            <div className="flex items-center gap-1.5 border-b border-[var(--border-subtle)] pb-2.5 overflow-x-auto shrink-0">
+              <button
+                type="button"
+                onClick={() => setSettingsTab('providers')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                  settingsTab === 'providers'
+                    ? 'bg-[#0db7ed] text-white shadow-sm'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-elevated)]'
+                }`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span>AI Providers</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettingsTab('server')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                  settingsTab === 'server'
+                    ? 'bg-[#0db7ed] text-white shadow-sm'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-elevated)]'
+                }`}
+              >
+                <Server className="w-3.5 h-3.5" />
+                <span>Execution Route</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettingsTab('cloud')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                  settingsTab === 'cloud'
+                    ? 'bg-[#0db7ed] text-white shadow-sm'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-elevated)]'
+                }`}
+              >
+                <Cloud className="w-3.5 h-3.5" />
+                <span>AICodex Cloud Sync</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettingsTab('diagnostics')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                  settingsTab === 'diagnostics'
+                    ? 'bg-[#0db7ed] text-white shadow-sm'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-elevated)]'
+                }`}
+              >
+                <Activity className="w-3.5 h-3.5" />
+                <span>Diagnostics</span>
+              </button>
+            </div>
 
-              {/* Custom URL override */}
-              {backendMode === 'custom' && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Custom Base URL</label>
-                  <input
-                    type="text"
-                    value={customEndpoint}
-                    onChange={(e) => {
-                      setCustomEndpoint(e.target.value);
-                      localStorage.setItem('aidock_custom_endpoint', e.target.value);
-                    }}
-                    placeholder="e.g. https://my-backend.run.app"
-                    className="w-full bg-[var(--bg-surface-elevated)] focus:bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-md px-3.5 py-2 text-xs font-medium text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-[#0db7ed] transition-all"
-                  />
+            {/* TAB CONTENTS */}
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+              {/* TAB 1: AI PROVIDERS (SPLIT PANE) */}
+              {settingsTab === 'providers' && (() => {
+                const selectedProv = PROVIDERS.find(p => p.id === selectedModalProvId) || PROVIDERS[0];
+                return (
+                  <div className="flex gap-4 flex-1 min-h-0 overflow-hidden">
+                    {/* Left Column: Grouped Providers List */}
+                    <div className="w-64 border-r border-[var(--border-subtle)] pr-3 overflow-y-auto space-y-3 shrink-0">
+                      <div>
+                        <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-2 mb-1.5">
+                          Neural Core (Local)
+                        </div>
+                        <div className="space-y-1">
+                          {PROVIDERS.filter(p => p.coreGroup === 'neural').map(p => {
+                            const isSel = selectedModalProvId === p.id;
+                            const isAct = activeProviderId === p.id;
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedModalProvId(p.id);
+                                  setProviderConfigStatus('');
+                                }}
+                                className={`w-full p-2 rounded-xl text-left transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                                  isSel
+                                    ? 'bg-[#0db7ed]/15 border border-[#0db7ed] text-[var(--text-primary)]'
+                                    : 'hover:bg-[var(--bg-surface-elevated)] border border-transparent text-[var(--text-secondary)]'
+                                }`}
+                              >
+                                <div className="min-w-0">
+                                  <div className="text-xs font-bold truncate flex items-center gap-1.5">
+                                    <span>{p.label}</span>
+                                    {isAct && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed] animate-pulse" />
+                                    )}
+                                  </div>
+                                  <div className="text-[9px] text-[var(--text-muted)] truncate">{p.desc}</div>
+                                </div>
+                                <span className="text-[8px] font-mono uppercase px-1.5 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] shrink-0 font-bold">
+                                  {p.badge}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-2 mb-1.5">
+                          Cloud Core (BYOK)
+                        </div>
+                        <div className="space-y-1">
+                          {PROVIDERS.filter(p => p.coreGroup === 'cloud').map(p => {
+                            const isSel = selectedModalProvId === p.id;
+                            const isAct = activeProviderId === p.id;
+                            const hasKey = Boolean(providerApiKeys[p.id]);
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedModalProvId(p.id);
+                                  setProviderConfigStatus('');
+                                }}
+                                className={`w-full p-2 rounded-xl text-left transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                                  isSel
+                                    ? 'bg-[#0db7ed]/15 border border-[#0db7ed] text-[var(--text-primary)]'
+                                    : 'hover:bg-[var(--bg-surface-elevated)] border border-transparent text-[var(--text-secondary)]'
+                                }`}
+                              >
+                                <div className="min-w-0">
+                                  <div className="text-xs font-bold truncate flex items-center gap-1.5">
+                                    <span>{p.label}</span>
+                                    {isAct && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed] animate-pulse" />
+                                    )}
+                                    {hasKey && (
+                                      <Key className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
+                                    )}
+                                  </div>
+                                  <div className="text-[9px] text-[var(--text-muted)] truncate">{p.desc}</div>
+                                </div>
+                                <span className="text-[8px] font-mono uppercase px-1.5 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] shrink-0 font-bold">
+                                  {p.badge}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Selected Provider Config */}
+                    <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                      {/* Provider Header Card */}
+                      <div className="p-3.5 rounded-2xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+                            <span>{selectedProv.label}</span>
+                            <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#0db7ed]/15 text-[#0db7ed] border border-[#0db7ed]/30 font-bold">
+                              {selectedProv.badge}
+                            </span>
+                            {activeProviderId === selectedProv.id && (
+                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
+                                ACTIVE IN SESSION
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">{selectedProv.desc}</div>
+                        </div>
+
+                        {activeProviderId !== selectedProv.id && (
+                          <button
+                            type="button"
+                            onClick={() => selectActiveProvider(selectedProv.id)}
+                            className="px-3 py-1.5 rounded-xl bg-[#0db7ed] hover:bg-[#0099cc] text-white text-xs font-bold transition-all cursor-pointer shadow-sm"
+                          >
+                            Set Active
+                          </button>
+                        )}
+                      </div>
+
+                      {/* API Key Field */}
+                      {selectedProv.requiresKey && (
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                            API Key / Bearer Token
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showKeyPassword ? 'text' : 'password'}
+                              value={providerApiKeys[selectedProv.id] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setProviderApiKeys(prev => ({ ...prev, [selectedProv.id]: val }));
+                              }}
+                              placeholder={
+                                selectedProv.id === 'gemini' ? 'AIzaSy...' :
+                                selectedProv.id === 'openai' ? 'sk-...' :
+                                selectedProv.id === 'anthropic' ? 'sk-ant-...' :
+                                selectedProv.id === 'groq' ? 'gsk_...' :
+                                'Enter provider API key...'
+                              }
+                              className="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl px-3 py-2 pr-9 text-xs font-mono text-[var(--text-primary)] focus:outline-none focus:border-[#0db7ed] transition-colors"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowKeyPassword(!showKeyPassword)}
+                              className="absolute right-2.5 top-2.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+                              title="Toggle Visibility"
+                            >
+                              {showKeyPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Cloudflare Account / Gateway IDs */}
+                      {(selectedProv.id === 'workers_ai' || selectedProv.id === 'cloudflare_ai_gateway') && (
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div className="space-y-1">
+                            <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                              Cloudflare Account ID
+                            </label>
+                            <input
+                              type="text"
+                              value={providerAccountIds[selectedProv.id] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setProviderAccountIds(prev => ({ ...prev, [selectedProv.id]: val }));
+                              }}
+                              placeholder="Account ID"
+                              className="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-xs font-mono text-[var(--text-primary)] focus:outline-none focus:border-[#0db7ed]"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                              Gateway ID
+                            </label>
+                            <input
+                              type="text"
+                              value={providerGatewayIds[selectedProv.id] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setProviderGatewayIds(prev => ({ ...prev, [selectedProv.id]: val }));
+                              }}
+                              placeholder="Gateway ID"
+                              className="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-xs font-mono text-[var(--text-primary)] focus:outline-none focus:border-[#0db7ed]"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Base URL Endpoint */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                          Base URL Endpoint
+                        </label>
+                        <input
+                          type="text"
+                          value={providerBaseUrls[selectedProv.id] ?? selectedProv.defaultUrl}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setProviderBaseUrls(prev => ({ ...prev, [selectedProv.id]: val }));
+                          }}
+                          placeholder={selectedProv.defaultUrl || 'http://localhost:...'}
+                          className="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-xs font-mono text-[var(--text-primary)] focus:outline-none focus:border-[#0db7ed]"
+                        />
+                      </div>
+
+                      {/* Model Selector & Chips */}
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                          Active Model for {selectedProv.label}
+                        </label>
+                        <input
+                          type="text"
+                          value={providerSelectedModels[selectedProv.id] || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setProviderSelectedModels(prev => ({ ...prev, [selectedProv.id]: val }));
+                            localStorage.setItem(`ai_model_${selectedProv.id}`, val);
+                            if (activeProviderId === selectedProv.id) setActiveModel(val);
+                          }}
+                          placeholder="Select or enter model ID..."
+                          className="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-xs font-mono text-[var(--text-primary)] focus:outline-none focus:border-[#0db7ed]"
+                        />
+
+                        {/* Discovered / Default Model Chips */}
+                        <div className="border border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] p-2.5 rounded-xl space-y-1.5">
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                            Available Models (Click to Select)
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                            {(providerDiscoveredModels[selectedProv.id] || selectedProv.defaultModels).map(m => {
+                              const isChosen = providerSelectedModels[selectedProv.id] === m;
+                              return (
+                                <button
+                                  key={m}
+                                  type="button"
+                                  onClick={() => {
+                                    setProviderSelectedModels(prev => ({ ...prev, [selectedProv.id]: m }));
+                                    localStorage.setItem(`ai_model_${selectedProv.id}`, m);
+                                    if (activeProviderId === selectedProv.id) setActiveModel(m);
+                                  }}
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-mono border transition-all cursor-pointer ${
+                                    isChosen
+                                      ? 'border-[#0db7ed] bg-[#0db7ed]/20 text-[#0db7ed] font-bold shadow-sm'
+                                      : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[#0db7ed]/50'
+                                  }`}
+                                >
+                                  {m}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[var(--border-subtle)]">
+                        <button
+                          type="button"
+                          onClick={() => saveAndTestProviderConfig(selectedProv.id)}
+                          className="px-4 py-2 rounded-xl bg-[#0db7ed] hover:bg-[#0099cc] text-white text-xs font-bold shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" /> Save &amp; Discover Live Models
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => selectActiveProvider(selectedProv.id)}
+                          className="px-3.5 py-2 rounded-xl bg-[var(--bg-surface-elevated)] hover:bg-[#0db7ed]/10 border border-[var(--border-subtle)] text-[var(--text-primary)] hover:text-[#0db7ed] text-xs font-bold transition-all cursor-pointer"
+                        >
+                          Set as Active Provider
+                        </button>
+                        {providerConfigStatus && (
+                          <span className="text-[11px] font-mono font-medium text-[#0db7ed]">
+                            {providerConfigStatus}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* TAB 2: EXECUTION ROUTE */}
+              {settingsTab === 'server' && (
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Active Inference Backend</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'local', name: 'Local Ollama / AIDock', desc: 'Docker Container / Model Runner' },
+                        { id: 'cloud-standard', name: 'Cloud Standard', desc: 'AICodex Cloud Run (route_map.json)' },
+                        { id: 'cloud-premium', name: 'Cloud Premium', desc: 'AICodex Premium Reasoning' },
+                        { id: 'custom', name: 'Custom Endpoint', desc: 'User-specified base URL' }
+                      ].map((prov) => (
+                        <button
+                          key={prov.id}
+                          onClick={() => {
+                            setBackendMode(prov.id);
+                            localStorage.setItem('aidock_backend_mode', prov.id);
+                          }}
+                          className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-0.5 cursor-pointer ${
+                            backendMode === prov.id
+                              ? 'border-[#0db7ed] bg-[#0db7ed]/10 text-[var(--text-primary)]'
+                              : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)]'
+                          }`}
+                        >
+                          <span className="text-xs font-bold">{prov.name}</span>
+                          <span className="text-[9px] text-[var(--text-muted)] leading-normal">{prov.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {backendMode === 'custom' && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Custom Base URL</label>
+                      <input
+                        type="text"
+                        value={customEndpoint}
+                        onChange={(e) => {
+                          setCustomEndpoint(e.target.value);
+                          localStorage.setItem('aidock_custom_endpoint', e.target.value);
+                        }}
+                        placeholder="e.g. https://my-backend.run.app"
+                        className="w-full bg-[var(--bg-surface-elevated)] focus:bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl px-3.5 py-2 text-xs font-medium text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-[#0db7ed] transition-all"
+                      />
+                    </div>
+                  )}
+
+                  <div className="p-4 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] space-y-2">
+                    <div className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#0db7ed]" />
+                      <span>Resolved Routing Summary</span>
+                    </div>
+                    <div className="text-[11px] font-mono text-[var(--text-muted)] leading-relaxed">
+                      Active Chat URL: <span className="text-[var(--text-primary)] font-bold">{getBackendUrl('chat')}</span><br />
+                      Active Provider: <span className="text-[#0db7ed] font-bold">{PROVIDERS.find(p => p.id === activeProviderId)?.label}</span><br />
+                      Active Model: <span className="text-[#0db7ed] font-bold">{providerSelectedModels[activeProviderId] || activeModel}</span>
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {/* ── AICodex Cloud Credentials ─────────────────────── */}
-              {isCloudMode() && (
-                <div className="flex flex-col gap-3 bg-[var(--bg-surface-elevated)] p-4 rounded-md border border-[var(--border-subtle)]">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">AICodex Credentials</span>
-                    {cloudToken ? (
-                      <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> JWT Active
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-[9px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Not Signed In
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <input
-                      type="text"
-                      value={cloudUsername}
-                      onChange={(e) => {
-                        setCloudUsername(e.target.value);
-                        localStorage.setItem('aidock_cloud_username', e.target.value);
-                      }}
-                      placeholder="AICodex username"
-                      autoComplete="username"
-                      className="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-md px-3 py-2 text-xs font-medium text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-[#0db7ed] transition-all"
-                    />
-                    <input
-                      type="password"
-                      value={cloudPassword}
-                      onChange={(e) => setCloudPassword(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') loginToCloud(); }}
-                      placeholder="Password"
-                      autoComplete="current-password"
-                      className="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-md px-3 py-2 text-xs font-medium text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-[#0db7ed] transition-all"
-                    />
-                  </div>
-
-                  {/* ── Dynamic Space Selector ── */}
-                  <div className="flex flex-col gap-1.5">
+              {/* TAB 3: AICODEX CLOUD SYNC */}
+              {settingsTab === 'cloud' && (
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                  <div className="flex flex-col gap-3 bg-[var(--bg-surface-elevated)] p-4 rounded-xl border border-[var(--border-subtle)]">
                     <div className="flex items-center justify-between">
-                      <label className="text-[9px] font-bold text-[#7A7D8E] uppercase tracking-wider">
-                        CodexSpace
-                      </label>
-                      {cloudSpacesLoading && (
-                        <span className="text-[9px] text-[#0db7ed] font-medium flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-full border border-[#0db7ed] border-t-transparent animate-spin" />
-                          Loading spaces…
+                      <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">AICodex Account</span>
+                      {cloudToken ? (
+                        <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> JWT Active
                         </span>
-                      )}
-                      {!cloudSpacesLoading && cloudSpaces.length > 0 && (
-                        <span className="text-[9px] text-[#7A7D8E]">{cloudSpaces.length} available</span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[9px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Not Signed In
+                        </span>
                       )}
                     </div>
 
-                    {cloudSpaces.length > 0 ? (
-                      <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto pr-0.5">
-                        {cloudSpaces.map(space => (
-                          <button
-                            key={space.slug}
-                            onClick={() => {
-                              setCloudSpaceSlug(space.slug);
-                              localStorage.setItem('aidock_cloud_space', space.slug);
-                            }}
-                            className={`p-2.5 rounded-md border text-left transition-all flex items-start gap-2.5 ${
-                              cloudSpaceSlug === space.slug
-                                ? 'border-[#0db7ed] bg-[#0db7ed]/10'
-                                : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)]'
-                            }`}
-                          >
-                            {/* Color swatch */}
-                            <div
-                              className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5"
-                              style={{ backgroundColor: space.color || '#0db7ed' }}
-                            />
-                            <div className="flex flex-col gap-0.5 min-w-0">
-                              <span className="text-[11px] font-bold text-[var(--text-primary)] leading-tight">{space.name}</span>
-                              <span className="text-[9px] text-[var(--text-muted)] leading-snug line-clamp-1">{space.description}</span>
-                              {space.recommended_model && (
-                                <span className="text-[8px] font-mono text-[#0db7ed] bg-[#0db7ed]/10 px-1.5 py-0.5 rounded w-fit mt-0.5">
-                                  {space.recommended_provider} · {space.recommended_model}
-                                </span>
-                              )}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      !cloudSpacesLoading && (
-                        <p className="text-[10px] text-[var(--text-muted)] font-medium italic">
-                          Sign in above to load your available spaces.
-                        </p>
-                      )
-                    )}
-                  </div>
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type="text"
+                        value={cloudUsername}
+                        onChange={(e) => {
+                          setCloudUsername(e.target.value);
+                          localStorage.setItem('aidock_cloud_username', e.target.value);
+                        }}
+                        placeholder="AICodex username"
+                        autoComplete="username"
+                        className="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-xs font-medium text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-[#0db7ed] transition-all"
+                      />
+                      <input
+                        type="password"
+                        value={cloudPassword}
+                        onChange={(e) => setCloudPassword(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') loginToCloud(); }}
+                        placeholder="Password"
+                        autoComplete="current-password"
+                        className="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-xs font-medium text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-[#0db7ed] transition-all"
+                      />
+                    </div>
 
-                  {/* ── Model Selector ── */}
-                  {cloudSpaces.find(s => s.slug === cloudSpaceSlug) && (
+                    {/* CodexSpace Selector */}
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
-                          Inference Model
+                          CodexSpace
                         </label>
-                        {cloudModelsLoading && (
+                        {cloudSpacesLoading && (
                           <span className="text-[9px] text-[#0db7ed] font-medium flex items-center gap-1">
                             <span className="w-2 h-2 rounded-full border border-[#0db7ed] border-t-transparent animate-spin" />
-                            Loading models…
+                            Loading spaces…
                           </span>
                         )}
-                        {!cloudModelsLoading && cloudSelectedProvider && (
-                          <span className="text-[9px] font-mono text-[var(--text-muted)] bg-[var(--bg-surface)] px-1.5 py-0.5 rounded border border-[var(--border-subtle)]">
-                            via {cloudSelectedProvider}
-                          </span>
+                        {!cloudSpacesLoading && cloudSpaces.length > 0 && (
+                          <span className="text-[9px] text-[var(--text-muted)]">{cloudSpaces.length} available</span>
                         )}
                       </div>
 
-                      {cloudModels.length > 0 ? (
-                        <select
-                          value={cloudSelectedModel}
-                          onChange={(e) => {
-                            setCloudSelectedModel(e.target.value);
-                            localStorage.setItem('aidock_cloud_model', e.target.value);
-                          }}
-                          className="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-md px-3 py-2 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[#0db7ed] transition-all cursor-pointer"
-                        >
-                          {cloudModels.map(m => (
-                            <option key={m.id} value={m.id}>{m.name || m.id}</option>
+                      {cloudSpaces.length > 0 ? (
+                        <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto pr-0.5">
+                          {cloudSpaces.map(space => (
+                            <button
+                              key={space.slug}
+                              type="button"
+                              onClick={() => {
+                                setCloudSpaceSlug(space.slug);
+                                localStorage.setItem('aidock_cloud_space', space.slug);
+                              }}
+                              className={`p-2.5 rounded-xl border text-left transition-all flex items-start gap-2.5 cursor-pointer ${
+                                cloudSpaceSlug === space.slug
+                                  ? 'border-[#0db7ed] bg-[#0db7ed]/10'
+                                  : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)]'
+                              }`}
+                            >
+                              <div
+                                className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5"
+                                style={{ backgroundColor: space.color || '#0db7ed' }}
+                              />
+                              <div className="flex flex-col gap-0.5 min-w-0">
+                                <span className="text-[11px] font-bold text-[var(--text-primary)] leading-tight">{space.name}</span>
+                                <span className="text-[9px] text-[var(--text-muted)] leading-snug line-clamp-1">{space.description}</span>
+                                {space.recommended_model && (
+                                  <span className="text-[8px] font-mono text-[#0db7ed] bg-[#0db7ed]/10 px-1.5 py-0.5 rounded w-fit mt-0.5">
+                                    {space.recommended_provider} · {space.recommended_model}
+                                  </span>
+                                )}
+                              </div>
+                            </button>
                           ))}
-                        </select>
+                        </div>
                       ) : (
-                        !cloudModelsLoading && (
-                          <p className="text-[10px] text-[var(--text-muted)] italic">
-                            No models available for this space's provider.
+                        !cloudSpacesLoading && (
+                          <p className="text-[10px] text-[var(--text-muted)] font-medium italic">
+                            Sign in above to load your available spaces.
                           </p>
                         )
                       )}
                     </div>
-                  )}
 
-
-                  {/* Auth status feedback */}
-                  {cloudAuthStatus === 'error' && (
-                    <p className="text-[10px] text-red-600 font-medium">
-                      ✗ Sign-in failed. Check your username and password.
-                    </p>
-                  )}
-
-                  <button
-                    onClick={async () => {
-                      const token = await loginToCloud();
-                      if (token) {
-                        setCloudAuthStatus('ok');
-                      }
-                    }}
-                    disabled={cloudAuthStatus === 'loading'}
-                    className="w-full py-2 bg-[#0db7ed] hover:bg-[#008bb9] disabled:opacity-60 text-white text-xs font-bold rounded-md shadow-sm transition-all active:scale-[0.98] uppercase tracking-wider flex items-center justify-center gap-2"
-                  >
-                    {cloudAuthStatus === 'loading' ? (
-                      <><span className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" /> Signing In…</>
-                    ) : cloudAuthStatus === 'ok' ? (
-                      '✓ Signed In — Refresh Token'
-                    ) : (
-                      'Sign In to AICodex Cloud'
+                    {cloudAuthStatus === 'error' && (
+                      <p className="text-[10px] text-red-600 font-medium">
+                        ✗ Sign-in failed. Check your username and password.
+                      </p>
                     )}
-                  </button>
 
-                  {cloudToken && (
-                    <div className="text-[9px] text-[var(--text-muted)] font-mono break-all select-all bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-md px-2 py-1.5 leading-relaxed">
-                      {cloudToken.substring(0, 40)}…
-                    </div>
-                  )}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const token = await loginToCloud();
+                        if (token) setCloudAuthStatus('ok');
+                      }}
+                      disabled={cloudAuthStatus === 'loading'}
+                      className="w-full py-2 bg-[#0db7ed] hover:bg-[#0099cc] disabled:opacity-60 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer uppercase tracking-wider flex items-center justify-center gap-2"
+                    >
+                      {cloudAuthStatus === 'loading' ? (
+                        <><span className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" /> Signing In…</>
+                      ) : cloudAuthStatus === 'ok' ? (
+                        '✓ Signed In — Refresh Token'
+                      ) : (
+                        'Sign In to AICodex Cloud'
+                      )}
+                    </button>
+
+                    {cloudToken && (
+                      <div className="text-[9px] text-[var(--text-muted)] font-mono break-all select-all bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-2 py-1.5 leading-relaxed">
+                        {cloudToken.substring(0, 40)}…
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* Diagnostics */}
-              <div className="bg-[var(--bg-surface-elevated)] p-4 rounded-md border border-[var(--border-subtle)] flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Diagnostics</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                    <span className="text-[10px] font-semibold text-[var(--text-secondary)]">
-                      {connected ? 'Active Link' : 'No Connection'}
-                    </span>
+              {/* TAB 4: DIAGNOSTICS */}
+              {settingsTab === 'diagnostics' && (
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                  <div className="bg-[var(--bg-surface-elevated)] p-4 rounded-xl border border-[var(--border-subtle)] flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Diagnostics</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                        <span className="text-[10px] font-semibold text-[var(--text-secondary)]">
+                          {connected ? 'Active Link' : 'No Connection'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-[var(--text-muted)] font-medium leading-relaxed">
+                      Active Chat Endpoint:<br />
+                      <span className="font-mono text-[var(--text-primary)] break-all select-all">{getBackendUrl('chat')}</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const url = getBackendUrl('info');
+                          const headers: HeadersInit = isCloudMode() ? cloudAuthHeaders() : {};
+                          const res = await fetch(url, { headers });
+                          if (res.ok) {
+                            const data = await res.json();
+                            const info = data.model_name
+                              ? `Model: ${data.model_name}`
+                              : data.status === 'healthy'
+                                ? `Cloud Run: healthy (${data.timestamp || ''})`
+                                : JSON.stringify(data);
+                            alert(`✓ Connection Successful!\n${info}`);
+                            setConnected(true);
+                          } else {
+                            throw new Error(`Server returned ${res.status}`);
+                          }
+                        } catch (err: any) {
+                          alert(`✗ Connection Failed: ${err.message}`);
+                          setConnected(false);
+                        }
+                      }}
+                      className="w-full py-2 bg-[var(--text-primary)] hover:opacity-90 text-[var(--bg-surface)] text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-[0.98] uppercase tracking-wider"
+                    >
+                      Test Connection
+                    </button>
                   </div>
                 </div>
-
-                <div className="text-[10px] text-[var(--text-muted)] font-medium leading-relaxed">
-                  Active Chat Endpoint:<br />
-                  <span className="font-mono text-[var(--text-primary)] break-all select-all">{getBackendUrl('chat')}</span>
-                </div>
-
-                <button
-                  onClick={async () => {
-                    try {
-                      const url = getBackendUrl('info');
-                      const headers: HeadersInit = isCloudMode() ? cloudAuthHeaders() : {};
-                      const res = await fetch(url, { headers });
-                      if (res.ok) {
-                        const data = await res.json();
-                        const info = data.model_name
-                          ? `Model: ${data.model_name}`
-                          : data.status === 'healthy'
-                            ? `Cloud Run: healthy (${data.timestamp || ''})`
-                            : JSON.stringify(data);
-                        alert(`✓ Connection Successful!\n${info}`);
-                        setConnected(true);
-                      } else {
-                        throw new Error(`Server returned ${res.status}`);
-                      }
-                    } catch (err: any) {
-                      alert(`✗ Connection Failed: ${err.message}`);
-                      setConnected(false);
-                    }
-                  }}
-                  className="w-full py-2 bg-[var(--text-primary)] hover:opacity-90 text-[var(--bg-surface)] text-xs font-bold rounded-md transition-all active:scale-[0.98] uppercase tracking-wider"
-                >
-                  Test Connection
-                </button>
-              </div>
+              )}
             </div>
 
-            <button
-              onClick={() => setShowSettingsModal(false)}
-              className="w-full py-2.5 bg-[#0db7ed] hover:bg-[#0099cc] text-white text-xs font-bold rounded-md transition-all uppercase tracking-wider shadow-sm"
-            >
-              Close & Apply
-            </button>
+            {/* Bottom Modal Footer */}
+            <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3 shrink-0">
+              <span className="text-[10px] font-mono text-[var(--text-muted)]">
+                Active Provider: <b className="text-[#0db7ed]">{PROVIDERS.find(p => p.id === activeProviderId)?.label}</b> · Active Model: <b className="text-[var(--text-primary)]">{providerSelectedModels[activeProviderId] || activeModel}</b>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(false)}
+                className="px-5 py-2 bg-[#0db7ed] hover:bg-[#0099cc] text-white text-xs font-bold rounded-xl transition-all uppercase tracking-wider shadow-sm cursor-pointer"
+              >
+                Close &amp; Apply
+              </button>
+            </div>
           </div>
         </div>
       )}
