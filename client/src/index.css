@@ -2,70 +2,131 @@
 @tailwind components;
 @tailwind utilities;
 
+/* -------------------------------------------------------------
+   SPIRIT BIRD DESIGN SYSTEM — AIDOCK FLAVOR (ELECTRIC BLUE)
+------------------------------------------------------------- */
 :root {
-  --bg-primary: #C8CDD5;
-  --bg-surface: #D8DCE4;
-  --bg-surface-hover: #E2E6EC;
-  --bg-input: #BFC4CC;
-  --bg-elevated: #E8ECF2;
-  --bg-chat-bot: #E2E6EC;
-  --bg-chat-user: #0db7ed;
-  --bg-card: #D8DCE4;
-  --bg-modal: #D8DCE4;
-  --bg-editor: #1A1D2E;
-  --accent: #0db7ed;
-  --accent-hover: #008bb9;
-  --accent-glow: rgba(13, 183, 237, 0.15);
-  --accent-border: rgba(13, 183, 237, 0.35);
-  --text-primary: #1A1D2E;
-  --text-secondary: #4A4D5E;
-  --text-muted: #7A7D8E;
-  --text-on-accent: #FFFFFF;
-  --border: rgba(0, 0, 0, 0.08);
-  --border-hover: rgba(0, 0, 0, 0.15);
+  /* Brand Accent Tokens */
+  --accent-primary: #0db7ed;
+  --accent-hover: #0099cc;
+  --accent-subtle: rgba(13, 183, 237, 0.08);
+  --accent-border: rgba(13, 183, 237, 0.28);
+  --accent-glow: rgba(13, 183, 237, 0.35);
+
+  /* Legacy Aliases for backward compatibility */
+  --accent: var(--accent-primary);
+  --accent-on: #ffffff;
+
+  /* Typography & Radii */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* LIGHT THEME (Default) */
+  --bg-canvas: #f8f9fa;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f1f3f5;
+  --bg-surface-hover: #e9ecef;
+  --bg-editor: #121420;
+
+  /* Backward Compatibility Aliases */
+  --bg-primary: var(--bg-canvas);
+  --bg-card: var(--bg-surface);
+  --bg-modal: var(--bg-surface);
+  --bg-input: var(--bg-surface-elevated);
+  --bg-chat-bot: var(--bg-surface);
+  --bg-chat-user: var(--accent-primary);
+
+  /* Precision 1px Borders */
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-default: rgba(0, 0, 0, 0.12);
+  --border-strong: rgba(0, 0, 0, 0.22);
+  --border: var(--border-subtle);
+  --border-hover: var(--border-default);
+
+  /* Text hierarchy */
+  --text-primary: #181a24;
+  --text-secondary: #52566b;
+  --text-muted: #8b8ea0;
+  --text-on-accent: #ffffff;
+
+  /* Calibrated Elevation Shadows (Warm Charcoal Base, No Muddy AI Slop) */
+  --shadow-l1: 0 1px 2px rgba(18, 20, 32, 0.04), 0 0 0 1px var(--border-subtle);
+  --shadow-l2: 0 3px 8px -2px rgba(18, 20, 32, 0.08), 0 1px 2px rgba(18, 20, 32, 0.04), 0 0 0 1px var(--border-subtle);
+  --shadow-modal: 0 16px 36px -6px rgba(18, 20, 32, 0.16), 0 6px 14px -3px rgba(18, 20, 32, 0.06), 0 0 0 1px var(--border-default);
+
+  --header-gradient: linear-gradient(135deg, #10121a 0%, #1a1e2d 55%, #0db7ed 165%);
 }
 
-.dark {
-  --bg-primary: #0F1117;
-  --bg-surface: #181A24;
-  --bg-surface-hover: #1E2030;
-  --bg-input: #242636;
-  --bg-elevated: #1E2030;
-  --bg-chat-bot: #1E2030;
-  --bg-chat-user: #0a8ab5;
-  --bg-card: #181A24;
-  --bg-modal: #181A24;
-  --bg-editor: #0F1117;
-  --accent: #0db7ed;
-  --accent-hover: #3dcaf2;
-  --accent-glow: rgba(13, 183, 237, 0.2);
-  --accent-border: rgba(13, 183, 237, 0.4);
-  --text-primary: #E8ECF2;
-  --text-secondary: #B0B4C0;
-  --text-muted: #7A7D8E;
-  --text-on-accent: #FFFFFF;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.15);
+/* ── Expressive Horizon Header ── */
+.header-horizon {
+  background: #10121a;
+  background-image: var(--header-gradient) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  position: relative;
+  overflow: hidden;
+}
+
+.header-horizon::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 500px;
+  height: 100%;
+  background: radial-gradient(circle at 80% 50%, rgba(13, 183, 237, 0.32), transparent 70%);
+  pointer-events: none;
+}
+
+.dark, [data-theme="dark"] {
+  --bg-canvas: #0b0c10;
+  --bg-surface: #14161f;
+  --bg-surface-elevated: #1c1e2b;
+  --bg-surface-hover: #242738;
+  --bg-editor: #0d0e15;
+
+  --bg-primary: var(--bg-canvas);
+  --bg-card: var(--bg-surface);
+  --bg-modal: var(--bg-surface);
+  --bg-input: var(--bg-surface-elevated);
+  --bg-chat-bot: var(--bg-surface-elevated);
+  --bg-chat-user: #0077a3;
+
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-default: rgba(255, 255, 255, 0.13);
+  --border-strong: rgba(255, 255, 255, 0.24);
+  --border: var(--border-subtle);
+  --border-hover: var(--border-default);
+
+  --text-primary: #f0f2f8;
+  --text-secondary: #9da1b4;
+  --text-muted: #626577;
+  --text-on-accent: #ffffff;
+
+  --shadow-l1: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-subtle);
+  --shadow-l2: 0 4px 12px -2px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--border-default);
+  --shadow-modal: 0 20px 45px -8px rgba(0, 0, 0, 0.85), 0 0 0 1px var(--border-strong);
+
+  --header-gradient: linear-gradient(135deg, #07080c 0%, #10121a 60%, #034b63 160%);
 }
 
 body {
   margin: 0;
-  background-color: var(--bg-surface);
-  background-image: 
-    linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px);
-  background-size: 40px 40px;
+  background-color: var(--bg-canvas);
   color: var(--text-primary);
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -73,12 +134,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: 10px;
+  background: var(--border-default);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(13, 183, 237, 0.35);
+  background: var(--accent-primary);
 }
 
 /* Animation utilities */
@@ -91,7 +152,7 @@ body {
   animation: glow 2s ease-in-out infinite;
 }
 
-/* Chat Bubble Corner Glow Effects */
+/* ── Refined Laser-Crisp Corner Accents ── */
 .bot-corner-glow {
   position: relative;
 }
@@ -100,10 +161,10 @@ body {
   position: absolute;
   top: -1px;
   left: -1px;
-  width: 50%;
-  height: 4px;
-  background: linear-gradient(to right, #0db7ed, transparent);
-  border-radius: 0;
+  width: 28px;
+  height: 2px;
+  background: var(--accent-primary);
+  box-shadow: 0 0 6px var(--accent-glow);
   z-index: 10;
 }
 .bot-corner-glow::after {
@@ -111,45 +172,11 @@ body {
   position: absolute;
   top: -1px;
   left: -1px;
-  width: 4px;
-  height: 50%;
-  background: linear-gradient(to bottom, #0db7ed, transparent);
-  border-radius: 0;
+  width: 2px;
+  height: 28px;
+  background: var(--accent-primary);
+  box-shadow: 0 0 6px var(--accent-glow);
   z-index: 10;
-}
-
-.bot-corner-glow-secondary {
-  position: relative;
-}
-.bot-corner-glow-secondary::before {
-  content: "";
-  position: absolute;
-  bottom: -1px;
-  right: -1px;
-  width: 50%;
-  height: 4px;
-  background: linear-gradient(to left, #000000, transparent);
-  border-radius: 0 0 1rem 0;
-  z-index: 10;
-}
-.bot-corner-glow-secondary::after {
-  content: "";
-  position: absolute;
-  bottom: -1px;
-  right: -1px;
-  width: 4px;
-  height: 50%;
-  background: linear-gradient(to top, #000000, transparent);
-  border-radius: 0 0 1rem 0;
-  z-index: 10;
-}
-
-.agent-message {
-  border-top-left-radius: 0 !important;
-}
-
-.user-message {
-  border-top-right-radius: 0 !important;
 }
 
 .user-corner-glow {
@@ -160,10 +187,10 @@ body {
   position: absolute;
   top: -1px;
   right: -1px;
-  width: 50%;
-  height: 4px;
-  background: linear-gradient(to left, #ffffff, transparent);
-  border-radius: 0;
+  width: 28px;
+  height: 2px;
+  background: var(--accent-primary);
+  box-shadow: 0 0 6px var(--accent-glow);
   z-index: 10;
 }
 .user-corner-glow::after {
@@ -171,37 +198,19 @@ body {
   position: absolute;
   top: -1px;
   right: -1px;
-  width: 4px;
-  height: 50%;
-  background: linear-gradient(to bottom, #ffffff, transparent);
-  border-radius: 0;
+  width: 2px;
+  height: 28px;
+  background: var(--accent-primary);
+  box-shadow: 0 0 6px var(--accent-glow);
   z-index: 10;
 }
 
-.user-corner-glow-secondary {
-  position: relative;
+.agent-message {
+  border-top-left-radius: 0 !important;
 }
-.user-corner-glow-secondary::before {
-  content: "";
-  position: absolute;
-  bottom: -1px;
-  left: -1px;
-  width: 50%;
-  height: 4px;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.8), transparent);
-  border-radius: 0 0 0 1rem;
-  z-index: 10;
-}
-.user-corner-glow-secondary::after {
-  content: "";
-  position: absolute;
-  bottom: -1px;
-  left: -1px;
-  width: 4px;
-  height: 50%;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
-  border-radius: 0 0 0 1rem;
-  z-index: 10;
+
+.user-message {
+  border-top-right-radius: 0 !important;
 }
 
 /* ── Global Anti-Clipping ── */
@@ -225,17 +234,4 @@ body {
 .prose img {
   max-width: 100%;
   height: auto;
-}
-
-/* ── Dark Mode Transitions ── */
-.dark body {
-  background-color: var(--bg-surface);
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(13, 183, 237, 0.4);
 }
