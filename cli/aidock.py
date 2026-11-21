@@ -516,5 +516,70 @@ def status(session):
     except Exception:
         pass
 
+def find_pi_binary() -> Path:
+    env_bin = os.getenv("PI_CLI_PATH")
+    if env_bin and Path(env_bin).exists():
+        return Path(env_bin)
+
+    bin_name = "pi-cli.exe" if os.name == "nt" else "pi-cli"
+    candidate_paths = [
+        ROOT_DIR.parent / "AI_Codex" / "cli" / "packages" / "coding-agent" / "dist" / bin_name,
+        ROOT_DIR / "bin" / bin_name,
+    ]
+    for candidate in candidate_paths:
+        if candidate.exists():
+            return candidate.absolute()
+
+    import shutil
+    sys_path = shutil.which("pi-cli") or shutil.which("pi-cli.exe")
+    if sys_path:
+        return Path(sys_path)
+
+    return None
+
+@cli.command(context_settings=dict(ignore_unknown_options=True), name="agent")
+@click.argument('args', nargs=-1, type=click.UNPROCESSED)
+def agent_cmd(args):
+    """Launch the standalone Pi-CLI Coding Agent executable."""
+    pi_bin = find_pi_binary()
+    if not pi_bin:
+        console.print("[bold red]Error:[/] Could not locate pi-cli executable. Please build it first or set PI_CLI_PATH.", style="red")
+        sys.exit(1)
+
+    import dotenv
+    dotenv.load_dotenv(str(ENV_FILE))
+
+    env = os.environ.copy()
+
+    # Configure state directories
+    global_home = os.getenv("AICODEX_HOME") or str(Path.home() / ".aicodex")
+    local_cache = os.getenv("AICODEX_LOCAL_CACHE") or str(Path.cwd() / ".aidock_cache")
+
+    Path(global_home).mkdir(parents=True, exist_ok=True)
+    Path(local_cache).mkdir(parents=True, exist_ok=True)
+
+    env["AICODEX_HOME"] = global_home
+    env["AICODEX_LOCAL_CACHE"] = local_cache
+
+    cmd = [str(pi_bin)] + list(args)
+    console.print(f"[bold blue]Spawning Pi-CLI Agent:[/] {' '.join(cmd)}")
+    console.print(f"  [cyan]AICODEX_HOME:[/] {global_home}")
+    console.print(f"  [cyan]AICODEX_LOCAL_CACHE:[/] {local_cache}\n")
+
+    try:
+        proc = subprocess.run(cmd, env=env, cwd=os.getcwd())
+        sys.exit(proc.returncode)
+    except Exception as e:
+        console.print(f"[bold red]Error executing pi-cli:[/] {e}", style="red")
+        sys.exit(1)
+
+@cli.command(context_settings=dict(ignore_unknown_options=True), name="pi")
+@click.argument('args', nargs=-1, type=click.UNPROCESSED)
+@click.pass_context
+def pi_cmd(ctx, args):
+    """Alias for 'agent' - Launch Pi-CLI binary."""
+    ctx.invoke(agent_cmd, args=args)
+
 if __name__ == "__main__":
     cli()
+
