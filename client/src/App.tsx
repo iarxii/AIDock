@@ -1,9 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
-  Send, Terminal, Database, Cpu, Activity, User, 
+  Send, User, Activity,
   Download, FileText, ChevronDown, Save, X, Edit, FileCode,
-  Folder, Plus, RefreshCw, Trash2, Settings
+  Folder, Plus, RefreshCw, Trash2, Settings, Moon, Sun,
+  PanelLeft, Layers, Search, Check, FolderGit2, ChevronsUpDown,
+  Bot, Boxes, Sparkles, Globe, Cloud, LayoutGrid, Box
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
+import spiritDockLogo from './assets/SpiritDock_Logo.svg';
+import spiritDockWallpaper from './assets/wallpaper/SpiritDock_Wallpaper1.png';
 
 interface Message {
   id: string;
@@ -54,6 +63,218 @@ function MascotLogo({ className }: { className?: string }) {
 }
 
 function App() {
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    return localStorage.getItem('aidock_theme') === 'dark';
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('aidock_theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.setAttribute('data-theme', 'light');
+      localStorage.setItem('aidock_theme', 'light');
+    }
+  }, [isDark]);
+
+  // SpiritLlama Left Sidepanel State
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'standard' | 'spaces'>('standard');
+  const [showFunctionShortcuts, setShowFunctionShortcuts] = useState(false);
+  const [sidebarSearch, setSidebarSearch] = useState('');
+  const [activeStandardWorkspace, setActiveStandardWorkspace] = useState<'local' | 'ollama' | 'codex-root'>('local');
+
+  // Header Horizon P5 Strings Canvas Animation
+  const p5CanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = p5CanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+    let t = 0;
+
+    const resize = () => {
+      if (!canvas) return;
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    const draw = () => {
+      if (!canvas || !ctx) return;
+      const width = canvas.width;
+      const height = canvas.height;
+      ctx.clearRect(0, 0, width, height);
+
+      // Generative dynamic wave arcs (Signature Spirit Bird strings in Electric Blue)
+      const numLines = 5;
+      for (let i = 0; i < numLines; i++) {
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(13, 183, 237, ${0.12 + i * 0.08})`;
+        ctx.lineWidth = 1.5;
+
+        for (let x = 0; x < width; x += 8) {
+          const y = height * 0.5 + Math.sin(x * 0.015 + t + i * 0.8) * 16 + Math.cos(x * 0.008 + t * 0.5) * 10;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
+      t += 0.02;
+      animId = requestAnimationFrame(draw);
+    };
+
+    draw();
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(animId);
+    };
+  }, []);
+
+  // Main Workspace Full Background P5 Wave Animation (OllamaOpt / SpiritLlama 1:1 in Docker Blue)
+  const workspaceP5CanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = workspaceP5CanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+    let frameCount = 0;
+    const numWaves = 3;
+    let waves: Array<{ yOffset: number; speed: number; amplitude: number; frequency: number }> = [];
+
+    const buildWaves = (h: number) => {
+      waves = [];
+      for (let i = 0; i < numWaves; i++) {
+        waves.push({
+          yOffset: h * (0.30 + i * 0.22),
+          speed: 0.008 + i * 0.004,
+          amplitude: 35 + i * 15,
+          frequency: 0.003 + i * 0.001
+        });
+      }
+    };
+
+    const resize = () => {
+      if (!canvas) return;
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      buildWaves(canvas.height);
+    };
+
+    resize();
+    window.addEventListener('resize', resize);
+
+    const step = 20;
+
+    const draw = () => {
+      if (!canvas || !ctx) return;
+      const width = canvas.width;
+      const height = canvas.height;
+      if (width <= 0 || height <= 0) return;
+
+      ctx.clearRect(0, 0, width, height);
+
+      const fadeHeight = Math.max(220, height * 0.35);
+
+      ctx.save();
+      for (let i = 0; i < waves.length; i++) {
+        const w = waves[i];
+        const pts: Array<{ x: number; y: number }> = [];
+        let minY = height;
+
+        for (let x = -step; x <= width + step * 2; x += step) {
+          const y = w.yOffset + Math.sin(x * w.frequency + frameCount * w.speed) * w.amplitude;
+          pts.push({ x, y });
+          if (y < minY) minY = y;
+        }
+
+        if (pts.length < 2) continue;
+
+        // Smooth wave curve path with quadratic Bézier curves
+        const curvePath = new Path2D();
+        curvePath.moveTo(pts[0].x, pts[0].y);
+        for (let j = 1; j < pts.length - 1; j++) {
+          const xc = (pts[j].x + pts[j + 1].x) * 0.5;
+          const yc = (pts[j].y + pts[j + 1].y) * 0.5;
+          curvePath.quadraticCurveTo(pts[j].x, pts[j].y, xc, yc);
+        }
+        const lastPt = pts[pts.length - 1];
+        curvePath.lineTo(lastPt.x, lastPt.y);
+
+        // Fill path down to canvas bottom
+        const fillPath = new Path2D(curvePath);
+        fillPath.lineTo(lastPt.x, height);
+        fillPath.lineTo(pts[0].x, height);
+        fillPath.closePath();
+
+        // Docker Blue accent visual style (#0db7ed)
+        const isMiddleWave = (waves.length > 2 && i === Math.floor(waves.length / 2));
+        const isBottom = (i === waves.length - 1);
+
+        let gradStops: Array<[number, string]>;
+        let strokeColor: string;
+        let strokeWidth = 1.35;
+
+        if (!isMiddleWave) {
+          // Top & bottom waves in Docker blue
+          gradStops = [
+            [0, isBottom ? 'rgba(13, 183, 237, 0.16)' : 'rgba(13, 183, 237, 0.22)'],
+            [0.45, isBottom ? 'rgba(13, 183, 237, 0.06)' : 'rgba(13, 183, 237, 0.08)'],
+            [1, 'rgba(13, 183, 237, 0)']
+          ];
+          strokeColor = isBottom ? 'rgba(13, 183, 237, 0.32)' : 'rgba(13, 183, 237, 0.40)';
+          strokeWidth = isBottom ? 1.25 : 1.35;
+        } else {
+          // Middle veil wave
+          gradStops = isDark ? [
+            [0, 'rgba(255, 255, 255, 0.12)'],
+            [0.55, 'rgba(13, 183, 237, 0.05)'],
+            [1, 'rgba(13, 183, 237, 0)']
+          ] : [
+            [0, 'rgba(255, 255, 255, 0.90)'],
+            [0.55, 'rgba(255, 255, 255, 0.32)'],
+            [1, 'rgba(255, 255, 255, 0)']
+          ];
+          strokeColor = isDark ? 'rgba(13, 183, 237, 0.25)' : 'rgba(13, 183, 237, 0.20)';
+          strokeWidth = 1.2;
+        }
+
+        const grad = ctx.createLinearGradient(0, minY, 0, minY + fadeHeight);
+        for (const [offset, color] of gradStops) {
+          grad.addColorStop(offset, color);
+        }
+        ctx.fillStyle = grad;
+        ctx.fill(fillPath);
+
+        // Stroke the crisp top edge
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = strokeWidth;
+        ctx.stroke(curvePath);
+      }
+      ctx.restore();
+
+      frameCount++;
+      animId = requestAnimationFrame(draw);
+    };
+
+    draw();
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(animId);
+    };
+  }, [isDark]);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionId] = useState(`session_${Date.now()}`);
@@ -388,28 +609,29 @@ function App() {
   }, [backendMode]);
 
   // Fetch local /models when in local backend mode
-  useEffect(() => {
-    const fetchLocalModels = async () => {
-      if (isCloudMode()) return;
-      setLocalModelsLoading(true);
-      try {
-        const res = await fetch(getBackendUrl('models'));
-        if (res.ok) {
-          const data = await res.json();
-          const slugs: string[] = data.models || [];
-          setLocalModels(slugs);
-          // Pre-select first if none selected
-          if (!localSelectedModel && slugs.length > 0) {
-            setLocalSelectedModel(slugs[0]);
-            localStorage.setItem('aidock_local_model', slugs[0]);
-          }
+  const fetchLocalModels = async () => {
+    if (isCloudMode()) return;
+    setLocalModelsLoading(true);
+    try {
+      const res = await fetch(getBackendUrl('models'));
+      if (res.ok) {
+        const data = await res.json();
+        const slugs: string[] = data.models || [];
+        setLocalModels(slugs);
+        // Pre-select first if none selected
+        if (!localSelectedModel && slugs.length > 0) {
+          setLocalSelectedModel(slugs[0]);
+          localStorage.setItem('aidock_local_model', slugs[0]);
         }
-      } catch (e) {
-        console.error('Failed to fetch local models:', e);
-      } finally {
-        setLocalModelsLoading(false);
       }
-    };
+    } catch (e) {
+      console.error('Failed to fetch local models:', e);
+    } finally {
+      setLocalModelsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchLocalModels();
   }, [backendMode]);
 
@@ -660,183 +882,712 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#C8CDD5] text-[#1A1D2E]">
-      {/* Premium Header */}
-      <header className="sticky top-0 z-50 bg-[#D8DCE4]/80 backdrop-blur-md border-b border-black/5 px-6 py-4 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#0db7ed] flex items-center justify-center text-white shadow-[0_4px_20px_rgba(13,183,237,0.35)]">
-            <MascotLogo className="w-7 h-7" />
+    <div className="flex flex-col min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] transition-colors duration-200">
+      {/* Expressive Horizon Header with P5 Strings Wave Animation */}
+      <header className="sticky top-0 z-40 header-horizon text-white px-6 py-3 flex items-center justify-between shadow-md relative overflow-hidden" style={{ background: "var(--header-gradient)" }}>
+        {/* P5 Strings Generative Canvas Animation behind right-justified function buttons */}
+        <canvas
+          ref={p5CanvasRef}
+          className="absolute top-0 right-0 w-[540px] h-full pointer-events-none opacity-65 z-0"
+        />
+
+        <div className="flex items-center gap-3 relative z-10">
+          <div className="w-9 h-9 rounded-md bg-white flex items-center justify-center p-1 shadow-[0_2px_10px_rgba(0,0,0,0.18)] shrink-0">
+            <img src={spiritDockLogo} alt="SpiritDock Logo" className="w-6 h-6 object-contain" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-[#1A1D2E]">AIDOCK</h1>
-            <span className="text-[10px] text-[#7A7D8E] font-medium tracking-widest uppercase">Orchestrator v2.0</span>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-bold tracking-tight text-white">AIDOCK</h1>
+              <span className="text-[10px] font-mono bg-[#0db7ed]/25 text-cyan-300 border border-[#0db7ed]/40 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                Orchestrator v2.0
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2.5 relative z-10">
+          <button 
+            onClick={() => setIsDark(!isDark)}
+            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-md transition-all focus:outline-none flex items-center gap-1.5 text-xs font-semibold shadow-sm cursor-pointer"
+            title="Toggle theme (Light / Dark)"
+          >
+            {isDark ? <Sun className="w-3.5 h-3.5 text-amber-300" /> : <Moon className="w-3.5 h-3.5 text-cyan-300" />}
+            <span>{isDark ? 'Light' : 'Dark'}</span>
+          </button>
+
           <button 
             onClick={() => window.location.href = '/admin'}
-            className="p-2 text-[#7A7D8E] hover:text-[#0db7ed] hover:bg-black/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
+            className="px-2.5 py-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-md transition-all focus:outline-none flex items-center gap-1.5 text-xs font-medium border border-white/10"
             title="Admin"
           >
-            <Settings className="w-5 h-5" />
+            <Settings className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Admin</span>
           </button>
+
           <button 
             onClick={() => setShowSettingsModal(true)}
-            className="p-2 text-[#7A7D8E] hover:text-[#0db7ed] hover:bg-black/5 rounded-xl transition-all focus:outline-none flex items-center justify-center"
+            className="px-3 py-1.5 bg-[#0db7ed] hover:bg-[#0099cc] text-white rounded-md transition-all focus:outline-none flex items-center gap-1.5 text-xs font-medium shadow-sm"
             title="Connection Settings"
           >
-            <Settings className="w-5 h-5" />
+            <Settings className="w-3.5 h-3.5" />
+            <span>Connection</span>
           </button>
-          
-          <div className="flex items-center gap-2 bg-[#E8ECF2] px-3 py-1.5 rounded-full border border-black/5">
-            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-            <span className="text-xs font-semibold text-[#4A4D5E]">
-              {connected ? 'Neural Link Active' : 'Offline'}
-            </span>
-          </div>
-          <div className="text-xs text-[#7A7D8E]">
-            Session ID: <span className="font-mono bg-[#BFC4CC]/50 px-2 py-0.5 rounded text-[#1A1D2E] font-semibold">{sessionId}</span>
-          </div>
         </div>
       </header>
 
-      {/* Main Container WIDENED to fluid screen size */}
-      <main className="flex-1 max-w-none px-8 w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left column: Sidebar Info */}
-        <section className="lg:col-span-3 flex flex-col gap-6">
-          {/* Workspace context card */}
-          <div className="bg-[#D8DCE4] rounded-2xl border border-black/5 p-5 shadow-lg flex flex-col gap-4">
-            <h2 className="text-sm font-bold text-[#1A1D2E] uppercase tracking-wider flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-[#0db7ed]" /> Workspace Context
-            </h2>
-            
-            <div className="space-y-3">
-              <div className="bg-[#E8ECF2] p-3 rounded-xl border border-black/5">
-                <span className="text-[10px] text-[#7A7D8E] block uppercase font-medium">Mount Point</span>
-                <span className="text-xs font-mono font-semibold text-[#4A4D5E] break-all">/workspace/{sessionId}</span>
-              </div>
+      {/* Docked SpiritLlama-style Harness Bar */}
+      <div className="bg-[var(--bg-surface)] border-b border-[var(--border-default)] px-6 py-2 flex flex-wrap items-center justify-between gap-3 shadow-[var(--shadow-l1)]">
+        <div className="flex items-center gap-3 text-xs">
+          {/* Sidepanel trigger for SpiritLlama-style Left Sidepanel */}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className={`p-1.5 rounded-md text-xs font-semibold flex items-center justify-center border transition-all cursor-pointer ${
+              isSidebarOpen
+                ? 'bg-[#0db7ed] text-white border-[#0aa5d6] shadow-sm'
+                : 'bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] border-[var(--border-subtle)]'
+            }`}
+            title="Toggle Left Sidepanel (SpiritLlama UI)"
+          >
+            <PanelLeft className="w-4 h-4 text-[#0db7ed]" />
+          </button>
 
-              <div className="bg-[#E8ECF2] p-3 rounded-xl border border-black/5">
-                <span className="text-[10px] text-[#7A7D8E] block uppercase font-medium">Active Backend Mode</span>
-                <span className="text-xs font-bold text-[#4A4D5E] capitalize">{backendMode.replace('-', ' ')}</span>
-              </div>
+          {/* Workspace & Files drawer trigger button */}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+              isSidebarOpen
+                ? 'bg-[#0db7ed] text-white border-[#0aa5d6] shadow-sm'
+                : 'bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] border-[var(--border-subtle)]'
+            }`}
+            title="Toggle Workspace & Files Sidepanel"
+          >
+            <Folder className="w-3.5 h-3.5 text-[#0db7ed]" />
+            <span>Workspace & Files</span>
+            {files.length > 0 && (
+              <span className="font-mono text-[10px] bg-black/10 dark:bg-white/10 px-1.5 py-0.2 rounded font-bold">
+                {files.length}
+              </span>
+            )}
+          </button>
 
-              <div className="bg-[#E8ECF2] p-3 rounded-xl border border-black/5">
-                <span className="text-[10px] text-[#7A7D8E] block uppercase font-medium">Orchestrator LLM</span>
-                        <div className="text-xs font-semibold text-[#4A4D5E] mt-1 flex items-center gap-2">
-                          <Database className="w-3.5 h-3.5 text-[#0db7ed]" />
-                          <div>{activeModel}</div>
-                        </div>
+          <div className="h-4 w-px bg-[var(--border-subtle)]" />
 
-                        {!isCloudMode() && (
-                          <div className="mt-2">
-                            <label className="text-[10px] text-[#7A7D8E] block uppercase font-medium mb-1">Local Model</label>
-                            <select
-                              value={localSelectedModel}
-                              onChange={(e) => {
-                                setLocalSelectedModel(e.target.value);
-                                localStorage.setItem('aidock_local_model', e.target.value);
-                              }}
-                              className="w-full text-xs p-2 rounded-lg bg-white border border-black/5 text-[#1A1D2E]"
-                              disabled={localModelsLoading || localModels.length === 0}
-                            >
-                              {localModelsLoading ? (
-                                <option>Loading models...</option>
-                              ) : localModels.length === 0 ? (
-                                <option>No local models</option>
-                              ) : (
-                                localModels.map((m) => <option key={m} value={m}>{m}</option>)
-                              )}
-                            </select>
-                          </div>
-                        )}
-              </div>
+          <div className="flex items-center gap-2 font-semibold text-[var(--text-primary)]">
+            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-[#0db7ed] shadow-[0_0_8px_rgba(13,183,237,0.7)] animate-pulse' : 'bg-red-500'}`} />
+            <span>{connected ? 'Neural Link Active' : 'Offline'}</span>
+          </div>
 
-              <div className="bg-[#E8ECF2] p-3 rounded-xl border border-black/5">
-                <span className="text-[10px] text-[#7A7D8E] block uppercase font-medium">Docker Network</span>
-                <span className="text-xs font-semibold text-[#4A4D5E] flex items-center gap-1.5 mt-1">
-                  <Activity className="w-3.5 h-3.5 text-[#0db7ed]" /> aidock_default
-                </span>
-              </div>
+          <div className="h-4 w-px bg-[var(--border-subtle)]" />
+
+          <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
+            <span>Model:</span>
+            <b className="text-[var(--text-primary)]">{activeModel}</b>
+          </div>
+
+          <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
+            <span>Space:</span>
+            <b className="text-[var(--text-primary)]">{cloudSpaceSlug || 'Local'}</b>
+          </div>
+
+          <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
+            <span>Mode:</span>
+            <b className="text-[var(--text-primary)] capitalize">{backendMode.replace('-', ' ')}</b>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-[var(--text-muted)] font-mono">
+            Session: <span className="text-[var(--text-secondary)] font-semibold bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2 py-0.5 rounded">{sessionId.slice(-12)}</span>
+          </span>
+        </div>
+      </div>
+
+            {/* ── SpiritLlama-style Left Sidepanel Drawer (1:1 Reproduction in Docker Blue) ── */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={`fixed top-0 left-0 bottom-0 z-50 w-80 max-w-[92vw] bg-[var(--bg-surface)] border-r border-[var(--border-default)] shadow-[var(--shadow-modal)] flex flex-col justify-between transform transition-transform duration-200 ease-in-out ${
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      }`}>
+        {/* TOP SCROLLABLE SECTION */}
+        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
+
+          {/* 1. BRAND & MASCOT HERO (SpiritLlama 1:1) */}
+          <div className="p-4 pb-3 flex flex-col items-center border-b border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] relative">
+            <button 
+              onClick={() => setIsSidebarOpen(false)}
+              className="absolute top-2.5 right-2.5 p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-all cursor-pointer"
+              title="Close Sidepanel (Esc)"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div
+              className="w-18 h-18 rounded-2xl bg-white shadow-md flex items-center justify-center p-2 mb-1.5 border-2 border-[#0db7ed] hover:scale-105 transition-transform cursor-pointer"
+              onClick={() => {
+                setMessages([]);
+                setIsSidebarOpen(false);
+              }}
+              title="Start New Session"
+            >
+              <img src={spiritDockLogo} alt="SpiritDock" className="w-14 h-14 object-contain" />
+            </div>
+
+            <div className="font-extrabold text-base tracking-tight text-[var(--text-primary)] flex items-center gap-0.5">
+              Spirit<span className="text-[#0db7ed]">Dock</span><span className="text-[var(--text-muted)] font-mono text-xs font-normal">.ai</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-[0.2em] text-[var(--text-muted)] font-bold mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed] shadow-[0_0_6px_rgba(13,183,237,0.7)] animate-pulse" />
+              <span>ORCHESTRATOR CORE</span>
             </div>
           </div>
-            
-              {/* Admin moved to separate page */}
 
-          {/* Mount Collapsible Node File-Tree */}
-          <div className="bg-[#D8DCE4] rounded-2xl border border-black/5 p-5 shadow-lg flex flex-col gap-3">
-            <button 
-              onClick={() => setIsFileTreeExpanded(!isFileTreeExpanded)}
-              className="text-sm font-bold text-[#1A1D2E] uppercase tracking-wider flex items-center justify-between w-full focus:outline-none"
+          {/* 2. ACTIVE PROJECT / WORKSPACE SELECTOR BAR */}
+          <div className="px-3 pt-2.5 pb-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+            <div className="flex items-center justify-between mb-1 px-0.5">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Active Workspace</span>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setMessages([]);
+                  setIsSidebarOpen(false);
+                }}
+                className="text-[9px] font-bold text-[#0db7ed] hover:underline cursor-pointer flex items-center gap-0.5"
+                title="Create New Session"
+              >
+                <Plus className="w-3 h-3" /> New
+              </button>
+            </div>
+
+            <div 
+              className="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl bg-[var(--bg-surface-elevated)] hover:bg-[#0db7ed]/5 border border-[var(--border-subtle)] hover:border-[#0db7ed]/50 text-left transition-all cursor-pointer shadow-sm"
+              onClick={() => setActiveSidebarTab('standard')}
             >
-              <span className="flex items-center gap-2">
-                <Folder className="w-4 h-4 text-[#0db7ed]" /> Workspace Files
-              </span>
-              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isFileTreeExpanded ? '' : '-rotate-90'}`} />
-            </button>
-            
-            {isFileTreeExpanded && (
-              <div className="space-y-1.5 mt-1 max-h-[220px] overflow-y-auto pr-1">
-                {files.length === 0 ? (
-                  <div className="text-[11px] text-[#7A7D8E] italic p-3 bg-[#E8ECF2] rounded-xl border border-black/5 text-center">
-                    No files in workspace yet. Click the + uploader below to attach one.
+              <div className="flex items-center gap-2 min-w-0">
+                <FolderGit2 className="w-4 h-4 text-[#0db7ed] shrink-0" />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-[var(--text-primary)] truncate">
+                      {cloudSpaceSlug === 'spirit-llama' ? 'SpiritLlama Harness' : (cloudSpaceSlug || 'Local Session')}
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-600 text-[8px] font-mono font-bold shrink-0">
+                      active
+                    </span>
                   </div>
-                ) : (
-                  files.map(file => (
-                    <button
-                      key={file.path}
-                      onClick={() => openFileInEditor(file.path)}
-                      className="w-full text-left bg-[#E8ECF2] hover:bg-[#E2E6EC] p-2.5 rounded-xl border border-black/5 text-xs font-semibold text-[#4A4D5E] flex items-center justify-between group transition-all"
-                    >
-                      <span className="flex items-center gap-2 truncate">
-                        <FileText className="w-3.5 h-3.5 text-[#0db7ed]" />
-                        <span className="truncate">{file.path}</span>
-                      </span>
-                      <span className="text-[9px] text-[#7A7D8E] font-mono group-hover:text-[#0db7ed] transition-colors shrink-0">
-                        {(file.size / 1024).toFixed(1)} KB
-                      </span>
-                    </button>
-                  ))
-                )}
+                  <div className="text-[9px] font-mono text-[var(--text-muted)] truncate" title={`/workspace/${sessionId.slice(-12)}`}>
+                    /workspace/{sessionId.slice(-12)}
+                  </div>
+                </div>
+              </div>
+              <ChevronsUpDown className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" />
+            </div>
+          </div>
+
+          {/* 3. BACKEND MODELS QUICK-BAR */}
+          <div className="px-3 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)]">
+            <div className="flex items-center justify-between mb-1.5 px-0.5">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Models</span>
+                <span className="px-1.5 py-0.2 rounded bg-[#0db7ed]/15 text-[#0db7ed] border border-[#0db7ed]/30 text-[8px] font-mono font-bold uppercase">
+                  {backendMode}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button 
+                  type="button" 
+                  onClick={() => fetchLocalModels()}
+                  className="p-0.5 rounded text-[var(--text-muted)] hover:text-[#0db7ed] transition-colors cursor-pointer"
+                  title="Refresh Backend Models"
+                >
+                  <RefreshCw className={`w-3 h-3 ${localModelsLoading ? 'animate-spin' : ''}`} />
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setShowSettingsModal(true)}
+                  className="text-[9px] font-bold text-[#0db7ed] hover:underline cursor-pointer" 
+                  title="Open Engine & Connection Settings"
+                >
+                  Engine ▸
+                </button>
+              </div>
+            </div>
+            <div className="text-[11px] font-mono bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-2.5 py-1.5 rounded-lg flex items-center justify-between">
+              <span className="font-bold text-[var(--text-primary)] truncate">{activeModel}</span>
+              <span className="text-[9px] text-[#0db7ed] font-semibold">Active Runner</span>
+            </div>
+            {localModels.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5 max-h-16 overflow-y-auto">
+                {localModels.map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => {
+                      setLocalSelectedModel(m);
+                      setActiveModel(m);
+                      localStorage.setItem('aidock_local_model', m);
+                    }}
+                    className={`px-1.5 py-0.5 rounded text-[9px] font-mono border transition-all cursor-pointer ${
+                      (localSelectedModel === m || activeModel === m)
+                        ? 'border-[#0db7ed] bg-[#0db7ed]/15 text-[#0db7ed] font-bold'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[#0db7ed]/40'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
               </div>
             )}
           </div>
 
-          <div className="bg-[#D8DCE4] rounded-2xl border border-black/5 p-5 shadow-lg flex flex-col gap-3">
-            <h2 className="text-sm font-bold text-[#1A1D2E] uppercase tracking-wider flex items-center gap-2">
-              <Terminal className="w-4 h-4 text-[#0db7ed]" /> Available Capabilities
-            </h2>
-            <ul className="text-xs text-[#4A4D5E] space-y-2 font-medium">
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> File Reader / Writer
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> Sandboxed Code execution
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" /> Multi-agent reasoning loops
-              </li>
-            </ul>
-          </div>
-        </section>
+          {/* 4. SUB-NAVIGATION TABS: Standard vs CodexSpaces */}
+          <div className="px-2.5 py-2 bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]">
+            <div className="w-full grid grid-cols-2 gap-1 p-1 bg-[var(--bg-surface-elevated)] rounded-xl border border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={() => setActiveSidebarTab('standard')}
+                className={`py-1 px-2.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeSidebarTab === 'standard'
+                    ? 'bg-[#0db7ed] text-white shadow-sm'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
+                }`}
+              >
+                <Box className="w-3.5 h-3.5" />
+                <span>Standard</span>
+              </button>
 
+              <button
+                type="button"
+                onClick={() => setActiveSidebarTab('spaces')}
+                className={`py-1 px-2.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeSidebarTab === 'spaces'
+                    ? 'bg-[#0db7ed] text-white shadow-sm'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>CodexSpaces</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 5. SEARCH FILTER */}
+          <div className="p-2.5 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)]">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={sidebarSearch}
+                onChange={(e) => setSidebarSearch(e.target.value)}
+                placeholder={activeSidebarTab === 'standard' ? "Filter standard workspaces & files..." : "Filter CodexSpaces..."}
+                className="w-full pl-8 pr-6 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#0db7ed] transition-all"
+              />
+              {sidebarSearch && (
+                <button
+                  onClick={() => setSidebarSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 6. DYNAMIC TAB CONTENT */}
+          <div className="p-3 flex-1 overflow-y-auto space-y-3">
+            {activeSidebarTab === 'standard' ? (
+              <>
+                {/* Standard Workspaces items */}
+                <div className="space-y-1.5">
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-1">
+                    Workspaces
+                  </div>
+
+                  {/* Local Session */}
+                  <div
+                    onClick={() => {
+                      setActiveStandardWorkspace('local');
+                      setCloudSpaceSlug('local-session');
+                      localStorage.setItem('aidock_cloud_space', 'local-session');
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${
+                      activeStandardWorkspace === 'local'
+                        ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-[var(--text-primary)]">Local Session</span>
+                        <span className="text-[8px] font-mono bg-black/10 dark:bg-white/10 px-1 py-0.2 rounded text-[var(--text-secondary)]">/workspace</span>
+                      </div>
+                      <div className="text-[10px] text-[var(--text-secondary)] truncate">Ephemeral sandbox & files</div>
+                    </div>
+                    {activeStandardWorkspace === 'local' && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
+                  </div>
+
+                  {/* OllamaOpt Engine */}
+                  <div
+                    onClick={() => {
+                      setActiveStandardWorkspace('ollama');
+                      setCloudSpaceSlug('ollama-opt');
+                      localStorage.setItem('aidock_cloud_space', 'ollama-opt');
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${
+                      activeStandardWorkspace === 'ollama'
+                        ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-[var(--text-primary)]">OllamaOpt Engine</span>
+                        <span className="text-[8px] font-mono bg-[#0db7ed]/15 text-[#0db7ed] px-1 py-0.2 rounded font-bold">11434</span>
+                      </div>
+                      <div className="text-[10px] text-[var(--text-secondary)] truncate">Local GGUF model runner</div>
+                    </div>
+                    {activeStandardWorkspace === 'ollama' && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
+                  </div>
+
+                  {/* AI_Codex Knowledge Base */}
+                  <div
+                    onClick={() => {
+                      setActiveStandardWorkspace('codex-root');
+                      setCloudSpaceSlug('ai-codex');
+                      localStorage.setItem('aidock_cloud_space', 'ai-codex');
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${
+                      activeStandardWorkspace === 'codex-root'
+                        ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-[var(--text-primary)]">AI_Codex Root</span>
+                        <span className="text-[8px] font-mono bg-black/10 dark:bg-white/10 px-1 py-0.2 rounded text-[var(--text-secondary)]">Repo</span>
+                      </div>
+                      <div className="text-[10px] text-[var(--text-secondary)] truncate">Architecture & specs</div>
+                    </div>
+                    {activeStandardWorkspace === 'codex-root' && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
+                  </div>
+                </div>
+
+                {/* Workspace Files Section */}
+                <div className="space-y-1.5 pt-2 border-t border-[var(--border-subtle)]">
+                  <div className="flex items-center justify-between px-1">
+                    <span 
+                      onClick={() => setIsFileTreeExpanded(!isFileTreeExpanded)}
+                      className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-primary)] flex items-center gap-1"
+                    >
+                      <ChevronDown className={`w-3 h-3 transition-transform ${isFileTreeExpanded ? '' : '-rotate-90'}`} />
+                      Workspace Files ({files.length})
+                    </span>
+                    <button
+                      onClick={() => fetchFiles()}
+                      className="text-[9px] text-[#0db7ed] hover:underline flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <RefreshCw className="w-2.5 h-2.5" /> Refresh
+                    </button>
+                  </div>
+
+                  {isFileTreeExpanded && (
+                    <div className="space-y-1 max-h-48 overflow-y-auto pr-0.5">
+                      {files.length === 0 ? (
+                        <p className="text-[11px] text-[var(--text-muted)] italic px-1 py-1">No files in sandbox</p>
+                      ) : (
+                        files.map(f => (
+                          <div 
+                            key={f.name} 
+                            onClick={() => openFileInEditor(f.path)}
+                            className="flex items-center justify-between p-1.5 rounded-lg bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] hover:border-[#0db7ed]/40 text-xs cursor-pointer transition-all"
+                            title="Click to open in editor"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <FileCode className="w-3.5 h-3.5 text-[#0db7ed] shrink-0" />
+                              <span className="font-mono text-[11px] truncate text-[var(--text-primary)]">{f.name}</span>
+                            </div>
+                            <span className="text-[9px] font-mono text-[var(--text-muted)]">{(f.size / 1024).toFixed(1)}k</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                {/* CodexSpaces items */}
+                <div className="space-y-1.5">
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-1">
+                    CodexSpaces
+                  </div>
+
+                  {/* SpiritLlama */}
+                  <div
+                    onClick={() => {
+                      setCloudSpaceSlug('spirit-llama');
+                      localStorage.setItem('aidock_cloud_space', 'spirit-llama');
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${
+                      cloudSpaceSlug === 'spirit-llama'
+                        ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-[var(--text-primary)]">🟧 SpiritLlama.cpp</span>
+                        <span className="text-[8px] font-mono bg-[#0db7ed]/15 text-[#0db7ed] px-1 py-0.2 rounded font-bold">8080</span>
+                      </div>
+                      <div className="text-[10px] text-[var(--text-secondary)] truncate">WPF Native Vulkan/CUDA GGUF</div>
+                    </div>
+                    {cloudSpaceSlug === 'spirit-llama' && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
+                  </div>
+
+                  {/* VSCodex */}
+                  <div
+                    onClick={() => {
+                      setCloudSpaceSlug('vscodex-bridge');
+                      localStorage.setItem('aidock_cloud_space', 'vscodex-bridge');
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${
+                      cloudSpaceSlug === 'vscodex-bridge'
+                        ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-[var(--text-primary)]">⬜ VSCodex Bridge</span>
+                        <span className="text-[8px] font-mono bg-black/10 dark:bg-white/10 px-1 py-0.2 rounded text-[var(--text-secondary)]">VSCode</span>
+                      </div>
+                      <div className="text-[10px] text-[var(--text-secondary)] truncate">Monaco Canvas & extension sync</div>
+                    </div>
+                    {cloudSpaceSlug === 'vscodex-bridge' && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
+                  </div>
+
+                  {/* Cloud Spaces */}
+                  {cloudSpaces.length > 0 ? (
+                    cloudSpaces.map(s => (
+                      <div
+                        key={s.slug}
+                        onClick={() => {
+                          setCloudSpaceSlug(s.slug);
+                          localStorage.setItem('aidock_cloud_space', s.slug);
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${
+                          cloudSpaceSlug === s.slug
+                            ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
+                            : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold text-[var(--text-primary)]">{s.name}</span>
+                          <div className="text-[10px] text-[var(--text-secondary)] truncate">{s.description || s.slug}</div>
+                        </div>
+                        {cloudSpaceSlug === s.slug && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
+                      </div>
+                    ))
+                  ) : (
+                    <div
+                      onClick={() => {
+                        setCloudSpaceSlug('spirit-book');
+                        localStorage.setItem('aidock_cloud_space', 'spirit-book');
+                      }}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${
+                        cloudSpaceSlug === 'spirit-book'
+                          ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-[var(--text-primary)]">☁️ Spirit Book</span>
+                        <div className="text-[10px] text-[var(--text-secondary)] truncate">Default cloud space</div>
+                      </div>
+                      {cloudSpaceSlug === 'spirit-book' && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowSettingsModal(true)}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all bg-[var(--bg-surface-elevated)] hover:bg-[#0db7ed]/10 border border-[var(--border-subtle)] hover:border-[#0db7ed]/40 text-[var(--text-secondary)] hover:text-[#0db7ed] shadow-sm mt-3 cursor-pointer"
+                >
+                  <Layers className="w-3.5 h-3.5 text-[#0db7ed]" />
+                  <span>Browse Cloud Spaces</span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 7. SIDEBAR BOTTOM ACTIONS (SpiritLlama 1:1) */}
+        <div className="p-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-2">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setMessages([]);
+                setIsSidebarOpen(false);
+              }}
+              className="flex-1 py-2 px-3 rounded-xl bg-[#0db7ed] hover:bg-[#0099cc] active:bg-[#0aa5d6] text-white text-xs font-bold shadow-[0_4px_14px_rgba(13,183,237,0.35)] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>NEW CHAT</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowSettingsModal(true)}
+              className="p-2 rounded-xl bg-[var(--bg-surface-elevated)] hover:bg-[#0db7ed]/10 border border-[var(--border-subtle)] hover:border-[#0db7ed]/35 text-[var(--text-primary)] hover:text-[#0db7ed] transition-all cursor-pointer shadow-sm shrink-0"
+              title="Sync with Cloud Backend"
+            >
+              <Cloud className="w-4 h-4 text-[#0db7ed]" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowFunctionShortcuts(!showFunctionShortcuts)}
+              className={`p-2 rounded-xl border transition-all cursor-pointer shadow-sm shrink-0 ${
+                showFunctionShortcuts
+                  ? 'bg-[#0db7ed] text-white border-[#0db7ed]'
+                  : 'bg-[var(--bg-surface-elevated)] hover:bg-[#0db7ed]/10 border-[var(--border-subtle)] hover:border-[#0db7ed]/35 text-[var(--text-primary)]'
+              }`}
+              title="Toggle Functions (Agents, Integrations, Studio, Browser)"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* FUNCTION SHORTCUTS GRID (SpiritLlama 1:1) */}
+          {showFunctionShortcuts && (
+            <div className="grid grid-cols-4 gap-1 p-1 bg-[var(--bg-surface-elevated)] rounded-xl border border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={() => {
+                  setInput("Run autonomous multi-agent analysis on current workspace.");
+                  setIsSidebarOpen(false);
+                }}
+                className="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[var(--text-secondary)] hover:text-[#0db7ed] hover:bg-[var(--bg-surface)] transition-all cursor-pointer"
+                title="Agents — Autonomous agent swarms"
+              >
+                <Bot className="w-3.5 h-3.5 text-[#0db7ed]" />
+                <span className="text-[9px] font-semibold mt-0.5">Agents</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSettingsModal(true);
+                  setIsSidebarOpen(false);
+                }}
+                className="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[var(--text-secondary)] hover:text-[#0db7ed] hover:bg-[var(--bg-surface)] transition-all cursor-pointer"
+                title="Integrations — Tools & Connectors"
+              >
+                <Boxes className="w-3.5 h-3.5 text-[#0db7ed]" />
+                <span className="text-[9px] font-semibold mt-0.5">Tools</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setInput("Generate optimized system prompt and eval benchmarks.");
+                  setIsSidebarOpen(false);
+                }}
+                className="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[var(--text-secondary)] hover:text-[#0db7ed] hover:bg-[var(--bg-surface)] transition-all cursor-pointer"
+                title="Studio — Model playground"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#0db7ed]" />
+                <span className="text-[9px] font-semibold mt-0.5">Studio</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setInput("Open web browser and search for latest documentation.");
+                  setIsSidebarOpen(false);
+                }}
+                className="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[var(--text-secondary)] hover:text-[#0db7ed] hover:bg-[var(--bg-surface)] transition-all cursor-pointer"
+                title="Browser — Web navigation"
+              >
+                <Globe className="w-3.5 h-3.5 text-[#0db7ed]" />
+                <span className="text-[9px] font-semibold mt-0.5">Browser</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 8. SIDEBAR FOOTER (SpiritLlama 1:1) */}
+        <div className="p-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] flex items-center justify-between">
+          <div 
+            className="flex items-center gap-2.5 min-w-0 cursor-pointer group"
+            onClick={() => setShowSettingsModal(true)}
+            title="Account & Sync Settings"
+          >
+            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#0db7ed] to-blue-600 text-white font-bold text-[10px] flex items-center justify-center shadow-sm shrink-0 group-hover:scale-105 transition-transform">
+              {cloudUsername ? cloudUsername[0].toUpperCase() : 'G'}
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-[var(--text-primary)] truncate leading-tight group-hover:text-[#0db7ed] transition-colors">
+                {cloudUsername || 'Guest User'}
+              </div>
+              <div className="text-[9px] text-[var(--text-muted)] font-mono truncate flex items-center gap-1 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                <span className="truncate">{cloudToken ? 'Cloud Active' : 'Local Mode'}</span>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowSettingsModal(true)}
+            className="p-1.5 hover:text-[#0db7ed] hover:bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-lg transition-colors cursor-pointer"
+            title="Settings"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main Workspace Column with P5 Wave & Wallpaper (OllamaOpt 1:1) ── */}
+      <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden bg-[var(--bg-canvas)]">
+        {/* Dynamic P5 Graphic Canvas Layer in Docker Blue */}
+        <canvas
+          ref={workspaceP5CanvasRef}
+          className="absolute inset-0 w-full h-full pointer-events-none z-0"
+        />
+
+        {/* Wallpaper Watermark Overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none z-0 bg-cover bg-bottom opacity-35 dark:opacity-15 mix-blend-multiply dark:mix-blend-overlay transition-opacity duration-300"
+          style={{ backgroundImage: `url(${spiritDockWallpaper})` }}
+        />
+
+        {/* Main Container (Spacious SpiritLlama Workspace) */}
+        <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-5 grid grid-cols-1 lg:grid-cols-12 gap-5 relative z-10">
         {/* Middle column: Chat Area */}
-        <section className={`${isTextEditorOpen ? 'lg:col-span-5' : 'lg:col-span-9'} flex flex-col h-[calc(100vh-140px)] min-h-[500px] transition-all duration-300`}>
-          <div className="flex-1 bg-[#D8DCE4]/60 backdrop-blur-md rounded-2xl border border-black/5 shadow-2xl p-6 flex flex-col overflow-hidden">
+        <section className={`${isTextEditorOpen ? "lg:col-span-7" : "lg:col-span-12"} flex flex-col h-[calc(100vh-125px)] min-h-[500px] transition-all duration-300`}>
+
+          <div className="flex-1 bg-[var(--bg-surface)] rounded-lg border border-[var(--border-subtle)] shadow-[var(--shadow-l1)] p-5 flex flex-col overflow-hidden">
             
             {/* Chat Area Header with Export Menu */}
-            <div className="flex items-center justify-between pb-4 border-b border-black/5 mb-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs font-bold text-[#1A1D2E] tracking-wide uppercase">Active Session Stream</span>
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-bold text-[var(--text-primary)] tracking-wide uppercase">Active Session Stream</span>
               </div>
               
               {messages.length > 0 && (
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setShowExportDropdown(!showExportDropdown)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0db7ed] hover:bg-[#008bb9] text-white text-xs font-bold rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0db7ed] hover:bg-[#0099cc] text-white text-xs font-semibold rounded-md shadow-sm transition-all duration-150"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Export Chat</span>
@@ -844,14 +1595,14 @@ function App() {
                   </button>
                   
                   {showExportDropdown && (
-                    <div className="absolute right-0 mt-1.5 w-56 bg-white border border-black/10 rounded-xl shadow-xl z-50 overflow-hidden py-1">
+                    <div className="absolute right-0 mt-1.5 w-56 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-md shadow-[var(--shadow-l2)] z-50 overflow-hidden py-1">
                       <button
                         onClick={() => {
                           setShowExportDropdown(false);
                           const content = generateJSON(messages);
                           triggerDownload(content, `chat_export_${sessionId}.json`);
                         }}
-                        className="w-full text-left px-4 py-2 hover:bg-[#E8ECF2] text-xs font-semibold text-[#1A1D2E] flex items-center gap-2"
+                        className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2"
                       >
                         <FileCode className="w-4 h-4 text-[#0db7ed]" /> Download JSON
                       </button>
@@ -861,18 +1612,18 @@ function App() {
                           const content = generateMarkdown(messages);
                           triggerDownload(content, `chat_export_${sessionId}.md`);
                         }}
-                        className="w-full text-left px-4 py-2 hover:bg-[#E8ECF2] text-xs font-semibold text-[#1A1D2E] flex items-center gap-2"
+                        className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2"
                       >
                         <FileText className="w-4 h-4 text-[#0db7ed]" /> Download Markdown
                       </button>
-                      <hr className="border-black/5" />
+                      <hr className="border-[var(--border-subtle)]" />
                       <button
                         onClick={() => {
                           setShowExportDropdown(false);
                           const content = generateJSON(messages);
                           handleSaveFile(content, `chat_export_${sessionId}.json`);
                         }}
-                        className="w-full text-left px-4 py-2 hover:bg-[#E8ECF2] text-xs font-semibold text-[#1A1D2E] flex items-center gap-2"
+                        className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2"
                       >
                         <Save className="w-4 h-4 text-[#0db7ed]" /> Save to Workspace (JSON)
                       </button>
@@ -882,11 +1633,11 @@ function App() {
                           const content = generateMarkdown(messages);
                           handleSaveFile(content, `chat_export_${sessionId}.md`);
                         }}
-                        className="w-full text-left px-4 py-2 hover:bg-[#E8ECF2] text-xs font-semibold text-[#1A1D2E] flex items-center gap-2"
+                        className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2"
                       >
                         <Save className="w-4 h-4 text-[#0db7ed]" /> Save to Workspace (MD)
                       </button>
-                      <hr className="border-black/5" />
+                      <hr className="border-[var(--border-subtle)]" />
                       <button
                         onClick={() => {
                           setShowExportDropdown(false);
@@ -897,7 +1648,7 @@ function App() {
                           setEditorSaved(true);
                           setIsTextEditorOpen(true);
                         }}
-                        className="w-full text-left px-4 py-2 hover:bg-[#E8ECF2] text-xs font-bold text-[#1A1D2E] flex items-center gap-2 bg-[#0db7ed]/5"
+                        className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-bold text-[#0db7ed] flex items-center gap-2 bg-[#0db7ed]/5"
                       >
                         <Edit className="w-4 h-4 text-[#0db7ed]" /> Open in Text Editor
                       </button>
@@ -907,15 +1658,16 @@ function App() {
               )}
             </div>
 
+
             {/* Message Stream */}
-            <div className="flex-1 overflow-y-auto space-y-6 pr-2 mb-4 scrollbar-thin">
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4 scrollbar-thin">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                  <div className="w-16 h-16 rounded-full bg-[#E2E6EC] flex items-center justify-center text-[#7A7D8E] mb-4 shadow-inner">
-                    <MascotLogo className="w-10 h-10 text-[#0db7ed]" />
+                  <div className="w-14 h-14 rounded-full bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-muted)] mb-3">
+                    <MascotLogo className="w-8 h-8 text-[#0db7ed]" />
                   </div>
-                  <h3 className="text-base font-bold text-[#1A1D2E] mb-1">Initialize Your Sandbox</h3>
-                  <p className="text-xs text-[#4A4D5E] max-w-sm">
+                  <h3 className="text-sm font-bold text-[var(--text-primary)] mb-1">Initialize Your Sandbox</h3>
+                  <p className="text-xs text-[var(--text-secondary)] max-w-sm">
                     Instruct the local AI model to write code or perform tasks. An isolated project directory will be created under your container workspace.
                   </p>
                 </div>
@@ -923,39 +1675,50 @@ function App() {
                 messages.map((msg) => (
                   <div
                     key={msg.id}
-                    className={`flex gap-3 max-w-[85%] ${
+                    className={`flex gap-2.5 max-w-[85%] ${
                       msg.sender === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto'
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-md ${
-                      msg.sender === 'user' ? 'bg-[#0db7ed] text-white' : 'bg-[#E2E6EC] text-[#1A1D2E]'
+                    <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 shadow-sm ${
+                      msg.sender === 'user' ? 'bg-[#0db7ed] text-white' : 'bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[#0db7ed]'
                     }`}>
-                      {msg.sender === 'user' ? <User className="w-4 h-4" /> : <MascotLogo className="w-5 h-5 text-[#0db7ed]" />}
+                      {msg.sender === 'user' ? <User className="w-4 h-4" /> : <MascotLogo className="w-4 h-4 text-[#0db7ed]" />}
                     </div>
 
-                    <div className="flex flex-col gap-1.5 max-w-[85%]">
+                    <div className="flex flex-col gap-1 max-w-[85%]">
                       {/* LLM Logo & Model Badge inside Assistant bubbles */}
                       {msg.sender === 'bot' && msg.id.indexOf('_sys') === -1 && (
-                        <div className="flex items-center gap-1.5 pb-1 border-b border-black/5 mb-1 text-[11px] text-[#7A7D8E] font-semibold">
+                        <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border-subtle)] mb-1 text-[11px] text-[var(--text-muted)] font-semibold">
                           <div className="w-3.5 h-3.5 rounded bg-[#0db7ed] flex items-center justify-center text-white shrink-0">
                             <MascotLogo className="w-2.5 h-2.5 text-white" />
                           </div>
-                          <span className="font-bold text-[#1A1D2E]">{activeModel}</span>
-                          <span className="text-[8px] font-mono bg-[#BFC4CC]/50 px-1 py-0.2 rounded text-[#4A4D5E]">Model Runner</span>
+                          <span className="font-bold text-[var(--text-primary)]">{activeModel}</span>
+                          <span className="text-[9px] font-mono bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-1.5 py-0.2 rounded text-[var(--text-secondary)]">Model Runner</span>
                         </div>
                       )}
                       
                       <div
-                        className={`p-4 rounded-2xl shadow-sm text-sm border border-black/5 ${
+                        className={`p-3.5 rounded-md text-sm border ${
                           msg.sender === 'user'
-                            ? 'bg-[#0db7ed] text-white user-corner-glow user-corner-glow-secondary font-medium rounded-tr-none'
-                            : 'bg-[#E2E6EC] text-[#1A1D2E] bot-corner-glow bot-corner-glow-secondary whitespace-pre-wrap'
+                            ? 'bg-[#0db7ed] text-white user-corner-glow font-medium border-[#0aa5d6] shadow-sm'
+                            : 'bg-[var(--bg-surface-elevated)] text-[var(--text-primary)] bot-corner-glow border-[var(--border-subtle)] shadow-[var(--shadow-l1)]'
                         }`}
                       >
-                        {msg.content}
+                        {msg.sender === 'user' ? (
+                          <div className="whitespace-pre-wrap">{msg.content}</div>
+                        ) : (
+                          <div className="prose prose-sm max-w-none prose-headings:font-bold prose-headings:text-[var(--text-primary)] text-[var(--text-primary)] prose-a:text-[#0db7ed] prose-code:bg-black/5 dark:prose-code:bg-white/10 prose-code:px-1 prose-code:rounded">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm, remarkMath]}
+                              rehypePlugins={[rehypeKatex]}
+                            >
+                              {msg.content}
+                            </ReactMarkdown>
+                          </div>
+                        )}
                       </div>
                       
-                      <div className="flex items-center justify-between gap-4 px-2 text-[10px] text-[#7A7D8E]">
+                      <div className="flex items-center justify-between gap-4 px-1 text-[10px] text-[var(--text-muted)]">
                         {msg.workspaceUsed && (
                           <div className="font-mono truncate max-w-[150px]" title={msg.workspaceUsed}>
                             Workspace: {msg.workspaceUsed}
@@ -973,11 +1736,11 @@ function App() {
                 ))
               )}
               {loading && (
-                <div className="flex gap-3 mr-auto max-w-[80%]">
-                  <div className="w-8 h-8 rounded-full bg-[#E2E6EC] flex items-center justify-center shrink-0 shadow-md">
-                    <MascotLogo className="w-5 h-5 text-[#0db7ed] animate-spin" />
+                <div className="flex gap-2.5 mr-auto max-w-[80%]">
+                  <div className="w-7 h-7 rounded-md bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] flex items-center justify-center shrink-0 shadow-sm">
+                    <MascotLogo className="w-4 h-4 text-[#0db7ed] animate-spin" />
                   </div>
-                  <div className="p-4 rounded-2xl bg-[#E2E6EC] text-[#1A1D2E] bot-corner-glow border border-black/5 text-sm flex items-center gap-2 shadow-sm font-medium">
+                  <div className="p-3 rounded-md bg-[var(--bg-surface-elevated)] text-[var(--text-primary)] bot-corner-glow border border-[var(--border-subtle)] text-xs flex items-center gap-2 shadow-sm font-medium">
                     <span className="w-2 h-2 rounded-full bg-[#0db7ed] animate-bounce" style={{ animationDelay: '0ms' }} />
                     <span className="w-2 h-2 rounded-full bg-[#0db7ed] animate-bounce" style={{ animationDelay: '150ms' }} />
                     <span className="w-2 h-2 rounded-full bg-[#0db7ed] animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -989,17 +1752,17 @@ function App() {
             </div>
 
             {/* Input Toolbar Area */}
-            <div className="flex flex-col gap-2 pt-4 border-t border-black/5">
+            <div className="flex flex-col gap-2 pt-3 border-t border-[var(--border-subtle)]">
               {/* Function buttons toolbar */}
               <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   {/* Plus context file selector */}
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-7 h-7 rounded-lg bg-[#BFC4CC]/60 hover:bg-[#BFC4CC] text-[#1A1D2E] flex items-center justify-center shadow-sm transition-all focus:outline-none"
+                    className="w-7 h-7 rounded-md bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[var(--text-primary)] flex items-center justify-center shadow-sm transition-all focus:outline-none"
                     title="Attach Context File (RAG)"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-3.5 h-3.5" />
                   </button>
                   <input
                     type="file"
@@ -1010,22 +1773,22 @@ function App() {
                   
                   <button
                     onClick={() => setInput("Write a python file-editor tool that can edit a source file.")}
-                    className="px-2.5 py-1 text-[11px] font-bold bg-[#E8ECF2] hover:bg-[#E2E6EC] border border-black/5 text-[#4A4D5E] rounded-lg transition-all"
+                    className="px-2.5 py-1 text-[11px] font-semibold bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] rounded-md transition-all"
                   >
                     Write Code
                   </button>
                   <button
                     onClick={() => setInput("Scan all workspace files and summarize their contents.")}
-                    className="px-2.5 py-1 text-[11px] font-bold bg-[#E8ECF2] hover:bg-[#E2E6EC] border border-black/5 text-[#4A4D5E] rounded-lg transition-all"
+                    className="px-2.5 py-1 text-[11px] font-semibold bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] rounded-md transition-all"
                   >
                     Scan Workspace
                   </button>
                 </div>
                 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <button
                     onClick={fetchFiles}
-                    className="p-1 text-[#7A7D8E] hover:text-[#1A1D2E] transition-colors focus:outline-none"
+                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus:outline-none"
                     title="Refresh Files"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
@@ -1036,7 +1799,7 @@ function App() {
                         setMessages([]);
                       }
                     }}
-                    className="p-1 text-[#7A7D8E] hover:text-[#1A1D2E] transition-colors focus:outline-none"
+                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus:outline-none"
                     title="Clear Chat Log"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -1045,7 +1808,7 @@ function App() {
               </div>
 
               {/* Dynamic Chat Textarea Box */}
-              <div className="flex gap-3 items-end">
+              <div className="flex gap-2.5 items-end">
                 <textarea
                   ref={chatInputRef}
                   value={input}
@@ -1053,15 +1816,15 @@ function App() {
                   onKeyDown={handleKeyDown}
                   disabled={loading}
                   rows={1}
-                  className="flex-1 bg-[#BFC4CC] hover:bg-[#BFC4CC]/80 focus:bg-[#E8ECF2] text-[#1A1D2E] placeholder-[#7A7D8E] border border-black/5 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#0db7ed]/30 focus:border-[#0db7ed]/50 resize-none min-h-[44px] max-h-[180px] overflow-y-auto scrollbar-thin"
+                  className="flex-1 bg-[var(--bg-surface-elevated)] focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-[var(--text-muted)] border border-[var(--border-default)] rounded-md px-3.5 py-2.5 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#0db7ed]/25 focus:border-[#0db7ed] resize-none min-h-[44px] max-h-[180px] overflow-y-auto scrollbar-thin"
                   placeholder="Instruct the AI model in your workspace..."
                 />
                 <button
                   onClick={handleSend}
                   disabled={loading || !input.trim()}
-                  className="bg-[#0db7ed] hover:bg-[#008bb9] active:scale-95 disabled:opacity-50 disabled:scale-100 text-white w-12 h-12 rounded-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 shrink-0 mb-[1px]"
+                  className="bg-[#0db7ed] hover:bg-[#0099cc] active:scale-95 disabled:opacity-40 disabled:scale-100 text-white w-11 h-11 rounded-md flex items-center justify-center shadow-sm hover:shadow transition-all duration-150 shrink-0 mb-[1px]"
                 >
-                  <Send className="w-5 h-5" />
+                  <Send className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -1071,9 +1834,9 @@ function App() {
 
         {/* Right column: Text Editor Pane */}
         {isTextEditorOpen && (
-          <section className="lg:col-span-4 flex flex-col h-[calc(100vh-140px)] min-h-[500px] bg-[#1A1D2E] text-[#E8ECF2] rounded-2xl border border-black/10 shadow-2xl p-5 overflow-hidden transition-all duration-300">
+          <section className="lg:col-span-4 flex flex-col h-[calc(100vh-125px)] min-h-[500px] bg-[var(--bg-editor)] text-[#E8ECF2] rounded-lg border border-[var(--border-default)] shadow-[var(--shadow-l1)] p-4 overflow-hidden transition-all duration-300">
             {/* Editor Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-3">
+            <div className="flex items-center justify-between pb-2.5 border-b border-white/10 mb-2.5">
               <div className="flex items-center gap-2 truncate mr-2">
                 <FileCode className="w-4 h-4 text-[#0db7ed] shrink-0" />
                 <span className="text-xs font-mono font-bold tracking-wide truncate" title={editorFilename}>{editorFilename}</span>
@@ -1081,15 +1844,15 @@ function App() {
               </div>
               <button
                 onClick={() => setIsTextEditorOpen(false)}
-                className="text-[#7A7D8E] hover:text-white transition-colors duration-200 focus:outline-none"
+                className="text-[#7A7D8E] hover:text-white transition-colors duration-150 focus:outline-none"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Format toggle & status bar */}
-            <div className="flex items-center justify-between mb-3 text-xs">
-              <div className="flex bg-[#2D314E] rounded-lg p-0.5 border border-white/5">
+            <div className="flex items-center justify-between mb-2.5 text-xs">
+              <div className="flex bg-white/10 rounded-md p-0.5 border border-white/10">
                 <button
                   onClick={() => {
                     if (!editorSaved && !confirm('Discard unsaved changes?')) return;
@@ -1098,7 +1861,7 @@ function App() {
                     setEditorContent(generateMarkdown(messages));
                     setEditorSaved(true);
                   }}
-                  className={`px-2.5 py-1 rounded-md font-bold transition-all ${editorFormat === 'markdown' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
+                  className={`px-2.5 py-1 rounded font-bold transition-all ${editorFormat === 'markdown' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
                 >
                   MD
                 </button>
@@ -1110,7 +1873,7 @@ function App() {
                     setEditorContent(generateJSON(messages));
                     setEditorSaved(true);
                   }}
-                  className={`px-2.5 py-1 rounded-md font-bold transition-all ${editorFormat === 'json' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
+                  className={`px-2.5 py-1 rounded font-bold transition-all ${editorFormat === 'json' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
                 >
                   JSON
                 </button>
@@ -1119,16 +1882,16 @@ function App() {
               {saveStatusText ? (
                 <span className="text-emerald-400 font-medium animate-pulse">{saveStatusText}</span>
               ) : (
-                <span className="text-[#7A7D8E] font-mono">
+                <span className="text-[#7A7D8E] font-mono text-[11px]">
                   {editorSaved ? 'All changes saved' : 'Unsaved changes*'}
                 </span>
               )}
             </div>
 
             {/* Textarea container */}
-            <div className="flex-1 relative flex bg-[#121420] rounded-xl border border-white/5 overflow-hidden p-3 font-mono text-xs">
+            <div className="flex-1 relative flex bg-[#0d0e15] rounded-md border border-white/5 overflow-hidden p-3 font-mono text-xs">
               {/* Line numbers */}
-              <div ref={lineNumbersRef} className="select-none text-right pr-3 border-r border-white/5 text-[#4A4D5E] font-mono leading-6 overflow-hidden">
+              <div ref={lineNumbersRef} className="select-none text-right pr-3 border-r border-white/10 text-white/30 font-mono leading-6 overflow-hidden">
                 {Array.from({ length: Math.max(editorContent.split('\n').length, 15) }).map((_, i) => (
                   <div key={i}>{i + 1}</div>
                 ))}
@@ -1147,17 +1910,17 @@ function App() {
             </div>
 
             {/* Editor Actions */}
-            <div className="flex gap-2 mt-4 pt-3 border-t border-white/5">
+            <div className="flex gap-2 mt-3 pt-2.5 border-t border-white/10">
               <button
                 onClick={() => handleSaveFile(editorContent, editorFilename)}
-                className="flex-1 bg-[#0db7ed] hover:bg-[#008bb9] text-white text-xs font-bold py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all"
+                className="flex-1 bg-[#0db7ed] hover:bg-[#0099cc] text-white text-xs font-semibold py-2 px-3 rounded-md flex items-center justify-center gap-1.5 shadow-sm transition-all"
               >
                 <Save className="w-3.5 h-3.5" />
                 <span>Save to Workspace</span>
               </button>
               <button
                 onClick={() => triggerDownload(editorContent, editorFilename)}
-                className="bg-[#2D314E] hover:bg-[#3D426A] text-white text-xs font-bold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 border border-white/5 transition-all"
+                className="bg-white/10 hover:bg-white/15 text-white text-xs font-semibold py-2 px-3 rounded-md flex items-center justify-center gap-1.5 border border-white/10 transition-all"
                 title="Download locally"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -1166,33 +1929,34 @@ function App() {
           </section>
         )}
       </main>
+      </div>
 
       {/* Premium Settings Modal */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-[#D8DCE4] border border-black/10 rounded-2xl w-full max-w-lg shadow-2xl p-6 relative flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg w-full max-w-lg shadow-[var(--shadow-modal)] p-6 relative flex flex-col gap-4 max-h-[90vh] overflow-y-auto text-[var(--text-primary)]">
             <button 
               onClick={() => setShowSettingsModal(false)}
-              className="absolute top-4 right-4 text-[#7A7D8E] hover:text-[#1A1D2E] transition-colors focus:outline-none"
+              className="absolute top-4 right-4 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus:outline-none"
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* Header */}
-            <div className="flex items-center gap-2.5 pb-3 border-b border-black/5">
-              <div className="w-8 h-8 rounded-lg bg-[#0db7ed] flex items-center justify-center text-white">
+            <div className="flex items-center gap-2.5 pb-3 border-b border-[var(--border-subtle)]">
+              <div className="w-8 h-8 rounded-md bg-gradient-to-br from-[#0db7ed] to-[#008bb9] flex items-center justify-center text-white shadow-sm">
                 <MascotLogo className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-[#1A1D2E]">Connection Settings</h3>
-                <p className="text-[10px] text-[#7A7D8E] font-medium uppercase tracking-wider">Orchestration & Backend Routing</p>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">Connection Settings</h3>
+                <p className="text-[10px] text-[var(--text-muted)] font-medium uppercase tracking-wider">Orchestration & Backend Routing</p>
               </div>
             </div>
 
             <div className="space-y-4 py-1">
               {/* Backend Mode Selector */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-[#4A4D5E] uppercase tracking-wider">Active Inference Backend</label>
+                <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Active Inference Backend</label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { id: 'local', name: 'Local Ollama', desc: 'WSL Local Container' },
@@ -1206,14 +1970,14 @@ function App() {
                         setBackendMode(prov.id);
                         localStorage.setItem('aidock_backend_mode', prov.id);
                       }}
-                      className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-0.5 ${
+                      className={`p-3 rounded-md border text-left transition-all flex flex-col gap-0.5 ${
                         backendMode === prov.id
-                          ? 'border-[#0db7ed] bg-[#0db7ed]/10 text-[#1A1D2E]'
-                          : 'border-black/5 bg-[#E8ECF2] hover:bg-[#E2E6EC] text-[#4A4D5E]'
+                          ? 'border-[#0db7ed] bg-[#0db7ed]/10 text-[var(--text-primary)]'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)]'
                       }`}
                     >
                       <span className="text-xs font-bold">{prov.name}</span>
-                      <span className="text-[9px] text-[#7A7D8E] leading-normal">{prov.desc}</span>
+                      <span className="text-[9px] text-[var(--text-muted)] leading-normal">{prov.desc}</span>
                     </button>
                   ))}
                 </div>
@@ -1222,7 +1986,7 @@ function App() {
               {/* Custom URL override */}
               {backendMode === 'custom' && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-[#4A4D5E] uppercase tracking-wider">Custom Base URL</label>
+                  <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Custom Base URL</label>
                   <input
                     type="text"
                     value={customEndpoint}
@@ -1231,22 +1995,22 @@ function App() {
                       localStorage.setItem('aidock_custom_endpoint', e.target.value);
                     }}
                     placeholder="e.g. https://my-backend.run.app"
-                    className="w-full bg-[#BFC4CC] focus:bg-[#E8ECF2] border border-black/5 rounded-xl px-4 py-2.5 text-xs font-medium text-[#1A1D2E] placeholder-[#7A7D8E] outline-none transition-all"
+                    className="w-full bg-[var(--bg-surface-elevated)] focus:bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-md px-3.5 py-2 text-xs font-medium text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-[#0db7ed] transition-all"
                   />
                 </div>
               )}
 
               {/* ── AICodex Cloud Credentials ─────────────────────── */}
               {isCloudMode() && (
-                <div className="flex flex-col gap-3 bg-[#E8ECF2] p-4 rounded-xl border border-black/5">
+                <div className="flex flex-col gap-3 bg-[var(--bg-surface-elevated)] p-4 rounded-md border border-[var(--border-subtle)]">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[#4A4D5E] uppercase tracking-wider">AICodex Credentials</span>
+                    <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">AICodex Credentials</span>
                     {cloudToken ? (
-                      <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> JWT Active
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                      <span className="flex items-center gap-1 text-[9px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Not Signed In
                       </span>
                     )}
@@ -1262,7 +2026,7 @@ function App() {
                       }}
                       placeholder="AICodex username"
                       autoComplete="username"
-                      className="w-full bg-white/60 focus:bg-white border border-black/5 rounded-lg px-3 py-2 text-xs font-medium text-[#1A1D2E] placeholder-[#9A9DAE] outline-none transition-all"
+                      className="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-md px-3 py-2 text-xs font-medium text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-[#0db7ed] transition-all"
                     />
                     <input
                       type="password"
@@ -1271,7 +2035,7 @@ function App() {
                       onKeyDown={(e) => { if (e.key === 'Enter') loginToCloud(); }}
                       placeholder="Password"
                       autoComplete="current-password"
-                      className="w-full bg-white/60 focus:bg-white border border-black/5 rounded-lg px-3 py-2 text-xs font-medium text-[#1A1D2E] placeholder-[#9A9DAE] outline-none transition-all"
+                      className="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-md px-3 py-2 text-xs font-medium text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-[#0db7ed] transition-all"
                     />
                   </div>
 
@@ -1301,10 +2065,10 @@ function App() {
                               setCloudSpaceSlug(space.slug);
                               localStorage.setItem('aidock_cloud_space', space.slug);
                             }}
-                            className={`p-2.5 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
+                            className={`p-2.5 rounded-md border text-left transition-all flex items-start gap-2.5 ${
                               cloudSpaceSlug === space.slug
                                 ? 'border-[#0db7ed] bg-[#0db7ed]/10'
-                                : 'border-black/5 bg-white/50 hover:bg-white/80'
+                                : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)]'
                             }`}
                           >
                             {/* Color swatch */}
@@ -1313,8 +2077,8 @@ function App() {
                               style={{ backgroundColor: space.color || '#0db7ed' }}
                             />
                             <div className="flex flex-col gap-0.5 min-w-0">
-                              <span className="text-[11px] font-bold text-[#1A1D2E] leading-tight">{space.name}</span>
-                              <span className="text-[9px] text-[#7A7D8E] leading-snug line-clamp-1">{space.description}</span>
+                              <span className="text-[11px] font-bold text-[var(--text-primary)] leading-tight">{space.name}</span>
+                              <span className="text-[9px] text-[var(--text-muted)] leading-snug line-clamp-1">{space.description}</span>
                               {space.recommended_model && (
                                 <span className="text-[8px] font-mono text-[#0db7ed] bg-[#0db7ed]/10 px-1.5 py-0.5 rounded w-fit mt-0.5">
                                   {space.recommended_provider} · {space.recommended_model}
@@ -1326,7 +2090,7 @@ function App() {
                       </div>
                     ) : (
                       !cloudSpacesLoading && (
-                        <p className="text-[10px] text-[#7A7D8E] font-medium italic">
+                        <p className="text-[10px] text-[var(--text-muted)] font-medium italic">
                           Sign in above to load your available spaces.
                         </p>
                       )
@@ -1337,7 +2101,7 @@ function App() {
                   {cloudSpaces.find(s => s.slug === cloudSpaceSlug) && (
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="text-[9px] font-bold text-[#7A7D8E] uppercase tracking-wider">
+                        <label className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
                           Inference Model
                         </label>
                         {cloudModelsLoading && (
@@ -1347,7 +2111,7 @@ function App() {
                           </span>
                         )}
                         {!cloudModelsLoading && cloudSelectedProvider && (
-                          <span className="text-[9px] font-mono text-[#7A7D8E] bg-black/5 px-1.5 py-0.5 rounded">
+                          <span className="text-[9px] font-mono text-[var(--text-muted)] bg-[var(--bg-surface)] px-1.5 py-0.5 rounded border border-[var(--border-subtle)]">
                             via {cloudSelectedProvider}
                           </span>
                         )}
@@ -1360,7 +2124,7 @@ function App() {
                             setCloudSelectedModel(e.target.value);
                             localStorage.setItem('aidock_cloud_model', e.target.value);
                           }}
-                          className="w-full bg-white/60 focus:bg-white border border-black/5 rounded-lg px-3 py-2 text-xs font-medium text-[#1A1D2E] outline-none transition-all appearance-none cursor-pointer"
+                          className="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-md px-3 py-2 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[#0db7ed] transition-all cursor-pointer"
                         >
                           {cloudModels.map(m => (
                             <option key={m.id} value={m.id}>{m.name || m.id}</option>
@@ -1368,7 +2132,7 @@ function App() {
                         </select>
                       ) : (
                         !cloudModelsLoading && (
-                          <p className="text-[10px] text-[#7A7D8E] italic">
+                          <p className="text-[10px] text-[var(--text-muted)] italic">
                             No models available for this space's provider.
                           </p>
                         )
@@ -1392,7 +2156,7 @@ function App() {
                       }
                     }}
                     disabled={cloudAuthStatus === 'loading'}
-                    className="w-full py-2 bg-[#0db7ed] hover:bg-[#008bb9] disabled:opacity-60 text-white text-xs font-bold rounded-lg shadow-md transition-all active:scale-[0.98] uppercase tracking-wider flex items-center justify-center gap-2"
+                    className="w-full py-2 bg-[#0db7ed] hover:bg-[#008bb9] disabled:opacity-60 text-white text-xs font-bold rounded-md shadow-sm transition-all active:scale-[0.98] uppercase tracking-wider flex items-center justify-center gap-2"
                   >
                     {cloudAuthStatus === 'loading' ? (
                       <><span className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" /> Signing In…</>
@@ -1404,7 +2168,7 @@ function App() {
                   </button>
 
                   {cloudToken && (
-                    <div className="text-[9px] text-[#7A7D8E] font-mono break-all select-all bg-white/40 rounded-lg px-2 py-1.5 leading-relaxed">
+                    <div className="text-[9px] text-[var(--text-muted)] font-mono break-all select-all bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-md px-2 py-1.5 leading-relaxed">
                       {cloudToken.substring(0, 40)}…
                     </div>
                   )}
@@ -1412,20 +2176,20 @@ function App() {
               )}
 
               {/* Diagnostics */}
-              <div className="bg-[#E8ECF2] p-4 rounded-xl border border-black/5 flex flex-col gap-3">
+              <div className="bg-[var(--bg-surface-elevated)] p-4 rounded-md border border-[var(--border-subtle)] flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#4A4D5E] uppercase tracking-wider">Diagnostics</span>
+                  <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Diagnostics</span>
                   <div className="flex items-center gap-1.5">
                     <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                    <span className="text-[10px] font-semibold text-[#4A4D5E]">
+                    <span className="text-[10px] font-semibold text-[var(--text-secondary)]">
                       {connected ? 'Active Link' : 'No Connection'}
                     </span>
                   </div>
                 </div>
 
-                <div className="text-[10px] text-[#7A7D8E] font-medium leading-relaxed">
+                <div className="text-[10px] text-[var(--text-muted)] font-medium leading-relaxed">
                   Active Chat Endpoint:<br />
-                  <span className="font-mono text-[#1A1D2E] break-all select-all">{getBackendUrl('chat')}</span>
+                  <span className="font-mono text-[var(--text-primary)] break-all select-all">{getBackendUrl('chat')}</span>
                 </div>
 
                 <button
@@ -1451,7 +2215,7 @@ function App() {
                       setConnected(false);
                     }
                   }}
-                  className="w-full py-2 bg-[#1A1D2E] hover:bg-[#2D314E] text-white text-xs font-bold rounded-lg transition-all active:scale-[0.98] uppercase tracking-wider"
+                  className="w-full py-2 bg-[var(--text-primary)] hover:opacity-90 text-[var(--bg-surface)] text-xs font-bold rounded-md transition-all active:scale-[0.98] uppercase tracking-wider"
                 >
                   Test Connection
                 </button>
@@ -1460,7 +2224,7 @@ function App() {
 
             <button
               onClick={() => setShowSettingsModal(false)}
-              className="w-full py-2.5 bg-[#0db7ed] hover:bg-[#008bb9] text-white text-xs font-bold rounded-xl transition-all uppercase tracking-wider"
+              className="w-full py-2.5 bg-[#0db7ed] hover:bg-[#0099cc] text-white text-xs font-bold rounded-md transition-all uppercase tracking-wider shadow-sm"
             >
               Close & Apply
             </button>
