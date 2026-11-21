@@ -225,7 +225,8 @@ def reason_node(state: AgentState):
             image = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
             model = f"docker.io/{image}"
 
-    llm = get_llm(provider=provider, model=model, api_key=api_key)
+    base_url = state.get("base_url")
+    llm = get_llm(provider=provider, model=model, api_key=api_key, base_url=base_url)
     
     session_id = state.get("session_id", "default_session")
     tools = make_workspace_tools(session_id)

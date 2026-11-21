@@ -45,6 +45,7 @@ class ChatRequest(BaseModel):
     model_slug: Optional[str] = None
     provider: Optional[str] = None
     api_key: Optional[str] = None
+    base_url: Optional[str] = None
     cloud_token: Optional[str] = None
     cloud_api_url: Optional[str] = None
 
@@ -170,7 +171,8 @@ async def chat_endpoint(request: ChatRequest):
             "session_id": request.session_id,
             "model_slug": request.model_slug,
             "provider": provider,
-            "api_key": api_key
+            "api_key": api_key,
+            "base_url": request.base_url
         }
         
         project_workspace = Path("/workspace") / request.session_id
@@ -193,7 +195,8 @@ async def chat_endpoint(request: ChatRequest):
                 request.message, 
                 request.model_slug, 
                 provider, 
-                api_key
+                api_key,
+                request.base_url
             ))
         
         # Invoke LangGraph agent
@@ -230,7 +233,7 @@ async def chat_endpoint(request: ChatRequest):
         logger.error(f"Chat request failed - Session: {request.session_id} - Error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-async def generate_local_chat_title(session_id: str, first_message: str, model_slug: str = None, provider: str = None, api_key: str = None):
+async def generate_local_chat_title(session_id: str, first_message: str, model_slug: str = None, provider: str = None, api_key: str = None, base_url: str = None):
     """Generates a 3-5 word title using the configured model and saves it."""
     try:
         from backend.agent.llm_factory import get_llm
@@ -239,7 +242,7 @@ async def generate_local_chat_title(session_id: str, first_message: str, model_s
         provider = provider or "local"
         logger.info(f"Generating title for session {session_id} using provider {provider} and model {model_slug}")
         
-        llm = get_llm(provider=provider, model=model_slug, api_key=api_key)
+        llm = get_llm(provider=provider, model=model_slug, api_key=api_key, base_url=base_url)
         prompt = f"Summarize the following text in a short 3-5 word title. Output ONLY the title, no quotes or prefix.\n\nText: {first_message}"
         response = await llm.ainvoke([HumanMessage(content=prompt)])
         title = response.content.strip().strip('"').strip("'")
