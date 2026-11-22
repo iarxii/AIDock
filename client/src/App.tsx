@@ -1816,7 +1816,7 @@ function App() {
 
         {/* Wallpaper Watermark Overlay */}
         <div
-          className="absolute inset-0 pointer-events-none z-0 bg-cover bg-bottom opacity-35 dark:opacity-15 mix-blend-multiply dark:mix-blend-overlay transition-opacity duration-300"
+          className="absolute inset-0 pointer-events-none z-0 bg-cover bg-bottom opacity-35 dark:opacity-15 mix-blend- dark:mix-blend-lighten transition-opacity duration-300"
           style={{ backgroundImage: `url(${spiritDockWallpaper})` }}
         />
 
