@@ -5,7 +5,8 @@ import {
   Folder, Plus, RefreshCw, Trash2, Settings, Moon, Sun,
   PanelLeft, Layers, Search, Check, FolderGit2, ChevronsUpDown,
   Bot, Boxes, Sparkles, Globe, Cloud, LayoutGrid, Box,
-  SlidersHorizontal, Key, Eye, EyeOff, Server
+  SlidersHorizontal, Key, Eye, EyeOff, Server,
+  Volume2, VolumeX, LogOut, Paperclip, Code, MessageSquare, PenTool, Cpu
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -13,7 +14,6 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import spiritDockLogo from './assets/SpiritDock_Logo.svg';
-import spiritDockWallpaper from './assets/wallpaper/SpiritDock_Wallpaper1.png';
 
 interface Message {
   id: string;
@@ -63,6 +63,7 @@ export const PROVIDERS: AIProvider[] = [
   { id: 'transformers', label: 'Transformers (HF)', desc: 'Local Hugging Face runtime (Coming Soon)', badge: 'TRANSFORMERS', requiresKey: false, defaultUrl: '', coreGroup: 'neural', placeholder: true, defaultModels: ['xenova/gpt2'] },
 
   // Cloud Core (BYOK Cloud API Providers)
+  { id: 'nvidia', label: 'NVIDIA NIM', desc: 'Optimized enterprise models (Llama 3.3, Nemotron, DeepSeek)', badge: 'NVIDIA', requiresKey: true, defaultUrl: 'https://integrate.api.nvidia.com/v1', coreGroup: 'cloud', defaultModels: ['meta/llama-3.3-70b-instruct', 'nvidia/llama-3.1-nemotron-70b-instruct', 'deepseek-ai/deepseek-r1', 'meta/llama-3.1-8b-instruct', 'mistralai/mistral-large-2-instruct'] },
   { id: 'openai', label: 'OpenAI', desc: 'Direct GPT-4o, o1, and o3-mini models', badge: 'OPENAI', requiresKey: true, defaultUrl: 'https://api.openai.com/v1', coreGroup: 'cloud', defaultModels: ['gpt-4o', 'gpt-4o-mini', 'o3-mini', 'o1', 'gpt-4-turbo'] },
   { id: 'gemini', label: 'Gemini', desc: 'Google Gemini 2.0 & 1.5 Flash/Pro', badge: 'GEMINI', requiresKey: true, defaultUrl: 'https://generativelanguage.googleapis.com/v1beta', coreGroup: 'cloud', defaultModels: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'] },
   { id: 'anthropic', label: 'Anthropic', desc: 'Claude 3.7 & 3.5 Sonnet / Haiku', badge: 'ANTHROPIC', requiresKey: true, defaultUrl: 'https://api.anthropic.com', coreGroup: 'cloud', defaultModels: ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'] },
@@ -101,6 +102,68 @@ function MascotLogo({ className }: { className?: string }) {
   );
 }
 
+export function ProviderBrandIcon({
+  providerId,
+  className = "w-4 h-4",
+  alt = ""
+}: {
+  providerId: string;
+  className?: string;
+  alt?: string;
+}) {
+  const [error, setError] = useState(false);
+  const iconMap: Record<string, string> = {
+    local: '/assets/aicodex-spirit-bird.svg',
+    litert: '/assets/brand-icons/litert.svg',
+    transformers: '/assets/brand-icons/huggingface.svg',
+    openai: '/assets/brand-icons/openai.svg',
+    nvidia: '/assets/brand-icons/nvidia.svg',
+    gemini: '/assets/brand-icons/gemini.svg',
+    anthropic: '/assets/brand-icons/anthropic.svg',
+    groq: '/assets/brand-icons/groq.svg',
+    openrouter: '/assets/brand-icons/openrouter.svg',
+    deepseek: '/assets/brand-icons/deepseek.svg',
+    xai: '/assets/brand-icons/xai.svg',
+    together: '/assets/brand-icons/together.svg',
+    fireworks: '/assets/brand-icons/fireworks.svg',
+    mistral: '/assets/brand-icons/mistral.svg',
+    perplexity: '/assets/brand-icons/perplexity.svg',
+    cohere: '/assets/brand-icons/cohere.svg',
+    cerebras: '/assets/brand-icons/cerebras.svg',
+    ollama_cloud: '/assets/brand-icons/ollama.svg',
+    azure: '/assets/brand-icons/azure.svg',
+    cloudflare: '/assets/brand-icons/cloudflare.svg',
+    workers_ai: '/assets/brand-icons/workers_ai.svg',
+  };
+
+  const src = iconMap[providerId] || `/assets/brand-icons/${providerId}.svg`;
+
+  if (error) {
+    if (providerId === 'local' || providerId === 'litert') {
+      return <Cpu className={className} />;
+    }
+    return <Cloud className={className} />;
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt || providerId}
+      className={`${className} object-contain`}
+      onError={() => setError(true)}
+    />
+  );
+}
+
+const isNeuralCore = (pid: string) => pid === 'local' || pid === 'litert' || pid === 'transformers';
+
+const SPECIALIZATIONS = [
+  { id: 'coding' as const, name: 'Coding', icon: Code },
+  { id: 'conversational' as const, name: 'Conversational', icon: MessageSquare },
+  { id: 'writing' as const, name: 'Writing', icon: PenTool },
+  { id: 'researcher' as const, name: 'Researcher', icon: Search },
+];
+
 function App() {
   const [isDark, setIsDark] = useState<boolean>(() => {
     return localStorage.getItem('aidock_theme') === 'dark';
@@ -119,11 +182,63 @@ function App() {
   }, [isDark]);
 
   // SpiritLlama Left Sidepanel State
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(() => {
+    const saved = localStorage.getItem('aidock_sidebar_open');
+    return saved !== null ? saved === 'true' : true;
+  });
   const [activeSidebarTab, setActiveSidebarTab] = useState<'standard' | 'spaces'>('standard');
   const [showFunctionShortcuts, setShowFunctionShortcuts] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [activeStandardWorkspace, setActiveStandardWorkspace] = useState<'local' | 'ollama' | 'codex-root'>('local');
+
+  // Alert Sounds state and acoustic feedback
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('aidock_sound_enabled');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const playAlertSound = (type: 'success' | 'warning' = 'success') => {
+    if (!soundEnabled) return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (type === 'success') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } else {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(311.13, ctx.currentTime + 0.18);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.28);
+      }
+    } catch {
+      // Audio context may require user gesture on first load
+    }
+  };
+
+  // SpiritLlama Floating Command Dock states
+  const [isProviderDrawerOpen, setIsProviderDrawerOpen] = useState(false);
+  const [isProviderListboxOpen, setIsProviderListboxOpen] = useState(false);
+  const [isModelListboxOpen, setIsModelListboxOpen] = useState(false);
+  const [providerSearch, setProviderSearch] = useState('');
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
+  const [activeSpecialization, setActiveSpecialization] = useState<'coding' | 'conversational' | 'writing' | 'researcher'>('coding');
+  const [isSpecializationMenuOpen, setIsSpecializationMenuOpen] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<{ id: string; name: string; size: number }[]>([]);
 
   // Header Horizon P5 Strings Canvas Animation
   const p5CanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -152,19 +267,40 @@ function App() {
       ctx.clearRect(0, 0, width, height);
 
       // Generative dynamic wave arcs (Signature Spirit Bird strings in Electric Blue)
-      const numLines = 5;
-      for (let i = 0; i < numLines; i++) {
-        ctx.beginPath();
-        ctx.strokeStyle = `rgba(13, 183, 237, ${0.12 + i * 0.08})`;
+      // Strand 0 is 100% full width (right to left). Strands 1-4 reduce in width originating from right-to-left.
+      const strandConfigs = [
+        { widthRatio: 1.0, alpha: 0.45 },
+        { widthRatio: 0.82, alpha: 0.36 },
+        { widthRatio: 0.65, alpha: 0.28 },
+        { widthRatio: 0.48, alpha: 0.22 },
+        { widthRatio: 0.32, alpha: 0.16 },
+      ];
+
+      strandConfigs.forEach((strand, i) => {
+        const minX = width * (1 - strand.widthRatio);
+        const fadeZone = Math.max(20, width * 0.14);
         ctx.lineWidth = 1.5;
 
-        for (let x = 0; x < width; x += 8) {
-          const y = height * 0.5 + Math.sin(x * 0.015 + t + i * 0.8) * 16 + Math.cos(x * 0.008 + t * 0.5) * 10;
-          if (x === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
+        for (let x = width; x >= minX; x -= 6) {
+          const nextX = Math.max(minX, x - 6);
+
+          // Dampened vertical amplitude to prevent any vertical clipping against 60px header
+          const y1 = height * 0.5 + Math.sin(x * 0.015 + t + i * 0.8) * 8 + Math.cos(x * 0.008 + t * 0.5) * 5;
+          const y2 = height * 0.5 + Math.sin(nextX * 0.015 + t + i * 0.8) * 8 + Math.cos(nextX * 0.008 + t * 0.5) * 5;
+
+          const distFromEnd = x - minX;
+          const fadeFactor = Math.min(1, Math.max(0, distFromEnd / fadeZone));
+          const effectiveAlpha = strand.alpha * fadeFactor * fadeFactor;
+
+          if (effectiveAlpha > 0.005) {
+            ctx.beginPath();
+            ctx.strokeStyle = `rgba(13, 183, 237, ${effectiveAlpha.toFixed(3)})`;
+            ctx.moveTo(x, y1);
+            ctx.lineTo(nextX, y2);
+            ctx.stroke();
+          }
         }
-        ctx.stroke();
-      }
+      });
 
       t += 0.02;
       animId = requestAnimationFrame(draw);
@@ -316,7 +452,7 @@ function App() {
   }, [isDark]);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-  const [sessionId] = useState(`session_${Date.now()}`);
+  const [sessionId, setSessionId] = useState(`session_${Date.now()}`);
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(true);
   
@@ -425,7 +561,8 @@ function App() {
   const selectActiveProvider = (provId: string) => {
     setActiveProviderId(provId);
     localStorage.setItem('ai_provider', provId);
-    const chosenModel = providerSelectedModels[provId] || PROVIDERS.find(p => p.id === provId)?.defaultModels[0] || 'Default';
+    const provDef = PROVIDERS.find(p => p.id === provId) || PROVIDERS[0];
+    const chosenModel = providerSelectedModels[provId] || (providerDiscoveredModels[provId] || provDef.defaultModels)[0] || 'Default';
     setActiveModel(chosenModel);
   };
 
@@ -458,37 +595,60 @@ function App() {
       let discovered: string[] = [];
       const effectiveUrl = url || prov.defaultUrl;
 
-      if (provId === 'gemini' && key) {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.models)) {
-            discovered = data.models
-              .map((m: any) => m.name.replace(/^models\//, ''))
-              .filter((id: string) => id.includes('gemini'));
+      // 1. Try backend proxy first to avoid any CORS issues with remote API endpoints
+      try {
+        const pRes = await fetch(getBackendUrl('proxy/models'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            provider: provId,
+            base_url: effectiveUrl,
+            api_key: key,
+            account_id: acc
+          })
+        });
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          if (Array.isArray(pData.models) && pData.models.length > 0) {
+            discovered = pData.models;
           }
         }
-      } else if (provId === 'local') {
-        const res = await fetch(`${effectiveUrl}/api/tags`).catch(() => fetch('/api/models'));
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.models)) {
-            discovered = data.models.map((m: any) => m.name || m.model || m);
+      } catch {}
+
+      // 2. Direct browser queries as secondary fallback
+      if (discovered.length === 0) {
+        if (provId === 'gemini' && key) {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.models)) {
+              discovered = data.models
+                .map((m: any) => m.name.replace(/^models\//, ''))
+                .filter((id: string) => id.includes('gemini'));
+            }
           }
-        }
-      } else if (key || provId === 'ollama_cloud') {
-        const endpoint = effectiveUrl.replace(/\/+$/, '') + (effectiveUrl.includes('/v1') ? '/models' : '/v1/models');
-        const hdrs: Record<string, string> = {};
-        if (key) hdrs['Authorization'] = `Bearer ${key}`;
-        if (provId === 'openrouter') {
-          hdrs['HTTP-Referer'] = 'http://localhost:3000';
-          hdrs['X-Title'] = 'AIDock Orchestrator';
-        }
-        const res = await fetch(endpoint, { headers: hdrs }).catch(() => null);
-        if (res && res.ok) {
-          const data = await res.json();
-          const items = Array.isArray(data.data) ? data.data : Array.isArray(data.models) ? data.models : [];
-          discovered = items.map((m: any) => m.id || m.name).filter(Boolean).slice(0, 40);
+        } else if (provId === 'local') {
+          const res = await fetch(`${effectiveUrl}/api/tags`).catch(() => fetch('/api/models'));
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.models)) {
+              discovered = data.models.map((m: any) => m.name || m.model || m);
+            }
+          }
+        } else if (key || provId === 'ollama_cloud') {
+          const endpoint = effectiveUrl.replace(/\/+$/, '') + (effectiveUrl.includes('/v1') ? '/models' : '/v1/models');
+          const hdrs: Record<string, string> = {};
+          if (key) hdrs['Authorization'] = `Bearer ${key}`;
+          if (provId === 'openrouter') {
+            hdrs['HTTP-Referer'] = 'http://localhost:3000';
+            hdrs['X-Title'] = 'AIDock Orchestrator';
+          }
+          const res = await fetch(endpoint, { headers: hdrs }).catch(() => null);
+          if (res && res.ok) {
+            const data = await res.json();
+            const items = Array.isArray(data.data) ? data.data : Array.isArray(data.models) ? data.models : [];
+            discovered = items.map((m: any) => m.id || m.name).filter(Boolean).slice(0, 60);
+          }
         }
       }
 
@@ -498,7 +658,7 @@ function App() {
           localStorage.setItem(`discovered_models_${provId}`, JSON.stringify(discovered));
           return updated;
         });
-        setProviderConfigStatus(`✓ Discovered ${discovered.length} live model(s)!`);
+        setProviderConfigStatus(`Discovered ${discovered.length} live model(s)!`);
         if (!providerSelectedModels[provId] || !discovered.includes(providerSelectedModels[provId])) {
           setProviderSelectedModels(prev => ({ ...prev, [provId]: discovered[0] }));
           localStorage.setItem(`ai_model_${provId}`, discovered[0]);
@@ -859,11 +1019,14 @@ function App() {
           content: `System Context Loaded: "${data.file_name}" uploaded successfully to sandboxed workspace.`,
         };
         setMessages(prev => [...prev, systemMsg]);
+        setAttachedFiles(prev => [...prev, { id: `att_${Date.now()}`, name: file.name, size: file.size }]);
+        playAlertSound('success');
         fetchFiles();
       } else {
         throw new Error("Upload failed on server");
       }
     } catch (err: any) {
+      playAlertSound('warning');
       alert(`Upload failed: ${err.message}`);
     } finally {
       if (fileInputRef.current) {
@@ -965,10 +1128,11 @@ function App() {
 
     // Guard: cloud mode requires a JWT
     if (isCloudMode() && !cloudToken) {
+      playAlertSound('warning');
       const errorMessage: Message = {
         id: `msg_${Date.now()}_e`,
         sender: 'bot',
-        content: '⚠️ Cloud inference requires credentials. Open Settings (⚙️) and sign in to AICodex Cloud first.',
+        content: 'Cloud inference requires credentials. Open Settings and sign in to AICodex Cloud first.',
       };
       setMessages(prev => [...prev, errorMessage]);
       return;
@@ -976,10 +1140,11 @@ function App() {
 
     // Guard: if provider requires API key and not provided
     if (provDef.requiresKey && !apiKey && !isCloudMode()) {
+      playAlertSound('warning');
       const errorMessage: Message = {
         id: `msg_${Date.now()}_e`,
         sender: 'bot',
-        content: `⚠️ API Key required for **${provDef.label}**. Click the **${provDef.label}** pill in the top header or open Connection Settings (⚙️) to enter your API key.`,
+        content: `API Key required for **${provDef.label}**. Click the **${provDef.label}** pill in the top header or open Connection Settings to enter your API key.`,
       };
       setMessages(prev => [...prev, errorMessage]);
       return;
@@ -1063,8 +1228,10 @@ function App() {
         workspaceUsed,
         latencyMs: latency,
       }]);
+      playAlertSound('success');
 
     } catch (err: any) {
+      playAlertSound('warning');
       const isConnectionError = err.message === 'Failed to fetch';
       logToContainer('error', `Handler output failure - Session: ${sessionId} - Error: ${err.message}`);
       setMessages(prev => [...prev, {
@@ -1087,173 +1254,10 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] transition-colors duration-200">
-      {/* Expressive Horizon Header with P5 Strings Wave Animation */}
-      <header className="sticky top-0 z-40 header-horizon text-white px-6 py-3 flex items-center justify-between shadow-md relative overflow-hidden" style={{ background: "var(--header-gradient)" }}>
-        {/* P5 Strings Generative Canvas Animation behind right-justified function buttons */}
-        <canvas
-          ref={p5CanvasRef}
-          className="absolute top-0 right-0 w-[540px] h-full pointer-events-none opacity-65 z-0"
-        />
-
-        <div className="flex items-center gap-3 relative z-10">
-          <div className="w-9 h-9 rounded-md bg-white flex items-center justify-center p-1 shadow-[0_2px_10px_rgba(0,0,0,0.18)] shrink-0">
-            <img src={spiritDockLogo} alt="SpiritDock Logo" className="w-6 h-6 object-contain" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold tracking-tight text-white">AIDOCK</h1>
-              <span className="text-[10px] font-mono bg-[#0db7ed]/25 text-cyan-300 border border-[#0db7ed]/40 px-1.5 py-0.5 rounded uppercase tracking-wider">
-                Orchestrator v2.0
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 relative z-10">
-          {/* Active Provider Pill (Clickable -> Opens Settings Modal onto Provider tab) */}
-          <button
-            onClick={() => {
-              setSelectedModalProvId(activeProviderId);
-              setSettingsTab('providers');
-              setShowSettingsModal(true);
-            }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/25 text-white transition-all cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
-            title="Active AI Provider — Click to configure API Keys & Base URLs"
-          >
-            <span className="w-2 h-2 rounded-full bg-[#0db7ed] animate-pulse" />
-            <span className="text-[10px] font-bold uppercase tracking-tight text-white/95">
-              {PROVIDERS.find(p => p.id === activeProviderId)?.label || 'LOCAL'}
-            </span>
-            <span className="text-[9px] font-mono font-bold text-[#0db7ed] bg-black/40 px-1.5 py-0.5 rounded border border-[#0db7ed]/30">
-              {(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop()}
-            </span>
-          </button>
-
-          <button 
-            onClick={() => setIsDark(!isDark)}
-            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-md transition-all focus:outline-none flex items-center gap-1.5 text-xs font-semibold shadow-sm cursor-pointer"
-            title="Toggle theme (Light / Dark)"
-          >
-            {isDark ? <Sun className="w-3.5 h-3.5 text-amber-300" /> : <Moon className="w-3.5 h-3.5 text-cyan-300" />}
-            <span>{isDark ? 'Light' : 'Dark'}</span>
-          </button>
-
-          <button 
-            onClick={() => window.location.href = '/admin'}
-            className="px-2.5 py-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-md transition-all focus:outline-none flex items-center gap-1.5 text-xs font-medium border border-white/10"
-            title="Admin"
-          >
-            <Settings className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Admin</span>
-          </button>
-
-          <button 
-            onClick={() => {
-              setSettingsTab('providers');
-              setShowSettingsModal(true);
-            }}
-            className="px-3 py-1.5 bg-[#0db7ed] hover:bg-[#0099cc] text-white rounded-md transition-all focus:outline-none flex items-center gap-1.5 text-xs font-medium shadow-sm cursor-pointer"
-            title="Connection Settings"
-          >
-            <Settings className="w-3.5 h-3.5" />
-            <span>Connection</span>
-          </button>
-        </div>
-      </header>
-
-      {/* Docked SpiritLlama-style Harness Bar */}
-      <div className="bg-[var(--bg-surface)] border-b border-[var(--border-default)] px-6 py-2 flex flex-wrap items-center justify-between gap-3 shadow-[var(--shadow-l1)]">
-        <div className="flex items-center gap-3 text-xs">
-          {/* Sidepanel trigger for SpiritLlama-style Left Sidepanel */}
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`p-1.5 rounded-md text-xs font-semibold flex items-center justify-center border transition-all cursor-pointer ${
-              isSidebarOpen
-                ? 'bg-[#0db7ed] text-white border-[#0aa5d6] shadow-sm'
-                : 'bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] border-[var(--border-subtle)]'
-            }`}
-            title="Toggle Left Sidepanel (SpiritLlama UI)"
-          >
-            <PanelLeft className="w-4 h-4 text-[#0db7ed]" />
-          </button>
-
-          {/* Workspace & Files drawer trigger button */}
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
-              isSidebarOpen
-                ? 'bg-[#0db7ed] text-white border-[#0aa5d6] shadow-sm'
-                : 'bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] border-[var(--border-subtle)]'
-            }`}
-            title="Toggle Workspace & Files Sidepanel"
-          >
-            <Folder className="w-3.5 h-3.5 text-[#0db7ed]" />
-            <span>Workspace & Files</span>
-            {files.length > 0 && (
-              <span className="font-mono text-[10px] bg-black/10 dark:bg-white/10 px-1.5 py-0.2 rounded font-bold">
-                {files.length}
-              </span>
-            )}
-          </button>
-
-          <div className="h-4 w-px bg-[var(--border-subtle)]" />
-
-          <div className="flex items-center gap-2 font-semibold text-[var(--text-primary)]">
-            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-[#0db7ed] shadow-[0_0_8px_rgba(13,183,237,0.7)] animate-pulse' : 'bg-red-500'}`} />
-            <span>{connected ? 'Neural Link Active' : 'Offline'}</span>
-          </div>
-
-          <div className="h-4 w-px bg-[var(--border-subtle)]" />
-
-          {/* Clickable Provider Badge */}
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedModalProvId(activeProviderId);
-              setSettingsTab('providers');
-              setShowSettingsModal(true);
-            }}
-            className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] hover:bg-[#0db7ed]/10 border border-[var(--border-subtle)] hover:border-[#0db7ed]/50 px-2.5 py-0.5 rounded text-[var(--text-secondary)] hover:text-[#0db7ed] flex items-center gap-1.5 transition-colors cursor-pointer"
-            title="Configure Active Provider & API Keys"
-          >
-            <span>Provider:</span>
-            <b className="text-[var(--text-primary)]">{PROVIDERS.find(p => p.id === activeProviderId)?.label || 'Local'}</b>
-          </button>
-
-          <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
-            <span>Model:</span>
-            <b className="text-[var(--text-primary)]">{(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop()}</b>
-          </div>
-
-          <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
-            <span>Space:</span>
-            <b className="text-[var(--text-primary)]">{cloudSpaceSlug || 'Local'}</b>
-          </div>
-
-          <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
-            <span>Route:</span>
-            <b className="text-[var(--text-primary)] capitalize">{backendMode.replace('-', ' ')}</b>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className="text-[11px] text-[var(--text-muted)] font-mono">
-            Session: <span className="text-[var(--text-secondary)] font-semibold bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2 py-0.5 rounded">{sessionId.slice(-12)}</span>
-          </span>
-        </div>
-      </div>
-
-            {/* ── SpiritLlama-style Left Sidepanel Drawer (1:1 Reproduction in Docker Blue) ── */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      <aside className={`fixed top-0 left-0 bottom-0 z-50 w-80 max-w-[92vw] bg-[var(--bg-surface)] border-r border-[var(--border-default)] shadow-[var(--shadow-modal)] flex flex-col justify-between transform transition-transform duration-200 ease-in-out ${
-        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+    <div className="flex h-screen w-screen overflow-hidden overscroll-none bg-[var(--bg-canvas)] text-[var(--text-primary)] transition-colors duration-200 antialiased select-none">
+      {/* ── SpiritLlama Left Sidebar (Docked 1:1) ── */}
+      <aside className={`bg-[var(--bg-surface)] border-r border-[var(--border-default)] flex flex-col justify-between shrink-0 z-30 transition-all duration-300 h-full overflow-hidden select-none ${
+        isSidebarOpen ? "w-[260px]" : "w-0 border-none"
       }`}>
         {/* TOP SCROLLABLE SECTION */}
         <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
@@ -1284,8 +1288,8 @@ function App() {
             </div>
 
             <div className="flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-[0.2em] text-[var(--text-muted)] font-bold mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed] shadow-[0_0_6px_rgba(13,183,237,0.7)] animate-pulse" />
-              <span>ORCHESTRATOR CORE</span>
+              <span className={`w-1.5 h-1.5 rounded-full ${isNeuralCore(activeProviderId) ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]' : 'bg-[#0db7ed] shadow-[0_0_6px_rgba(13,183,237,0.7)]'} animate-pulse`} />
+              <span>{isNeuralCore(activeProviderId) ? 'NEURAL CORE' : 'CLOUD CORE'}</span>
             </div>
           </div>
 
@@ -1330,7 +1334,7 @@ function App() {
             </div>
           </div>
 
-          {/* 3. BACKEND MODELS QUICK-BAR */}
+          {/* 3. MODELS SECTION PANEL (Dynamic for ALL providers!) */}
           <div className="px-3 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)]">
             <div className="flex items-center justify-between mb-1.5 px-0.5">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -1362,37 +1366,47 @@ function App() {
                 </button>
               </div>
             </div>
-            <div className="text-[11px] font-mono bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-2.5 py-1.5 rounded-lg flex items-center justify-between">
-              <span className="font-bold text-[var(--text-primary)] truncate">
-                {(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop()}
-              </span>
-              <span className="text-[9px] text-[#0db7ed] font-semibold">Active</span>
-            </div>
-            {(providerDiscoveredModels[activeProviderId] || []).length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1.5 max-h-16 overflow-y-auto">
-                {(providerDiscoveredModels[activeProviderId] || []).map(m => {
-                  const isSelected = (providerSelectedModels[activeProviderId] === m || activeModel === m);
-                  return (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => {
-                        setProviderSelectedModels(prev => ({ ...prev, [activeProviderId]: m }));
-                        setActiveModel(m);
-                        localStorage.setItem(`ai_model_${activeProviderId}`, m);
-                      }}
-                      className={`px-1.5 py-0.5 rounded text-[9px] font-mono border transition-all cursor-pointer ${
-                        isSelected
-                          ? 'border-[#0db7ed] bg-[#0db7ed]/15 text-[#0db7ed] font-bold'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[#0db7ed]/40'
-                      }`}
-                    >
-                      {m.split('/').pop()}
-                    </button>
-                  );
-                })}
+
+            {/* Active Model Header Display */}
+            <div className="text-[11px] font-mono bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-1.5 mb-1.5 shadow-sm">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <ProviderBrandIcon providerId={activeProviderId} className="w-3.5 h-3.5 shrink-0" />
+                <span className="font-bold text-[var(--text-primary)] truncate" title={activeModel}>
+                  {activeModel ? activeModel.split('/').pop() : 'Scanning...'}
+                </span>
               </div>
-            )}
+              <span className="text-[9px] text-[#0db7ed] font-semibold shrink-0">Active</span>
+            </div>
+
+            {/* Selectable Model Pills (Available for ALL providers) */}
+            <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-0.5">
+              {((providerDiscoveredModels[activeProviderId] && providerDiscoveredModels[activeProviderId].length > 0)
+                ? providerDiscoveredModels[activeProviderId]
+                : (PROVIDERS.find(p => p.id === activeProviderId)?.defaultModels || [])
+              ).map(m => {
+                const isSelected = (providerSelectedModels[activeProviderId] === m || activeModel === m);
+                const shortName = m.split('/').pop() || m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => {
+                      setProviderSelectedModels(prev => ({ ...prev, [activeProviderId]: m }));
+                      setActiveModel(m);
+                      localStorage.setItem(`ai_model_${activeProviderId}`, m);
+                    }}
+                    className={`px-1.5 py-0.5 rounded text-[9px] font-mono border transition-all cursor-pointer truncate max-w-[190px] ${
+                      isSelected
+                        ? 'border-[#0db7ed] bg-[#0db7ed]/15 text-[#0db7ed] font-bold shadow-xs'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[#0db7ed]/40 hover:text-[var(--text-primary)]'
+                    }`}
+                    title={m}
+                  >
+                    {shortName}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* 4. SUB-NAVIGATION TABS: Standard vs CodexSpaces */}
@@ -1592,7 +1606,7 @@ function App() {
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-[var(--text-primary)]">🟧 SpiritLlama.cpp</span>
+                        <span className="text-xs font-bold text-[var(--text-primary)]">SpiritLlama.cpp</span>
                         <span className="text-[8px] font-mono bg-[#0db7ed]/15 text-[#0db7ed] px-1 py-0.2 rounded font-bold">8080</span>
                       </div>
                       <div className="text-[10px] text-[var(--text-secondary)] truncate">WPF Native Vulkan/CUDA GGUF</div>
@@ -1614,10 +1628,11 @@ function App() {
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-[var(--text-primary)]">⬜ VSCodex Bridge</span>
+                        <Code className="w-3.5 h-3.5 text-[#0db7ed]" />
+                        <span className="text-xs font-bold text-[var(--text-primary)]">VSCodex Bridge</span>
                         <span className="text-[8px] font-mono bg-black/10 dark:bg-white/10 px-1 py-0.2 rounded text-[var(--text-secondary)]">VSCode</span>
                       </div>
-                      <div className="text-[10px] text-[var(--text-secondary)] truncate">Monaco Canvas & extension sync</div>
+                      <div className="text-[10px] text-[var(--text-secondary)] truncate">Monaco Canvas &amp; extension sync</div>
                     </div>
                     {cloudSpaceSlug === 'vscodex-bridge' && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
                   </div>
@@ -1657,7 +1672,10 @@ function App() {
                       }`}
                     >
                       <div className="min-w-0">
-                        <span className="text-xs font-bold text-[var(--text-primary)]">☁️ Spirit Book</span>
+                        <div className="flex items-center gap-1.5">
+                          <Cloud className="w-3.5 h-3.5 text-[#0db7ed]" />
+                          <span className="text-xs font-bold text-[var(--text-primary)]">Spirit Book</span>
+                        </div>
                         <div className="text-[10px] text-[var(--text-secondary)] truncate">Default cloud space</div>
                       </div>
                       {cloudSpaceSlug === 'spirit-book' && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
@@ -1806,7 +1824,221 @@ function App() {
         </div>
       </aside>
 
-      {/* ── Main Workspace Column with P5 Wave & Wallpaper (OllamaOpt 1:1) ── */}
+      {/* ── Main App Content Column ── */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative">
+      {/* Expressive Horizon Header with P5 Strings Wave Animation */}
+      <header className="shrink-0 z-40 header-horizon text-white px-6 py-3 flex items-center justify-between shadow-md relative overflow-hidden" style={{ background: "var(--header-gradient)" }}>
+        {/* P5 Strings Generative Canvas Animation behind right-justified function buttons */}
+        <canvas
+          ref={p5CanvasRef}
+          className="absolute top-0 right-0 w-[540px] h-full pointer-events-none opacity-65 z-0"
+        />
+
+        {/* Left: Branding + Blue 'New Chat' Icon Button */}
+        <div className="flex items-center gap-3 relative z-10">
+          <div className="w-9 h-9 rounded-md bg-white flex items-center justify-center p-1 shadow-[0_2px_10px_rgba(0,0,0,0.18)] shrink-0">
+            <img src={spiritDockLogo} alt="SpiritDock Logo" className="w-6 h-6 object-contain" />
+          </div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-base font-bold tracking-tight text-white">AIDOCK</h1>
+            <button
+              type="button"
+              onClick={() => {
+                setMessages([]);
+                const newId = `session_${Date.now()}`;
+                setSessionId(newId);
+                playAlertSound('success');
+              }}
+              className="group relative flex items-center h-7 px-2 rounded-full bg-[#0db7ed] hover:bg-[#0099cc] text-white transition-all duration-300 ease-in-out cursor-pointer hover:px-2.5 shadow-sm"
+              title="Start New Chat Session"
+            >
+              <Plus className="w-3.5 h-3.5 shrink-0" />
+              <span className="max-w-0 opacity-0 overflow-hidden whitespace-nowrap text-[11px] font-bold group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out">
+                New Chat
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Right Function Buttons: Animated Hover Slide-Out Suite */}
+        <div className="flex items-center gap-2 relative z-10">
+          {/* a. Theme toggle icon button */}
+          <button 
+            type="button"
+            onClick={() => setIsDark(!isDark)}
+            className="group relative flex items-center h-8 px-2.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white transition-all duration-300 ease-in-out cursor-pointer hover:px-3 shadow-sm"
+            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {isDark ? (
+              <Sun className="w-4 h-4 shrink-0 text-amber-300" />
+            ) : (
+              <Moon className="w-4 h-4 shrink-0 text-cyan-300" />
+            )}
+            <span className="max-w-0 opacity-0 overflow-hidden whitespace-nowrap text-xs font-semibold group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out">
+              {isDark ? 'Light Mode' : 'Dark Mode'}
+            </span>
+          </button>
+
+          {/* b. Toggle Alert Sounds */}
+          <button 
+            type="button"
+            onClick={() => {
+              const next = !soundEnabled;
+              setSoundEnabled(next);
+              localStorage.setItem('aidock_sound_enabled', String(next));
+              if (next) playAlertSound('success');
+            }}
+            className="group relative flex items-center h-8 px-2.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white transition-all duration-300 ease-in-out cursor-pointer hover:px-3 shadow-sm"
+            title={soundEnabled ? "Mute Alert Sounds" : "Enable Alert Sounds"}
+          >
+            {soundEnabled ? (
+              <Volume2 className="w-4 h-4 shrink-0 text-cyan-300" />
+            ) : (
+              <VolumeX className="w-4 h-4 shrink-0 text-white/50" />
+            )}
+            <span className="max-w-0 opacity-0 overflow-hidden whitespace-nowrap text-xs font-semibold group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out">
+              {soundEnabled ? 'Sound On' : 'Muted'}
+            </span>
+          </button>
+
+          {/* c. [ provider brand icon | Model Name ] */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedModalProvId(activeProviderId);
+              setSettingsTab('providers');
+              setShowSettingsModal(true);
+            }}
+            className="group relative flex items-center h-8 px-2.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/25 text-white transition-all duration-300 ease-in-out cursor-pointer hover:px-3 shadow-sm"
+            title="Active AI Provider & Model Configuration"
+          >
+            <ProviderBrandIcon providerId={activeProviderId} className="w-4 h-4 shrink-0" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed] shrink-0 ml-1.5 animate-pulse" />
+            <span className="max-w-0 opacity-0 overflow-hidden whitespace-nowrap text-xs font-semibold group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out flex items-center gap-1.5">
+              <span className="font-bold text-white uppercase text-[10px] tracking-tight">
+                {PROVIDERS.find(p => p.id === activeProviderId)?.label || 'Local LLM'}
+              </span>
+              <span className="text-[10px] font-mono text-[#0db7ed] bg-black/40 px-1.5 py-0.5 rounded border border-[#0db7ed]/30">
+                {(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop()}
+              </span>
+            </span>
+          </button>
+
+          {/* d. Profile Avatar + logout button */}
+          <div className="group relative flex items-center h-8 pl-1.5 pr-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white transition-all duration-300 ease-in-out cursor-pointer hover:pr-3 shadow-sm">
+            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#0db7ed] to-blue-600 text-white font-bold text-[9px] flex items-center justify-center shrink-0 shadow-sm">
+              {cloudUsername ? cloudUsername[0].toUpperCase() : 'G'}
+            </div>
+            <div className="max-w-0 opacity-0 overflow-hidden whitespace-nowrap text-xs font-semibold group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out flex items-center gap-2">
+              <span className="text-white text-[11px] truncate max-w-[100px]">
+                {cloudUsername || 'Guest User'}
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCloudToken('');
+                  setCloudUsername('');
+                  localStorage.removeItem('aidock_cloud_token');
+                  localStorage.removeItem('aidock_cloud_username');
+                  setMessages([]);
+                  playAlertSound('warning');
+                }}
+                className="p-1 rounded hover:bg-white/20 text-red-400 hover:text-red-300 transition-colors"
+                title="Log Out"
+              >
+                <LogOut className="w-3.5 h-3.5 shrink-0" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Docked SpiritLlama-style Harness Bar */}
+      <div className="shrink-0 z-30 bg-[var(--bg-surface)] border-b border-[var(--border-default)] px-6 py-2 flex flex-wrap items-center justify-between gap-3 shadow-[var(--shadow-l1)]">
+        <div className="flex items-center gap-3 text-xs">
+          {/* Sidepanel trigger for SpiritLlama-style Left Sidepanel */}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className={`p-1.5 rounded-md text-xs font-semibold flex items-center justify-center border transition-all cursor-pointer ${
+              isSidebarOpen
+                ? 'bg-[#0db7ed] text-white border-[#0aa5d6] shadow-sm'
+                : 'bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] border-[var(--border-subtle)]'
+            }`}
+            title="Toggle Left Sidepanel (SpiritLlama UI)"
+          >
+            <PanelLeft className="w-4 h-4 text-[#0db7ed]" />
+          </button>
+
+          {/* Workspace & Files drawer trigger button */}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+              isSidebarOpen
+                ? 'bg-[#0db7ed] text-white border-[#0aa5d6] shadow-sm'
+                : 'bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] border-[var(--border-subtle)]'
+            }`}
+            title="Toggle Workspace & Files Sidepanel"
+          >
+            <Folder className="w-3.5 h-3.5 text-[#0db7ed]" />
+            <span>Workspace & Files</span>
+            {files.length > 0 && (
+              <span className="font-mono text-[10px] bg-black/10 dark:bg-white/10 px-1.5 py-0.2 rounded font-bold">
+                {files.length}
+              </span>
+            )}
+          </button>
+
+          <div className="h-4 w-px bg-[var(--border-subtle)]" />
+
+          <div className="flex items-center gap-2 font-semibold text-[var(--text-primary)]">
+            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-[#0db7ed] shadow-[0_0_8px_rgba(13,183,237,0.7)] animate-pulse' : 'bg-red-500'}`} />
+            <span>{connected ? 'Neural Link Active' : 'Offline'}</span>
+          </div>
+
+          <div className="h-4 w-px bg-[var(--border-subtle)]" />
+
+          {/* Clickable Provider Badge */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedModalProvId(activeProviderId);
+              setSettingsTab('providers');
+              setShowSettingsModal(true);
+            }}
+            className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] hover:bg-[#0db7ed]/10 border border-[var(--border-subtle)] hover:border-[#0db7ed]/50 px-2.5 py-0.5 rounded text-[var(--text-secondary)] hover:text-[#0db7ed] flex items-center gap-1.5 transition-colors cursor-pointer"
+            title="Configure Active Provider & API Keys"
+          >
+            <span>Provider:</span>
+            <b className="text-[var(--text-primary)]">{PROVIDERS.find(p => p.id === activeProviderId)?.label || 'Local'}</b>
+          </button>
+
+          <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
+            <span>Model:</span>
+            <b className="text-[var(--text-primary)]">{(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop()}</b>
+          </div>
+
+          <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
+            <span>Space:</span>
+            <b className="text-[var(--text-primary)]">{cloudSpaceSlug || 'Local'}</b>
+          </div>
+
+          <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
+            <span>Route:</span>
+            <b className="text-[var(--text-primary)] capitalize">{backendMode.replace('-', ' ')}</b>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-[var(--text-muted)] font-mono">
+            Session: <span className="text-[var(--text-secondary)] font-semibold bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2 py-0.5 rounded">{sessionId.slice(-12)}</span>
+          </span>
+        </div>
+      </div>
+
+            
+
+      {/* ── Main Workspace Column with P5 Wave (OllamaOpt 1:1) ── */}
       <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden bg-[var(--bg-canvas)]">
         {/* Dynamic P5 Graphic Canvas Layer in Docker Blue */}
         <canvas
@@ -1814,18 +2046,12 @@ function App() {
           className="absolute inset-0 w-full h-full pointer-events-none z-0"
         />
 
-        {/* Wallpaper Watermark Overlay */}
-        <div
-          className="absolute inset-0 pointer-events-none z-0 bg-cover bg-bottom opacity-35 dark:opacity-15 mix-blend- dark:mix-blend-lighten transition-opacity duration-300"
-          style={{ backgroundImage: `url(${spiritDockWallpaper})` }}
-        />
-
         {/* Main Container (Spacious SpiritLlama Workspace) */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-5 grid grid-cols-1 lg:grid-cols-12 gap-5 relative z-10">
+        <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto px-6 py-4 grid grid-cols-1 lg:grid-cols-12 gap-5 relative z-10 overflow-hidden">
         {/* Middle column: Chat Area */}
-        <section className={`${isTextEditorOpen ? "lg:col-span-7" : "lg:col-span-12"} flex flex-col h-[calc(100vh-125px)] min-h-[500px] transition-all duration-300`}>
+        <section className={`${isTextEditorOpen ? "lg:col-span-7" : "lg:col-span-12"} flex flex-col h-full min-h-0 transition-all duration-300`}>
 
-          <div className="flex-1 bg-[var(--bg-surface)] rounded-lg border border-[var(--border-subtle)] shadow-[var(--shadow-l1)] p-5 flex flex-col overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             
             {/* Chat Area Header with Export Menu */}
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] mb-3">
@@ -1911,7 +2137,7 @@ function App() {
 
 
             {/* Message Stream */}
-            <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4 scrollbar-thin">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-2 pb-36 scrollbar-thin overscroll-contain">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
                   <div className="w-14 h-14 rounded-full bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-muted)] mb-3">
@@ -2002,90 +2228,12 @@ function App() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Toolbar Area */}
-            <div className="flex flex-col gap-2 pt-3 border-t border-[var(--border-subtle)]">
-              {/* Function buttons toolbar */}
-              <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-1.5">
-                  {/* Plus context file selector */}
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-7 h-7 rounded-md bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[var(--text-primary)] flex items-center justify-center shadow-sm transition-all focus:outline-none"
-                    title="Attach Context File (RAG)"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  
-                  <button
-                    onClick={() => setInput("Write a python file-editor tool that can edit a source file.")}
-                    className="px-2.5 py-1 text-[11px] font-semibold bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] rounded-md transition-all"
-                  >
-                    Write Code
-                  </button>
-                  <button
-                    onClick={() => setInput("Scan all workspace files and summarize their contents.")}
-                    className="px-2.5 py-1 text-[11px] font-semibold bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] rounded-md transition-all"
-                  >
-                    Scan Workspace
-                  </button>
-                </div>
-                
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={fetchFiles}
-                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus:outline-none"
-                    title="Refresh Files"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm("Reset current chat log?")) {
-                        setMessages([]);
-                      }
-                    }}
-                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus:outline-none"
-                    title="Clear Chat Log"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Dynamic Chat Textarea Box */}
-              <div className="flex gap-2.5 items-end">
-                <textarea
-                  ref={chatInputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  disabled={loading}
-                  rows={1}
-                  className="flex-1 bg-[var(--bg-surface-elevated)] focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-[var(--text-muted)] border border-[var(--border-default)] rounded-md px-3.5 py-2.5 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#0db7ed]/25 focus:border-[#0db7ed] resize-none min-h-[44px] max-h-[180px] overflow-y-auto scrollbar-thin"
-                  placeholder="Instruct the AI model in your workspace..."
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={loading || !input.trim()}
-                  className="bg-[#0db7ed] hover:bg-[#0099cc] active:scale-95 disabled:opacity-40 disabled:scale-100 text-white w-11 h-11 rounded-md flex items-center justify-center shadow-sm hover:shadow transition-all duration-150 shrink-0 mb-[1px]"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
           </div>
         </section>
 
         {/* Right column: Text Editor Pane */}
         {isTextEditorOpen && (
-          <section className="lg:col-span-4 flex flex-col h-[calc(100vh-125px)] min-h-[500px] bg-[var(--bg-editor)] text-[#E8ECF2] rounded-lg border border-[var(--border-default)] shadow-[var(--shadow-l1)] p-4 overflow-hidden transition-all duration-300">
+          <section className="lg:col-span-4 flex flex-col h-full min-h-0 bg-[var(--bg-editor)] text-[#E8ECF2] rounded-2xl border border-[var(--border-default)] shadow-[var(--shadow-l1)] p-4 overflow-hidden transition-all duration-300">
             {/* Editor Header */}
             <div className="flex items-center justify-between pb-2.5 border-b border-white/10 mb-2.5">
               <div className="flex items-center gap-2 truncate mr-2">
@@ -2180,7 +2328,559 @@ function App() {
           </section>
         )}
       </main>
+
+      {/* ── FLOATING USER CHAT INPUT DOCK (SpiritLlama UI 1:1) ── */}
+      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 max-w-4xl w-[calc(100%-3rem)] z-30 shrink-0">
+        
+        {/* SPECIALIZATION MENU POPUP */}
+        {isSpecializationMenuOpen && (
+          <div className="absolute bottom-full left-12 mb-2 w-60 bg-white dark:bg-[#151928] border border-black/[0.08] dark:border-white/[0.12] rounded-2xl shadow-2xl p-1.5 z-50 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <div className="px-3 py-1.5 text-[10px] font-mono uppercase text-[var(--text-muted)] font-bold border-b border-[var(--border-subtle)] mb-1 flex items-center justify-between">
+              <span>Specialization Mode</span>
+              <span className="text-[9px] font-normal text-[#0db7ed]">Agent Scope</span>
+            </div>
+            {SPECIALIZATIONS.map(spec => {
+              const IconComp = spec.icon;
+              const isSelected = activeSpecialization === spec.id;
+              return (
+                <button
+                  key={spec.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveSpecialization(spec.id);
+                    setIsSpecializationMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-xs rounded-xl transition-colors cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#0db7ed]/15 text-[#0db7ed] font-bold'
+                      : 'hover:bg-black/[0.05] dark:hover:bg-white/[0.05] text-[var(--text-primary)]'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <IconComp className="w-3.5 h-3.5" />
+                    <span>{spec.name}</span>
+                  </span>
+                  {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* DOCK CONTAINER CARD */}
+        <div className="bg-white/95 dark:bg-[#141724]/95 backdrop-blur-2xl rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.22)] border border-black/[0.08] dark:border-white/[0.12] p-3.5 transition-all">
+
+          {/* COLLAPSIBLE PROVIDER & ENGINE DRAWER */}
+          {isProviderDrawerOpen && (
+            <div className="mb-3 pb-3 border-b border-black/[0.06] dark:border-white/[0.08] space-y-2.5">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Backend Route</span>
+                  <div className="flex rounded-lg bg-[var(--bg-surface-elevated)] border border-black/[0.06] dark:border-white/[0.08] p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setBackendMode('container-direct')}
+                      className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-tight transition-all cursor-pointer ${
+                        backendMode === 'container-direct'
+                          ? 'bg-[#0db7ed]/20 text-[#0db7ed] shadow-sm border border-[#0db7ed]/40'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      Llama.cpp
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBackendMode('cloud-spaces')}
+                      className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-tight transition-all cursor-pointer ${
+                        backendMode === 'cloud-spaces'
+                          ? 'bg-[#0db7ed]/20 text-[#0db7ed] shadow-sm border border-[#0db7ed]/40'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      Ollama
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBackendMode('host-standard')}
+                      className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-tight transition-all cursor-pointer ${
+                        backendMode === 'host-standard'
+                          ? 'bg-[#0db7ed]/20 text-[#0db7ed] shadow-sm border border-[#0db7ed]/40'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      Cloud BYOK
+                    </button>
+                  </div>
+                </div>
+
+                {/* Hardware NGL & GPU status button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedModalProvId(activeProviderId);
+                    setSettingsTab('providers');
+                    setShowSettingsModal(true);
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--bg-surface-elevated)] hover:bg-[#0db7ed]/10 border border-[var(--border-subtle)] hover:border-[#0db7ed]/40 text-[10px] font-mono font-bold text-[var(--text-primary)] transition-all cursor-pointer"
+                  title="Engine Hardware Configuration"
+                >
+                  <Cpu className="w-3.5 h-3.5 text-[#0db7ed]" />
+                  <span>-ngl <b className="text-[#0db7ed]">24</b>/36</span>
+                  <span className="px-1.5 py-0.2 rounded bg-[#0db7ed] text-white text-[8px]">GPU Offload</span>
+                </button>
+              </div>
+
+              {/* Row 2: NEURO + AI PROVIDER + MODEL CONFIGURATION (SpiritLlama 1:1) */}
+              <div className="flex gap-2.5 items-end">
+                {/* NEURO Telemetry Button */}
+                <div className="flex-none">
+                  <span className="block text-[9px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1 ml-1">
+                    Neuro
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedModalProvId(activeProviderId);
+                      setSettingsTab('server');
+                      setShowSettingsModal(true);
+                    }}
+                    className="h-[38px] px-3 rounded-xl border border-[#0db7ed]/30 bg-[#0db7ed]/10 text-[#0db7ed] shadow-sm transition-all active:scale-95 flex items-center justify-center cursor-pointer hover:bg-[#0db7ed]/20"
+                    title="Hardware Compute & Telemetry"
+                  >
+                    <Cpu className="w-4 h-4 text-[#0db7ed]" />
+                  </button>
+                </div>
+
+                {/* AI PROVIDER SELECTOR BUTTON */}
+                <div className="flex-1 min-w-0 relative">
+                  <label className="block text-[9px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1 ml-1">
+                    AI Provider
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProviderListboxOpen(!isProviderListboxOpen);
+                      setIsModelListboxOpen(false);
+                    }}
+                    className="relative w-full cursor-pointer rounded-xl bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] py-2 pl-3 pr-8 text-left shadow-sm transition-all flex items-center gap-2.5 h-[38px]"
+                  >
+                    <ProviderBrandIcon providerId={activeProviderId} className="w-5 h-5 shrink-0" />
+                    <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
+                      {PROVIDERS.find(p => p.id === activeProviderId)?.label || 'Local LLM'}
+                    </span>
+                    <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
+                      <ChevronsUpDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                    </span>
+                  </button>
+
+                  {/* FLOATING PROVIDER LISTBOX DROPDOWN */}
+                  {isProviderListboxOpen && (
+                    <div className="absolute bottom-[calc(100%+8px)] left-0 w-80 max-h-[380px] bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.25)] p-2.5 z-50 flex flex-col gap-2 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-150">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={providerSearch}
+                          onChange={(e) => setProviderSearch(e.target.value)}
+                          placeholder="Search AI providers..."
+                          className="w-full pl-8 pr-3 py-1.5 text-xs bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#0db7ed]"
+                          autoFocus
+                        />
+                      </div>
+
+                      <div className="overflow-y-auto space-y-2 max-h-[260px] pr-1">
+                        <div>
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-2 py-1">
+                            Neural Core (Local)
+                          </div>
+                          <div className="space-y-0.5">
+                            {PROVIDERS.filter(p => p.coreGroup === 'neural' && (
+                              p.label.toLowerCase().includes(providerSearch.toLowerCase()) ||
+                              p.id.toLowerCase().includes(providerSearch.toLowerCase())
+                            )).map(p => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => {
+                                  selectActiveProvider(p.id);
+                                  setIsProviderListboxOpen(false);
+                                }}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-all cursor-pointer ${
+                                  activeProviderId === p.id
+                                    ? 'bg-[#0db7ed]/15 text-[#0db7ed] font-bold border border-[#0db7ed]/30'
+                                    : 'hover:bg-[var(--bg-surface-elevated)] text-[var(--text-primary)]'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <ProviderBrandIcon providerId={p.id} className="w-4 h-4 shrink-0" />
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-semibold truncate">{p.label}</div>
+                                    <div className="text-[9px] text-[var(--text-muted)] truncate">{p.desc}</div>
+                                  </div>
+                                </div>
+                                <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-black/5 dark:bg-white/10 text-[var(--text-secondary)]">
+                                  {p.badge}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-2 py-1">
+                            Cloud Core (BYOK)
+                          </div>
+                          <div className="space-y-0.5">
+                            {PROVIDERS.filter(p => p.coreGroup === 'cloud' && (
+                              p.label.toLowerCase().includes(providerSearch.toLowerCase()) ||
+                              p.id.toLowerCase().includes(providerSearch.toLowerCase())
+                            )).map(p => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => {
+                                  selectActiveProvider(p.id);
+                                  setIsProviderListboxOpen(false);
+                                }}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-all cursor-pointer ${
+                                  activeProviderId === p.id
+                                    ? 'bg-[#0db7ed]/15 text-[#0db7ed] font-bold border border-[#0db7ed]/30'
+                                    : 'hover:bg-[var(--bg-surface-elevated)] text-[var(--text-primary)]'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <ProviderBrandIcon providerId={p.id} className="w-4 h-4 shrink-0" />
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-semibold truncate">{p.label}</div>
+                                    <div className="text-[9px] text-[var(--text-muted)] truncate">{p.desc}</div>
+                                  </div>
+                                </div>
+                                <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-black/5 dark:bg-white/10 text-[var(--text-secondary)]">
+                                  {p.badge}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-1.5 border-t border-[var(--border-subtle)] flex items-center justify-between px-1 text-[10px]">
+                        <span className="text-[var(--text-muted)]">Keys &amp; endpoints</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsProviderListboxOpen(false);
+                            setSelectedModalProvId(activeProviderId);
+                            setSettingsTab('providers');
+                            setShowSettingsModal(true);
+                          }}
+                          className="text-[#0db7ed] font-bold hover:underline cursor-pointer flex items-center gap-1"
+                        >
+                          <Settings className="w-3 h-3" /> Configure Providers
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* MODEL CONFIGURATION SELECTOR BUTTON */}
+                <div className="flex-1 min-w-0 relative">
+                  <label className="block text-[9px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1 ml-1">
+                    Model Configuration
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsModelListboxOpen(!isModelListboxOpen);
+                      setIsProviderListboxOpen(false);
+                    }}
+                    className="relative w-full cursor-pointer rounded-xl bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] py-2 pl-3 pr-8 text-left shadow-sm transition-all flex items-center gap-2 h-[38px]"
+                  >
+                    <span className="truncate text-xs font-semibold text-[var(--text-primary)] font-mono">
+                      {(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop() || 'Select model...'}
+                    </span>
+                    <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
+                      <ChevronsUpDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                    </span>
+                  </button>
+
+                  {/* FLOATING MODEL LISTBOX DROPDOWN */}
+                  {isModelListboxOpen && (
+                    <div className="absolute bottom-[calc(100%+8px)] right-0 w-84 max-h-[380px] bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.25)] p-2.5 z-50 flex flex-col gap-2 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-150">
+                      <div className="flex items-center gap-1.5">
+                        <div className="relative flex-1">
+                          <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={modelSearchQuery}
+                            onChange={(e) => setModelSearchQuery(e.target.value)}
+                            placeholder={`Search ${PROVIDERS.find(p => p.id === activeProviderId)?.label} models...`}
+                            className="w-full pl-8 pr-3 py-1.5 text-xs bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#0db7ed]"
+                            autoFocus
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => saveAndTestProviderConfig(activeProviderId)}
+                          className="p-1.5 rounded-lg bg-[var(--bg-surface-elevated)] hover:bg-[#0db7ed]/15 text-[var(--text-secondary)] hover:text-[#0db7ed] border border-[var(--border-subtle)] transition-colors cursor-pointer"
+                          title="Refresh live models"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="overflow-y-auto space-y-1 max-h-[220px] pr-1">
+                        {(() => {
+                          const modelsList = (providerDiscoveredModels[activeProviderId] && providerDiscoveredModels[activeProviderId].length > 0)
+                            ? providerDiscoveredModels[activeProviderId]
+                            : (PROVIDERS.find(p => p.id === activeProviderId)?.defaultModels || []);
+                          
+                          const filtered = modelsList.filter(m => m.toLowerCase().includes(modelSearchQuery.toLowerCase()));
+
+                          if (filtered.length === 0) {
+                            return (
+                              <div className="py-4 text-center text-xs text-[var(--text-muted)]">
+                                No matching models found.<br />
+                                Enter custom model slug below.
+                              </div>
+                            );
+                          }
+
+                          return filtered.map(m => {
+                            const isSelected = (providerSelectedModels[activeProviderId] === m || activeModel === m);
+                            return (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() => {
+                                  setProviderSelectedModels(prev => ({ ...prev, [activeProviderId]: m }));
+                                  setActiveModel(m);
+                                  localStorage.setItem(`ai_model_${activeProviderId}`, m);
+                                  setIsModelListboxOpen(false);
+                                }}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-[#0db7ed]/15 text-[#0db7ed] font-bold border border-[#0db7ed]/30'
+                                    : 'hover:bg-[var(--bg-surface-elevated)] text-[var(--text-primary)]'
+                                }`}
+                              >
+                                <span className="text-xs font-mono truncate mr-2" title={m}>{m}</span>
+                                {isSelected && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0" />}
+                              </button>
+                            );
+                          });
+                        })()}
+                      </div>
+
+                      <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          placeholder="Custom model slug..."
+                          className="flex-1 px-2.5 py-1 text-[11px] font-mono bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#0db7ed]"
+                          id="customModelInput"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                              const val = e.currentTarget.value.trim();
+                              setProviderSelectedModels(prev => ({ ...prev, [activeProviderId]: val }));
+                              setActiveModel(val);
+                              localStorage.setItem(`ai_model_${activeProviderId}`, val);
+                              setIsModelListboxOpen(false);
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = document.getElementById('customModelInput') as HTMLInputElement | null;
+                            if (el && el.value.trim()) {
+                              const val = el.value.trim();
+                              setProviderSelectedModels(prev => ({ ...prev, [activeProviderId]: val }));
+                              setActiveModel(val);
+                              localStorage.setItem(`ai_model_${activeProviderId}`, val);
+                              setIsModelListboxOpen(false);
+                            }
+                          }}
+                          className="px-2.5 py-1 bg-[#0db7ed] hover:bg-[#0aa5d6] text-white text-[11px] font-bold rounded-lg shadow-sm cursor-pointer"
+                        >
+                          Set
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* FUNCTION BUTTONS ROW */}
+          <div className="flex items-center justify-between text-xs font-semibold mb-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {/* Provider Drawer Toggle */}
+              <button
+                type="button"
+                onClick={() => setIsProviderDrawerOpen(!isProviderDrawerOpen)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  isProviderDrawerOpen
+                    ? 'bg-[#0db7ed]/15 text-[#0db7ed] shadow-sm border border-[#0db7ed]/30'
+                    : 'text-[var(--text-secondary)] hover:text-[#0db7ed] hover:bg-black/[0.04] dark:hover:bg-white/[0.04]'
+                }`}
+                title="Toggle Provider & Backend bar"
+              >
+                <ProviderBrandIcon providerId={activeProviderId} className="w-3.5 h-3.5 shrink-0" />
+                <span>Provider</span>
+              </button>
+
+              {/* Specialization Mode Pill */}
+              <button
+                type="button"
+                onClick={() => setIsSpecializationMenuOpen(!isSpecializationMenuOpen)}
+                className="px-2.5 py-1.5 rounded-lg bg-[#0db7ed] text-white text-[11px] font-bold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:bg-[#0099cc]"
+                title="Select Specialization Profile"
+              >
+                {activeSpecialization === 'coding' && <Code className="w-3 h-3" />}
+                {activeSpecialization === 'conversational' && <MessageSquare className="w-3 h-3" />}
+                {activeSpecialization === 'writing' && <PenTool className="w-3 h-3" />}
+                {activeSpecialization === 'researcher' && <Search className="w-3 h-3" />}
+                <span className="capitalize">{activeSpecialization}</span>
+                <ChevronDown className="w-2.5 h-2.5 opacity-80" />
+              </button>
+
+              {/* Attach File Button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-2.5 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#0db7ed] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Attach Context File (RAG)"
+              >
+                <Paperclip className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Attach</span>
+              </button>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+
+              {/* Quick action buttons */}
+              <button
+                type="button"
+                onClick={() => setInput("Write a python file-editor tool that can edit a source file.")}
+                className="px-2 py-1 text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] rounded-md transition-all hidden md:inline-block cursor-pointer"
+              >
+                Write Code
+              </button>
+              <button
+                type="button"
+                onClick={() => setInput("Scan all workspace files and summarize their contents.")}
+                className="px-2 py-1 text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] rounded-md transition-all hidden md:inline-block cursor-pointer"
+              >
+                Scan Workspace
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={fetchFiles}
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] rounded-md transition-colors cursor-pointer"
+                title="Refresh Files"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm("Reset current chat log?")) {
+                    setMessages([]);
+                    playAlertSound('warning');
+                  }
+                }}
+                className="p-1.5 text-[var(--text-muted)] hover:text-red-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] rounded-md transition-colors cursor-pointer"
+                title="Clear Chat Log"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Attached file chips */}
+          {attachedFiles.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2 px-1">
+              {attachedFiles.map(file => (
+                <div
+                  key={file.id}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[10px] text-[var(--text-primary)]"
+                >
+                  <Paperclip className="w-3 h-3 text-[#0db7ed]" />
+                  <span className="font-semibold max-w-[160px] truncate">{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setAttachedFiles(prev => prev.filter(f => f.id !== file.id))}
+                    className="text-[var(--text-muted)] hover:text-red-400 ml-1 font-bold cursor-pointer"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* PROMPT INPUT FORM */}
+          <form
+            className="flex items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSend();
+            }}
+          >
+            <div className="flex-1 relative flex items-end min-w-0">
+              <textarea
+                ref={chatInputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={loading}
+                rows={1}
+                placeholder="What would you like to build today? (/tools /goal /skills /find-skill /folder @)"
+                className="w-full bg-[var(--bg-surface-elevated)] focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-[var(--text-muted)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-xs leading-[18px] focus:outline-none focus:ring-2 focus:ring-[#0db7ed]/25 focus:border-[#0db7ed] transition-[background-color,border-color,box-shadow] resize-none overflow-y-auto max-h-36 block scrollbar-thin"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !input.trim()}
+              className="shrink-0 p-2.5 rounded-xl bg-[#0db7ed] hover:bg-[#0099cc] active:scale-95 disabled:opacity-40 disabled:scale-100 text-white shadow-sm flex items-center justify-center transition-all cursor-pointer"
+              title="Send Message (Enter)"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+
+          {/* FOOTER INFERENCE METRICS STRIP */}
+          <div className="mt-2 pt-2 border-t border-black/[0.04] dark:border-white/[0.06] flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)] px-1">
+            <div className="flex items-center gap-3">
+              <span>Speed: <b className="text-[var(--text-primary)]">42.8 T/s</b></span>
+              <span>TTFT: <b className="text-[var(--text-primary)]">{messages.length > 0 && messages[messages.length - 1].latencyMs ? `${messages[messages.length - 1].latencyMs} ms` : '-- ms'}</b></span>
+              <span>Ctx: <b className="text-[var(--text-primary)]">{messages.reduce((acc, m) => acc + m.content.length, 0)} / 8,192</b></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1 text-[#0db7ed] font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" />
+                8-bit KV Cache (q8_0)
+              </span>
+              <span className="text-[var(--text-muted)]">| Local Hardware</span>
+            </div>
+          </div>
+
+        </div>
+
       </div>
+      </div>
+
+            </div>
 
       {/* SpiritLlama Harness-style System Settings Modal */}
       {showSettingsModal && (
@@ -2197,7 +2897,7 @@ function App() {
             {/* Header */}
             <div className="flex items-center gap-3 pb-3 border-b border-[var(--border-subtle)] shrink-0">
               <div className="w-10 h-10 rounded-xl bg-white border border-[#0db7ed]/30 flex items-center justify-center p-1.5 shadow-sm shrink-0">
-                <img src={spiritDockLogo} alt="SpiritDock" className="w-7 h-7 object-contain" />
+                <ProviderBrandIcon providerId={selectedModalProvId} className="w-7 h-7 object-contain" />
               </div>
               <div>
                 <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
@@ -2295,14 +2995,17 @@ function App() {
                                     : 'hover:bg-[var(--bg-surface-elevated)] border border-transparent text-[var(--text-secondary)]'
                                 }`}
                               >
-                                <div className="min-w-0">
-                                  <div className="text-xs font-bold truncate flex items-center gap-1.5">
-                                    <span>{p.label}</span>
-                                    {isAct && (
-                                      <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed] animate-pulse" />
-                                    )}
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <ProviderBrandIcon providerId={p.id} className="w-4 h-4 shrink-0" />
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-bold truncate flex items-center gap-1.5">
+                                      <span>{p.label}</span>
+                                      {isAct && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed] animate-pulse" />
+                                      )}
+                                    </div>
+                                    <div className="text-[9px] text-[var(--text-muted)] truncate">{p.desc}</div>
                                   </div>
-                                  <div className="text-[9px] text-[var(--text-muted)] truncate">{p.desc}</div>
                                 </div>
                                 <span className="text-[8px] font-mono uppercase px-1.5 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] shrink-0 font-bold">
                                   {p.badge}
@@ -2336,17 +3039,20 @@ function App() {
                                     : 'hover:bg-[var(--bg-surface-elevated)] border border-transparent text-[var(--text-secondary)]'
                                 }`}
                               >
-                                <div className="min-w-0">
-                                  <div className="text-xs font-bold truncate flex items-center gap-1.5">
-                                    <span>{p.label}</span>
-                                    {isAct && (
-                                      <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed] animate-pulse" />
-                                    )}
-                                    {hasKey && (
-                                      <Key className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
-                                    )}
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <ProviderBrandIcon providerId={p.id} className="w-4 h-4 shrink-0" />
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-bold truncate flex items-center gap-1.5">
+                                      <span>{p.label}</span>
+                                      {isAct && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed] animate-pulse" />
+                                      )}
+                                      {hasKey && (
+                                        <Key className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
+                                      )}
+                                    </div>
+                                    <div className="text-[9px] text-[var(--text-muted)] truncate">{p.desc}</div>
                                   </div>
-                                  <div className="text-[9px] text-[var(--text-muted)] truncate">{p.desc}</div>
                                 </div>
                                 <span className="text-[8px] font-mono uppercase px-1.5 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] shrink-0 font-bold">
                                   {p.badge}
@@ -2362,19 +3068,24 @@ function App() {
                     <div className="flex-1 overflow-y-auto space-y-4 pr-1">
                       {/* Provider Header Card */}
                       <div className="p-3.5 rounded-2xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-                            <span>{selectedProv.label}</span>
-                            <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#0db7ed]/15 text-[#0db7ed] border border-[#0db7ed]/30 font-bold">
-                              {selectedProv.badge}
-                            </span>
-                            {activeProviderId === selectedProv.id && (
-                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
-                                ACTIVE IN SESSION
-                              </span>
-                            )}
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-white border border-[#0db7ed]/30 flex items-center justify-center p-1.5 shadow-sm shrink-0">
+                            <ProviderBrandIcon providerId={selectedProv.id} className="w-7 h-7 object-contain" />
                           </div>
-                          <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">{selectedProv.desc}</div>
+                          <div>
+                            <div className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+                              <span>{selectedProv.label}</span>
+                              <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#0db7ed]/15 text-[#0db7ed] border border-[#0db7ed]/30 font-bold">
+                                {selectedProv.badge}
+                              </span>
+                              {activeProviderId === selectedProv.id && (
+                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
+                                  ACTIVE IN SESSION
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">{selectedProv.desc}</div>
+                          </div>
                         </div>
 
                         {activeProviderId !== selectedProv.id && (
@@ -2713,7 +3424,7 @@ function App() {
 
                     {cloudAuthStatus === 'error' && (
                       <p className="text-[10px] text-red-600 font-medium">
-                        ✗ Sign-in failed. Check your username and password.
+                        Sign-in failed. Check your username and password.
                       </p>
                     )}
 
@@ -2729,7 +3440,7 @@ function App() {
                       {cloudAuthStatus === 'loading' ? (
                         <><span className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" /> Signing In…</>
                       ) : cloudAuthStatus === 'ok' ? (
-                        '✓ Signed In — Refresh Token'
+                        'Signed In — Refresh Token'
                       ) : (
                         'Sign In to AICodex Cloud'
                       )}
@@ -2777,13 +3488,13 @@ function App() {
                               : data.status === 'healthy'
                                 ? `Cloud Run: healthy (${data.timestamp || ''})`
                                 : JSON.stringify(data);
-                            alert(`✓ Connection Successful!\n${info}`);
+                            alert(`Connection Successful!\n${info}`);
                             setConnected(true);
                           } else {
                             throw new Error(`Server returned ${res.status}`);
                           }
                         } catch (err: any) {
-                          alert(`✗ Connection Failed: ${err.message}`);
+                          alert(`Connection Failed: ${err.message}`);
                           setConnected(false);
                         }
                       }}
