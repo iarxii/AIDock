@@ -26,6 +26,44 @@ OPENAI_COMPATIBLE_DEFAULTS = {
     "cloudflare_ai_gateway": ("https://gateway.ai.cloudflare.com", "CLOUDFLARE_API_KEY", "default"),
 }
 
+def resolve_local_model_tag(requested_name: str, base_url: str) -> str:
+    """
+    Resolves a display name (like 'Gemma4 E4B') or short tag to the actual model tag registered in the local engine.
+    """
+    if not requested_name:
+        image = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
+        return os.getenv("LLM_MODEL_NAME") or f"docker.io/{image}"
+        
+    try:
+        import requests
+        url = base_url.rstrip('/') + '/api/tags'
+        r = requests.get(url, timeout=2)
+        if r.status_code == 200:
+            models = r.json().get("models", [])
+            # 1. Exact match
+            for m in models:
+                tag = m.get("name") or m.get("model")
+                if tag == requested_name:
+                    return tag
+            # 2. Normalized match (e.g. "Gemma4 E4B" -> "docker.io/ai/gemma4:E4B")
+            req_norm = requested_name.lower().replace(" ", "").replace(":", "").replace("-", "").replace("_", "")
+            for m in models:
+                tag = m.get("name") or m.get("model") or ""
+                tag_norm = tag.lower().replace(" ", "").replace(":", "").replace("-", "").replace("_", "")
+                if req_norm in tag_norm or tag_norm in req_norm:
+                    return tag
+            # 3. If single model exists in tags
+            if len(models) == 1:
+                return models[0].get("name") or models[0].get("model")
+    except Exception as e:
+        logger.debug(f"Failed querying local tags: {e}")
+        
+    if "gemma" in requested_name.lower():
+        image = os.getenv("LLM_IMAGE", "ai/gemma4:E4B")
+        return f"docker.io/{image}" if not image.startswith("docker.io/") else image
+        
+    return requested_name
+
 def get_llm(provider: str, model: str, api_key: Optional[str] = None, base_url: Optional[str] = None, temperature: float = 0.3):
     """
     Unified LLM factory for AIDock agent execution.
@@ -44,15 +82,13 @@ def get_llm(provider: str, model: str, api_key: Optional[str] = None, base_url: 
         in_docker = os.getenv("CONTAINER_MODE") == "true" or os.path.exists('/.dockerenv') or os.path.exists('/workspace')
         default_base_url = "http://model-runner.docker.internal" if in_docker else "http://localhost:12434"
         resolved_base_url = base_url or os.getenv("LLM_BASE_URL", default_base_url)
-        if not model_name:
-            model_name = os.getenv("LLM_MODEL_NAME")
-            if not model_name:
-                image = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
-                model_name = f"docker.io/{image}"
+        resolved_model = resolve_local_model_tag(model_name, resolved_base_url)
+        logger.info(f"Local LLM resolved model tag: '{resolved_model}' from request: '{model_name}' on {resolved_base_url}")
         return ChatOllama(
-            model=model_name,
+            model=resolved_model,
             base_url=resolved_base_url,
-            temperature=temperature
+            temperature=temperature,
+            client_kwargs={"timeout": 120.0}
         )
 
     elif provider == "gemini":

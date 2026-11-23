@@ -430,21 +430,29 @@ def get_info():
 @app.get("/models/local")
 def list_local_models():
     slugs = _read_whitelist()
-    # Also add the currently active docker model if present
+    in_docker = os.getenv("CONTAINER_MODE") == "true" or os.path.exists('/.dockerenv') or os.path.exists('/workspace')
+    default_base_url = "http://model-runner.docker.internal" if in_docker else "http://localhost:12434"
+    base_url = os.getenv("LLM_BASE_URL", default_base_url)
+    
+    # Query live tags from local engine
+    try:
+        import requests
+        r = requests.get(f"{base_url.rstrip('/')}/api/tags", timeout=2)
+        if r.status_code == 200:
+            for m in r.json().get("models", []):
+                tag = m.get("name") or m.get("model")
+                if tag and tag not in slugs and not tag.startswith("sha256:"):
+                    slugs.append(tag)
+    except Exception as e:
+        logger.debug(f"Failed querying local engine tags: {e}")
+
+    # Fallback/primary env model
     model = os.getenv("LLM_MODEL_NAME")
     if not model:
         image = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
         model = f"docker.io/{image}"
-    
-    clean_model_name = model
-    if "/" in clean_model_name:
-        clean_model_name = clean_model_name.split("/")[-1]
-    
-    parts = clean_model_name.replace(":", " ").replace("-", " ").split()
-    clean_model_name = " ".join([p.upper() if p.lower() in ["e4b", "e2b", "llm", "vl", "awq", "gguf"] else p.capitalize() for p in parts])
-    
-    if clean_model_name not in slugs:
-        slugs.insert(0, clean_model_name)
+    if model and model not in slugs:
+        slugs.insert(0, model)
         
     return {"models": slugs}
 
