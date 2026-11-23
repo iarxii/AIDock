@@ -176,6 +176,64 @@ def load_docker_models_list():
         })
     return entries
 
+def pull_docker_model(target_image: str, cmd_type: str = "docker") -> bool:
+    """Execute docker model pull with fallback to standard docker pull."""
+    pull_cmd = ["docker", "model", "pull", target_image] if cmd_type == "model" else ["docker", "pull", target_image]
+    console.print(f"\n[bold blue]Pulling Docker Model:[/] [cyan]{' '.join(pull_cmd)}[/]")
+    pull_proc = subprocess.run(pull_cmd)
+    if pull_proc.returncode != 0:
+        alt_cmd = ["docker", "pull", target_image] if cmd_type == "model" else ["docker", "model", "pull", target_image]
+        console.print(f"[yellow]Retrying with alternative command:[/] {' '.join(alt_cmd)}")
+        pull_proc = subprocess.run(alt_cmd)
+
+    if pull_proc.returncode == 0:
+        console.print(f"[green]✓ Successfully verified/pulled model:[/] [bold]{target_image}[/]")
+        return True
+    else:
+        console.print(f"[bold red]Warning:[/] Model pull returned non-zero code. Proceeding with configuration update...")
+        return False
+
+def get_model_profiles():
+    """Build dynamic agent / category model bundles reading directly from DockerModel_PullList.txt."""
+    entries = load_docker_models_list()
+    pull_list_imgs = [e["image"] for e in entries]
+
+    profiles = {
+        "all": {
+            "title": "All Models (Full Docker PullList - 37 models)",
+            "models": pull_list_imgs
+        },
+        "general": {
+            "title": "General Purpose / Instruct",
+            "models": [e["image"] for e in entries if e["category"] == "GENERAL"] + [m for m in ["ai/gemma4:E4B", "ai/mistral:7B-Q4_K_M"] if m not in pull_list_imgs]
+        },
+        "reasoning": {
+            "title": "Reasoning & Thinking (Qwen Thinking, Ministral Reasoning)",
+            "models": [e["image"] for e in entries if e["category"] == "REASONING"]
+        },
+        "coding": {
+            "title": "Coding & Software Engineering",
+            "models": [e["image"] for e in entries if e["category"] in ["CODING", "REASONING"] or any(k in e["image"].lower() for k in ["code", "granite"])]
+        },
+        "lightweight": {
+            "title": "Lightweight & Edge (1.7B - 4B, LFM, Nano, Micro)",
+            "models": [e["image"] for e in entries if e["category"] == "LIGHTWEIGHT"]
+        },
+        "vision": {
+            "title": "Vision & Multimodal (LFM Omni/VL, SmolVLM, Moondream)",
+            "models": [e["image"] for e in entries if e["category"] == "VISION/MM"]
+        },
+        "medical": {
+            "title": "Medical & Clinical (MedGemma)",
+            "models": [e["image"] for e in entries if e["category"] == "MEDICAL"]
+        },
+        "image_gen": {
+            "title": "Image Generation (Stable Diffusion)",
+            "models": [e["image"] for e in entries if e["category"] == "IMAGE-GEN"]
+        },
+    }
+    return profiles
+
 PROFILES = {
     "general": ["ai/mistral:7B-Q4_K_M", "ai/gemma4:E4B"],
     "coding": ["ai/deepseek-r1-distill-llama:8B-Q4_0", "ai/granite-4.0-h-tiny:7B"],
@@ -246,8 +304,9 @@ def cli(ctx):
         interactive_menu(ctx)
 
 @cli.command()
-def setup():
-    """Interactive setup for workspace and profile."""
+@click.pass_context
+def setup(ctx):
+    """Interactive setup for workspace and profile with dynamic Docker models."""
     assert_host_only("setup")
     console.print("[bold blue]Welcome to AIDock Setup[/]")
     check_docker()
@@ -276,40 +335,74 @@ def setup():
     set_key(str(ENV_FILE), "WORKSPACE_MOUNT_PATH", str(workspace_dir.absolute()))
     console.print(f"[green]✓ Workspace path saved to .env[/]")
 
-    # Loop to allow going back
+    with console.status("[bold cyan]Scanning local Docker models and images...[/]"):
+        available_set = get_locally_available_models()
+
+    entries = load_docker_models_list()
+    profiles = get_model_profiles()
+
+    selected_model = None
+    agent_choice = None
+
+    # Loop to allow going back between Category and Model selection
     while True:
-        # Select CodexSpace Agent
+        category_choices = [
+            questionary.Choice(title=f"{data['title']} ({len(data['models'])} models)", value=cat_key)
+            for cat_key, data in profiles.items()
+        ]
+
         agent_choice = questionary.select(
-            "Select a CodexSpace Agent:",
-            choices=list(PROFILES.keys())
+            "Select a CodexSpace Agent / Category:",
+            choices=category_choices
         ).ask()
         
         if not agent_choice:
             sys.exit(1)
             
-        # Select Model from bundle
-        models_bundle = PROFILES[agent_choice]
-        back_option = "⬅ Back to Agents"
+        models_bundle = profiles[agent_choice]["models"]
+        back_option = "⬅ Back to Categories"
         
+        model_choices = [questionary.Choice(back_option, value="__back__")]
+        for img in models_bundle:
+            pulled = is_model_in_available_set(img, available_set)
+            status_tag = "[Pulled]" if pulled else "[Available]"
+            cat_tag = categorize_model(img)
+            label = f"{img:<40} [{cat_tag:<11}] {status_tag}"
+            model_choices.append(questionary.Choice(title=label, value=img))
+
         model_choice = questionary.select(
-            f"Select a Model for {agent_choice}:",
-            choices=[back_option] + models_bundle
+            f"Select a Model for {profiles[agent_choice]['title']}:",
+            choices=model_choices
         ).ask()
         
-        if model_choice == back_option:
+        if model_choice == "__back__":
             continue # Loop restarts, going back to Agent selection
         elif not model_choice:
             sys.exit(1)
             
+        selected_model = model_choice
         break # Valid model selected, break the loop
+
+    matching_entry = next((e for e in entries if e["image"].lower() == selected_model.lower()), None)
+    cmd_type = matching_entry["cmd_type"] if matching_entry else ("model" if "docker model" in selected_model else "docker")
+
+    is_already_pulled = is_model_in_available_set(selected_model, available_set)
+    if not is_already_pulled:
+        if questionary.confirm(f"Model '{selected_model}' is not yet pulled locally. Pull now?", default=True).ask():
+            pull_docker_model(selected_model, cmd_type)
         
-    set_key(str(ENV_FILE), "LLM_IMAGE", model_choice)
-    # Provide simple model name for backend inference references without the ai/ prefix
-    simple_model_name = model_choice.split('/')[-1].split(':')[0]
+    set_key(str(ENV_FILE), "LLM_IMAGE", selected_model)
+    simple_model_name = selected_model.split('/')[-1].split(':')[0]
     set_key(str(ENV_FILE), "LLM_MODEL_NAME", simple_model_name)
     
-    console.print(f"[green]✓ Profile '{agent_choice}' selected. Docker will pull and run '{model_choice}'[/]")
-    console.print("\n[bold green]Setup Complete![/] Run `./aidock.bat start` (Windows) or `./aidock.sh start` (Mac/Linux) to spin up the environment.")
+    console.print(f"[green]✓ Profile '{agent_choice}' selected. Configured active model: [bold]{selected_model}[/][/]\n")
+    print_active_model_banner("AIDock Setup - Configured Model Engine")
+
+    boot_now = questionary.confirm("Start / Boot AIDock containers now with this configuration?", default=True).ask()
+    if boot_now:
+        ctx.invoke(start)
+    else:
+        console.print("\n[bold green]Setup Complete![/] Run `./aidock.bat start` (Windows) or `./aidock.sh start` (Mac/Linux) to spin up the environment.")
 
 @cli.command()
 def start():
@@ -524,19 +617,7 @@ def models_cmd(ctx, model_name, boot, reboot):
 
     target_image = selected_entry["image"]
     cmd_type = selected_entry["cmd_type"]
-    pull_cmd = ["docker", "model", "pull", target_image] if cmd_type == "model" else ["docker", "pull", target_image]
-
-    console.print(f"\n[bold blue]Pulling Docker Model:[/] [cyan]{' '.join(pull_cmd)}[/]")
-    pull_proc = subprocess.run(pull_cmd)
-    if pull_proc.returncode != 0:
-        alt_cmd = ["docker", "pull", target_image] if cmd_type == "model" else ["docker", "model", "pull", target_image]
-        console.print(f"[yellow]Retrying with alternative command:[/] {' '.join(alt_cmd)}")
-        pull_proc = subprocess.run(alt_cmd)
-
-    if pull_proc.returncode == 0:
-        console.print(f"[green]✓ Successfully verified/pulled model:[/] [bold]{target_image}[/]")
-    else:
-        console.print(f"[bold red]Warning:[/] Model pull returned non-zero code. Proceeding with configuration update...")
+    pull_docker_model(target_image, cmd_type)
 
     if not ENV_FILE.exists():
         ENV_FILE.touch()
