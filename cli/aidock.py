@@ -24,18 +24,108 @@ ROOT_DIR = Path(__file__).parent.parent
 ENV_FILE = ROOT_DIR / ".env"
 PULL_LIST_FILE = ROOT_DIR / "DockerModel_PullList.txt"
 
-def is_model_pulled(image: str) -> bool:
-    """Check if a docker image or docker model is already available locally."""
+def get_locally_available_models() -> set:
+    """
+    Fetch all locally available docker images and docker models in batch,
+    returning a set of normalized tags/identifiers for instant lookup.
+    """
+    available = set()
     try:
-        res = subprocess.run(["docker", "image", "inspect", image], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+        res = subprocess.run(
+            ["docker", "images", "--format", "{{.Repository}}:{{.Tag}}"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
         if res.returncode == 0:
-            return True
-        res_m = subprocess.run(["docker", "model", "inspect", image], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
-        if res_m.returncode == 0:
-            return True
+            for line in res.stdout.splitlines():
+                t = line.strip().lower()
+                if t and "<none>" not in t:
+                    available.add(t)
+                    if "/" in t:
+                        available.add(t.split("/")[-1])
     except Exception:
         pass
+
+    try:
+        res_m = subprocess.run(
+            ["docker", "model", "ls"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if res_m.returncode == 0:
+            for line in res_m.stdout.splitlines()[1:]:
+                parts = line.split()
+                if parts and parts[0] != "<none>":
+                    name = parts[0].strip().lower()
+                    available.add(name)
+                    available.add(f"ai/{name}")
+                    available.add(f"docker.io/{name}")
+                    available.add(f"docker.io/ai/{name}")
+    except Exception:
+        pass
+
+    return available
+
+def is_model_in_available_set(image: str, available_set: set) -> bool:
+    """Check if a model image tag is present in the pre-fetched available set."""
+    img = image.lower().strip()
+    if img in available_set:
+        return True
+    for prefix in ["docker.io/", "ai/"]:
+        if img.startswith(prefix) and img[len(prefix):] in available_set:
+            return True
+    tag = img.split("/")[-1]
+    if tag in available_set:
+        return True
     return False
+
+def is_model_pulled(image: str) -> bool:
+    """Check if a docker image or docker model is already available locally (single image lookup)."""
+    available_set = get_locally_available_models()
+    return is_model_in_available_set(image, available_set)
+
+def print_active_model_banner(prefix: str = "Active Docker LLM Model Engine"):
+    """Display a clear, prominent panel detailing the loaded LLM model and engine configuration."""
+    import dotenv
+    from rich.panel import Panel
+    from rich.table import Table
+
+    dotenv.load_dotenv(str(ENV_FILE), override=True)
+    llm_image = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
+    llm_model_name = os.getenv("LLM_MODEL_NAME", llm_image.split("/")[-1].split(":")[0])
+    llm_base_url = os.getenv("LLM_BASE_URL", "http://model-runner.docker.internal")
+
+    running_models = []
+    try:
+        res = subprocess.run(["docker", "model", "ls"], capture_output=True, text=True, timeout=3)
+        if res.returncode == 0:
+            for line in res.stdout.splitlines()[1:]:
+                parts = line.split()
+                if parts and parts[0] != "<none>":
+                    running_models.append(parts[0])
+    except Exception:
+        pass
+
+    if running_models:
+        runner_detail = f"[bold green]Active in Runner:[/] {', '.join(running_models)}"
+    else:
+        runner_detail = "[dim]Standby (loaded in Docker Model Runner on container start)[/]"
+
+    table = Table.grid(padding=(0, 2))
+    table.add_column("Field", style="bold cyan")
+    table.add_column("Value", style="white")
+
+    table.add_row("Service Target:", "models: llm (docker-compose.yml)")
+    table.add_row("Configured Image:", f"[bold green]{llm_image}[/]  (LLM_IMAGE in .env)")
+    table.add_row("Resolved Model Tag:", f"[bold yellow]{llm_model_name}[/]  (LLM_MODEL_NAME in .env)")
+    table.add_row("Runner Endpoint:", f"[blue]{llm_base_url}[/]  (Port 12434 internal)")
+    table.add_row("Context Window:", "2048 tokens")
+    table.add_row("Model Runner State:", runner_detail)
+    table.add_row("Backend Mapping:", f"LLM_MODEL_NAME=docker.io/{llm_image}")
+
+    console.print(Panel(table, title=f"[bold cyan]{prefix}[/]", border_style="cyan"))
 
 def categorize_model(image: str) -> str:
     """Infer functional category for model tags."""
@@ -230,6 +320,7 @@ def start():
         console.print("[red]Error:[/] .env file not found. Please run `aidock setup` first.")
         sys.exit(1)
         
+    print_active_model_banner("Starting AIDock Stack with Active Model Engine")
     console.print("[blue]Starting AIDock...[/]")
     result = subprocess.run(["docker", "compose", "up", "-d", "--build"], cwd=ROOT_DIR)
     
@@ -252,6 +343,7 @@ def start():
     console.print("[green]✓ AIDock is running successfully![/]")
     console.print(f"  - [bold]Frontend UI:[/] {client_url}")
     console.print(f"  - [bold]Backend API:[/] {backend_url}")
+    print_active_model_banner("Active Docker Model Engine Loaded")
 
 @cli.command()
 def stop():
@@ -280,6 +372,7 @@ def reload(ctx, fe, be, db):
     """Reload AIDock: Stop containers, rebuild, and restart (or reload specific service)."""
     assert_host_only("reload")
     check_docker()
+    print_active_model_banner("Reloading AIDock Services")
     if fe or be or db:
         service_name = None
         service_label = None
@@ -297,6 +390,7 @@ def reload(ctx, fe, be, db):
         subprocess.run(["docker", "compose", "stop", service_name], cwd=ROOT_DIR)
         subprocess.run(["docker", "compose", "up", "-d", "--build", service_name], cwd=ROOT_DIR)
         console.print(f"[green]✓ {service_label} service reloaded successfully.[/]")
+        print_active_model_banner(f"{service_label} Reloaded - Active Engine Status")
         return
 
     console.print("\n[bold blue]Reloading AIDock...[/]")
@@ -343,6 +437,8 @@ def dockerbuild_cmd(ctx, service, no_cache, boot):
     elif target_service in ["be"]:
         target_service = "backend"
 
+    print_active_model_banner("Active Docker LLM Model Engine for Build")
+
     build_cmd = ["docker", "compose", "build"]
     if use_no_cache:
         build_cmd.append("--no-cache")
@@ -364,6 +460,15 @@ def dockerbuild_cmd(ctx, service, no_cache, boot):
             up_cmd.append(target_service)
         subprocess.run(up_cmd, cwd=ROOT_DIR)
         console.print("[bold green]✓ Containers are up and running.[/]")
+
+        client_url = get_service_url("client", 80)
+        backend_url = get_service_url("backend", 8080)
+        if client_url:
+            console.print(f"  - [bold]Frontend UI:[/] {client_url}")
+        if backend_url:
+            console.print(f"  - [bold]Backend API:[/] {backend_url}")
+
+    print_active_model_banner("Docker LLM Model Engine Status")
 
 @cli.command(name="models")
 @click.argument("model_name", required=False, default=None)
@@ -398,9 +503,12 @@ def models_cmd(ctx, model_name, boot, reboot):
                 "category": categorize_model(model_name)
             }
     else:
+        with console.status("[bold cyan]Scanning local Docker models and images...[/]"):
+            available_set = get_locally_available_models()
+
         choices = []
         for e in entries:
-            pulled = is_model_pulled(e["image"])
+            pulled = is_model_in_available_set(e["image"], available_set)
             status_tag = "[Pulled]" if pulled else "[Available]"
             label = f"{e['image']:<38} [{e['category']:<11}] {status_tag}"
             choices.append(questionary.Choice(title=label, value=e))
@@ -436,6 +544,7 @@ def models_cmd(ctx, model_name, boot, reboot):
     simple_model_name = selected_entry["short_name"]
     set_key(str(ENV_FILE), "LLM_MODEL_NAME", simple_model_name)
     console.print(f"[green]✓ Updated .env: LLM_IMAGE={target_image}, LLM_MODEL_NAME={simple_model_name}[/]\n")
+    print_active_model_banner("Active Docker LLM Model Engine Updated")
 
     action = None
     if boot:
@@ -721,6 +830,7 @@ def status(session):
     backend_url = get_service_url("backend", 8080) or "http://localhost:8080"
     console.print("[bold blue]AIDock System Status[/]")
     console.print(f"Current Workspace Session ID: [green]{session_id}[/]")
+    print_active_model_banner("Active Docker LLM Model Engine")
     
     try:
         r = requests.get(f"{backend_url}/health", timeout=2)
@@ -809,7 +919,7 @@ def pi_cmd(ctx, args):
     ctx.invoke(agent_cmd, args=args)
 
 def interactive_menu(ctx):
-    """Interactive categorized menu launched when no CLI arguments are provided."""
+    """Looping interactive categorized menu launched when no CLI arguments are provided."""
     assert_host_only("interactive_menu")
 
     try:
@@ -820,71 +930,85 @@ def interactive_menu(ctx):
     except Exception:
         pass
 
-    console.print("[bold cyan]========================================================================[/]")
-    console.print("[bold cyan]                 AIDOCK - Local AI Workspace Manager[/]")
-    console.print("[bold cyan]========================================================================[/]")
+    while True:
+        try:
+            import dotenv
+            dotenv.load_dotenv(str(ENV_FILE), override=True)
+            active_model = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
+            workspace = os.getenv("WORKSPACE_MOUNT_PATH", "Not configured")
 
-    import dotenv
-    dotenv.load_dotenv(str(ENV_FILE))
-    active_model = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
-    workspace = os.getenv("WORKSPACE_MOUNT_PATH", "Not configured")
-    console.print(f"Active Model: [green]{active_model}[/] | Workspace: [yellow]{workspace}[/]\n")
+            console.print("\n[bold cyan]========================================================================[/]")
+            console.print("[bold cyan]                 AIDOCK - Local AI Workspace Manager[/]")
+            console.print("[bold cyan]========================================================================[/]")
+            console.print(f"Active Model: [bold green]{active_model}[/] | Workspace: [bold yellow]{workspace}[/]\n")
 
-    choices = [
-        questionary.Separator("── DOCKER MANAGEMENT ──────────────────────────"),
-        questionary.Choice("Start Stack (start)               - Bring up AIDock containers", value="start"),
-        questionary.Choice("Stop Stack (stop)                 - Stop all running AIDock containers", value="stop"),
-        questionary.Choice("Build Containers (dockerbuild)    - Build Docker images (all, fe, be)", value="dockerbuild"),
-        questionary.Choice("Reload Services (reload)          - Rebuild and restart containers", value="reload"),
-        questionary.Choice("System Status (status)            - Check health, active model, and files", value="status"),
+            choices = [
+                questionary.Separator("── DOCKER MANAGEMENT ──────────────────────────"),
+                questionary.Choice("Start Stack (start)               - Bring up AIDock containers", value="start"),
+                questionary.Choice("Stop Stack (stop)                 - Stop all running AIDock containers", value="stop"),
+                questionary.Choice("Build Containers (dockerbuild)    - Build Docker images (all, fe, be)", value="dockerbuild"),
+                questionary.Choice("Reload Services (reload)          - Rebuild and restart containers", value="reload"),
+                questionary.Choice("System Status (status)            - Check health, active model, and files", value="status"),
 
-        questionary.Separator("── DOCKER MODELS (MODEL RUNNER) ───────────────"),
-        questionary.Choice("Docker Models (models)            - Pick from PullList & Boot / Reboot", value="models"),
+                questionary.Separator("── DOCKER MODELS (MODEL RUNNER) ───────────────"),
+                questionary.Choice("Docker Models (models)            - Pick from PullList & Boot / Reboot", value="models"),
 
-        questionary.Separator("── AGENT CHAT & HARNESS ───────────────────────"),
-        questionary.Choice("Interactive Chat (chat / cli)     - Full interactive terminal chat session", value="chat"),
-        questionary.Choice("Run Single Prompt (run)           - Execute a single prompt and exit", value="run"),
-        questionary.Choice("Pi-CLI Coding Agent (agent / pi)  - Launch standalone Pi-CLI binary", value="agent"),
+                questionary.Separator("── AGENT CHAT & HARNESS ───────────────────────"),
+                questionary.Choice("Interactive Chat (chat / cli)     - Full interactive terminal chat session", value="chat"),
+                questionary.Choice("Run Single Prompt (run)           - Execute a single prompt and exit", value="run"),
+                questionary.Choice("Pi-CLI Coding Agent (agent / pi)  - Launch standalone Pi-CLI binary", value="agent"),
 
-        questionary.Separator("── SETUP & MAINTENANCE ────────────────────────"),
-        questionary.Choice("Setup Workspace (setup)           - Interactive workspace & profile setup", value="setup"),
-        questionary.Choice("Prune Cache (prune)               - Remove unused Docker images & cache", value="prune"),
-        questionary.Choice("Exit                              - Exit AIDock CLI", value="exit"),
-    ]
+                questionary.Separator("── SETUP & MAINTENANCE ────────────────────────"),
+                questionary.Choice("Setup Workspace (setup)           - Interactive workspace & profile setup", value="setup"),
+                questionary.Choice("Prune Cache (prune)               - Remove unused Docker images & cache", value="prune"),
+                questionary.Choice("Exit                              - Exit AIDock CLI", value="exit"),
+            ]
 
-    action = questionary.select(
-        "Select an AIDock action to run:",
-        choices=choices
-    ).ask()
+            action = questionary.select(
+                "Select an AIDock action to run:",
+                choices=choices
+            ).ask()
 
-    if not action or action == "exit":
-        console.print("[yellow]Exiting AIDock CLI.[/]")
-        return
+            if not action or action == "exit":
+                console.print("[yellow]Exiting AIDock CLI. Goodbye![/]")
+                break
 
-    if action == "start":
-        ctx.invoke(start)
-    elif action == "stop":
-        ctx.invoke(stop)
-    elif action == "dockerbuild":
-        ctx.invoke(dockerbuild_cmd)
-    elif action == "reload":
-        ctx.invoke(reload)
-    elif action == "status":
-        ctx.invoke(status)
-    elif action == "models":
-        ctx.invoke(models_cmd)
-    elif action == "chat":
-        ctx.invoke(chat)
-    elif action == "run":
-        prompt = questionary.text("Enter prompt/task to run:").ask()
-        if prompt:
-            ctx.invoke(run, prompt=prompt)
-    elif action == "agent":
-        ctx.invoke(agent_cmd, args=())
-    elif action == "setup":
-        ctx.invoke(setup)
-    elif action == "prune":
-        ctx.invoke(prune)
+            try:
+                if action == "start":
+                    ctx.invoke(start)
+                elif action == "stop":
+                    ctx.invoke(stop)
+                elif action == "dockerbuild":
+                    ctx.invoke(dockerbuild_cmd)
+                elif action == "reload":
+                    ctx.invoke(reload)
+                elif action == "status":
+                    ctx.invoke(status)
+                elif action == "models":
+                    ctx.invoke(models_cmd)
+                elif action == "chat":
+                    ctx.invoke(chat)
+                elif action == "run":
+                    prompt = questionary.text("Enter prompt/task to run:").ask()
+                    if prompt:
+                        ctx.invoke(run, prompt=prompt)
+                elif action == "agent":
+                    ctx.invoke(agent_cmd, args=())
+                elif action == "setup":
+                    ctx.invoke(setup)
+                elif action == "prune":
+                    ctx.invoke(prune)
+            except SystemExit:
+                pass
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Action cancelled by user.[/]")
+
+            console.print("\n[dim]─" * 72 + "[/dim]")
+            questionary.press_any_key_to_continue("Press any key to return to menu...").ask()
+
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[yellow]Exiting AIDock CLI. Goodbye![/]")
+            break
 
 if __name__ == "__main__":
     cli()
