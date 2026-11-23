@@ -2302,10 +2302,108 @@ function App() {
           className="absolute inset-0 w-full h-full pointer-events-none z-0"
         />
 
-        {/* Main Container (Spacious SpiritLlama Workspace) */}
-        <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto px-6 py-4 grid grid-cols-1 lg:grid-cols-12 gap-5 relative z-10 overflow-hidden">
-        {/* Middle column: Chat Area */}
-        <section className={`${isTextEditorOpen ? "lg:col-span-7" : "lg:col-span-12"} flex flex-col h-full min-h-0 transition-all duration-300`}>
+        {/* Main Container: Full width filling available workspace space without artificial max-w-7xl constraint */}
+        <main className="flex-1 min-h-0 w-full px-4 lg:px-6 py-3.5 flex flex-col lg:flex-row gap-4 lg:gap-5 relative z-10 overflow-hidden">
+        {/* Left column: Workspace File Preview & Text Editor Pane */}
+        {isTextEditorOpen && (
+          <section className="w-full lg:w-[38%] xl:w-[35%] 2xl:w-[32%] min-w-[340px] max-w-[640px] shrink-0 flex flex-col h-full min-h-0 bg-[var(--bg-editor)] text-[#E8ECF2] rounded-2xl border border-[var(--border-default)] shadow-[var(--shadow-l1)] p-4 overflow-hidden transition-all duration-300">
+            {/* Editor Header */}
+            <div className="flex items-center justify-between pb-2.5 border-b border-white/10 mb-2.5">
+              <div className="flex items-center gap-2 truncate mr-2">
+                <FileCode className="w-4 h-4 text-[#0db7ed] shrink-0" />
+                <span className="text-xs font-mono font-bold tracking-wide truncate" title={editorFilename}>{editorFilename}</span>
+                <span className={`w-2 h-2 rounded-full shrink-0 ${editorSaved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} title={editorSaved ? 'Saved' : 'Unsaved changes'} />
+              </div>
+              <button
+                onClick={() => setIsTextEditorOpen(false)}
+                className="text-[#7A7D8E] hover:text-white transition-colors duration-150 focus:outline-none cursor-pointer"
+                title="Close file preview (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Format toggle & status bar */}
+            <div className="flex items-center justify-between mb-2.5 text-xs">
+              <div className="flex bg-white/10 rounded-md p-0.5 border border-white/10">
+                <button
+                  onClick={() => {
+                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
+                    setEditorFormat('markdown');
+                    setEditorFilename(`chat_export_${sessionId}.md`);
+                    setEditorContent(generateMarkdown(messages));
+                    setEditorSaved(true);
+                  }}
+                  className={`px-2.5 py-1 rounded font-bold transition-all cursor-pointer ${editorFormat === 'markdown' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
+                >
+                  MD
+                </button>
+                <button
+                  onClick={() => {
+                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
+                    setEditorFormat('json');
+                    setEditorFilename(`chat_export_${sessionId}.json`);
+                    setEditorContent(generateJSON(messages));
+                    setEditorSaved(true);
+                  }}
+                  className={`px-2.5 py-1 rounded font-bold transition-all cursor-pointer ${editorFormat === 'json' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
+                >
+                  JSON
+                </button>
+              </div>
+
+              {saveStatusText ? (
+                <span className="text-emerald-400 font-medium animate-pulse">{saveStatusText}</span>
+              ) : (
+                <span className="text-[#7A7D8E] font-mono text-[11px]">
+                  {editorSaved ? 'All changes saved' : 'Unsaved changes*'}
+                </span>
+              )}
+            </div>
+
+            {/* Textarea container */}
+            <div className="flex-1 relative flex bg-[#0d0e15] rounded-md border border-white/5 overflow-hidden p-3 font-mono text-xs">
+              {/* Line numbers */}
+              <div ref={lineNumbersRef} className="select-none text-right pr-3 border-r border-white/10 text-white/30 font-mono leading-6 overflow-hidden">
+                {Array.from({ length: Math.max(editorContent.split('\n').length, 15) }).map((_, i) => (
+                  <div key={i}>{i + 1}</div>
+                ))}
+              </div>
+              <textarea
+                ref={editorTextareaRef}
+                value={editorContent}
+                onScroll={handleEditorScroll}
+                onChange={(e) => {
+                  setEditorContent(e.target.value);
+                  setEditorSaved(false);
+                }}
+                className="flex-1 bg-transparent resize-none pl-3 outline-none border-none text-[#E8ECF2] font-mono leading-6 overflow-y-auto scrollbar-thin placeholder-white/20"
+                placeholder="Edit file contents..."
+              />
+            </div>
+
+            {/* Editor Actions */}
+            <div className="flex gap-2 mt-3 pt-2.5 border-t border-white/10">
+              <button
+                onClick={() => handleSaveFile(editorContent, editorFilename)}
+                className="flex-1 bg-[#0db7ed] hover:bg-[#0099cc] text-white text-xs font-semibold py-2 px-3 rounded-md flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save to Workspace</span>
+              </button>
+              <button
+                onClick={() => triggerDownload(editorContent, editorFilename)}
+                className="bg-white/10 hover:bg-white/15 text-white text-xs font-semibold py-2 px-3 rounded-md flex items-center justify-center gap-1.5 border border-white/10 transition-all cursor-pointer"
+                title="Download locally"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Right column: Main Chat Area (fills 100% of remaining width) */}
+        <section className="flex-1 min-w-0 flex flex-col h-full min-h-0 transition-all duration-300">
 
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             
@@ -3066,103 +3164,6 @@ function App() {
 
           </div>
         </section>
-
-        {/* Right column: Text Editor Pane */}
-        {isTextEditorOpen && (
-          <section className="lg:col-span-4 flex flex-col h-full min-h-0 bg-[var(--bg-editor)] text-[#E8ECF2] rounded-2xl border border-[var(--border-default)] shadow-[var(--shadow-l1)] p-4 overflow-hidden transition-all duration-300">
-            {/* Editor Header */}
-            <div className="flex items-center justify-between pb-2.5 border-b border-white/10 mb-2.5">
-              <div className="flex items-center gap-2 truncate mr-2">
-                <FileCode className="w-4 h-4 text-[#0db7ed] shrink-0" />
-                <span className="text-xs font-mono font-bold tracking-wide truncate" title={editorFilename}>{editorFilename}</span>
-                <span className={`w-2 h-2 rounded-full shrink-0 ${editorSaved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} title={editorSaved ? 'Saved' : 'Unsaved changes'} />
-              </div>
-              <button
-                onClick={() => setIsTextEditorOpen(false)}
-                className="text-[#7A7D8E] hover:text-white transition-colors duration-150 focus:outline-none"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Format toggle & status bar */}
-            <div className="flex items-center justify-between mb-2.5 text-xs">
-              <div className="flex bg-white/10 rounded-md p-0.5 border border-white/10">
-                <button
-                  onClick={() => {
-                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
-                    setEditorFormat('markdown');
-                    setEditorFilename(`chat_export_${sessionId}.md`);
-                    setEditorContent(generateMarkdown(messages));
-                    setEditorSaved(true);
-                  }}
-                  className={`px-2.5 py-1 rounded font-bold transition-all ${editorFormat === 'markdown' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
-                >
-                  MD
-                </button>
-                <button
-                  onClick={() => {
-                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
-                    setEditorFormat('json');
-                    setEditorFilename(`chat_export_${sessionId}.json`);
-                    setEditorContent(generateJSON(messages));
-                    setEditorSaved(true);
-                  }}
-                  className={`px-2.5 py-1 rounded font-bold transition-all ${editorFormat === 'json' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
-                >
-                  JSON
-                </button>
-              </div>
-
-              {saveStatusText ? (
-                <span className="text-emerald-400 font-medium animate-pulse">{saveStatusText}</span>
-              ) : (
-                <span className="text-[#7A7D8E] font-mono text-[11px]">
-                  {editorSaved ? 'All changes saved' : 'Unsaved changes*'}
-                </span>
-              )}
-            </div>
-
-            {/* Textarea container */}
-            <div className="flex-1 relative flex bg-[#0d0e15] rounded-md border border-white/5 overflow-hidden p-3 font-mono text-xs">
-              {/* Line numbers */}
-              <div ref={lineNumbersRef} className="select-none text-right pr-3 border-r border-white/10 text-white/30 font-mono leading-6 overflow-hidden">
-                {Array.from({ length: Math.max(editorContent.split('\n').length, 15) }).map((_, i) => (
-                  <div key={i}>{i + 1}</div>
-                ))}
-              </div>
-              <textarea
-                ref={editorTextareaRef}
-                value={editorContent}
-                onScroll={handleEditorScroll}
-                onChange={(e) => {
-                  setEditorContent(e.target.value);
-                  setEditorSaved(false);
-                }}
-                className="flex-1 bg-transparent resize-none pl-3 outline-none border-none text-[#E8ECF2] font-mono leading-6 overflow-y-auto scrollbar-thin placeholder-white/20"
-                placeholder="Edit file contents..."
-              />
-            </div>
-
-            {/* Editor Actions */}
-            <div className="flex gap-2 mt-3 pt-2.5 border-t border-white/10">
-              <button
-                onClick={() => handleSaveFile(editorContent, editorFilename)}
-                className="flex-1 bg-[#0db7ed] hover:bg-[#0099cc] text-white text-xs font-semibold py-2 px-3 rounded-md flex items-center justify-center gap-1.5 shadow-sm transition-all"
-              >
-                <Save className="w-3.5 h-3.5" />
-                <span>Save to Workspace</span>
-              </button>
-              <button
-                onClick={() => triggerDownload(editorContent, editorFilename)}
-                className="bg-white/10 hover:bg-white/15 text-white text-xs font-semibold py-2 px-3 rounded-md flex items-center justify-center gap-1.5 border border-white/10 transition-all"
-                title="Download locally"
-              >
-                <Download className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </section>
-        )}
       </main>
 
       
