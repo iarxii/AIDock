@@ -107,16 +107,20 @@ function MascotLogo({ className }: { className?: string }) {
 
 export function ProviderBrandIcon({
   providerId,
+  localEngine,
   className = "w-4 h-4",
   alt = ""
 }: {
   providerId: string;
+  localEngine?: string;
   className?: string;
   alt?: string;
 }) {
   const [error, setError] = useState(false);
+  const activeEngine = localEngine || (typeof window !== 'undefined' ? localStorage.getItem('aidock_local_engine') : null);
+  const localIcon = activeEngine === 'ollama' ? '/assets/brand-icons/ollama.svg' : '/assets/aicodex-spirit-bird.svg';
   const iconMap: Record<string, string> = {
-    local: '/assets/aicodex-spirit-bird.svg',
+    local: localIcon,
     litert: '/assets/brand-icons/litert.png',
     transformers: '/assets/brand-icons/huggingface.svg',
     openai: '/assets/brand-icons/openai.svg',
@@ -1011,6 +1015,24 @@ function App() {
           const data = await res.json();
           slugs = (data.models || []).map((m: any) => m.name || m.model || m);
         }
+        if (slugs.length === 0) {
+          try {
+            const pRes = await fetch(getBackendUrl('proxy/models'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                provider: 'local',
+                base_url: ollamaUrl
+              })
+            });
+            if (pRes.ok) {
+              const pData = await pRes.json();
+              if (Array.isArray(pData.models) && pData.models.length > 0) {
+                slugs = pData.models;
+              }
+            }
+          } catch {}
+        }
       } else if (localEngine === 'vllm') {
         const vllmUrl = providerBaseUrls['local'] || 'http://127.0.0.1:8000/v1';
         const endpoint = vllmUrl.endsWith('/v1') ? `${vllmUrl}/models` : `${vllmUrl}/v1/models`;
@@ -1018,6 +1040,24 @@ function App() {
         if (res && res.ok) {
           const data = await res.json();
           slugs = (data.data || []).map((m: any) => m.id || m.name);
+        }
+        if (slugs.length === 0) {
+          try {
+            const pRes = await fetch(getBackendUrl('proxy/models'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                provider: 'local',
+                base_url: vllmUrl
+              })
+            });
+            if (pRes.ok) {
+              const pData = await pRes.json();
+              if (Array.isArray(pData.models) && pData.models.length > 0) {
+                slugs = pData.models;
+              }
+            }
+          } catch {}
         }
       }
 
@@ -2057,7 +2097,7 @@ function App() {
             <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed] shrink-0 ml-1.5 animate-pulse" />
             <span className="max-w-0 opacity-0 overflow-hidden whitespace-nowrap text-xs font-semibold group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out flex items-center gap-1.5">
               <span className="font-bold text-white uppercase text-[10px] tracking-tight">
-                {PROVIDERS.find(p => p.id === activeProviderId)?.label || 'Local LLM'}
+                {activeProviderId === 'local' ? (localEngine === 'docker' ? 'Docker Models' : (localEngine === 'ollama' ? 'Ollama' : 'vLLM')) : (PROVIDERS.find(p => p.id === activeProviderId)?.label || 'Local LLM')}
               </span>
               <span className="text-[10px] font-mono text-[#0db7ed] bg-black/40 px-1.5 py-0.5 rounded border border-[#0db7ed]/30">
                 {(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop() || 'No Model Loaded'}
@@ -2289,7 +2329,7 @@ function App() {
                             {((msg.model || (msg.provider ? providerSelectedModels[msg.provider] : '') || activeModel || '').split('/').pop()) || 'Assistant'}
                           </span>
                           <span className="text-[9px] font-mono bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-1.5 py-0.2 rounded text-[var(--text-secondary)]">
-                            {msg.providerLabel || PROVIDERS.find(p => p.id === (msg.provider || activeProviderId))?.label || (activeProviderId === 'local' ? (localEngine === 'docker' ? 'Docker Models' : (localEngine === 'ollama' ? 'Ollama' : 'vLLM')) : 'Cloud API')}
+                            {msg.providerLabel || ((msg.provider === 'local' || (!msg.provider && activeProviderId === 'local')) ? (localEngine === 'docker' ? 'Docker Models' : (localEngine === 'ollama' ? 'Ollama' : 'vLLM')) : (PROVIDERS.find(p => p.id === (msg.provider || activeProviderId))?.label || 'Cloud API'))}
                           </span>
                         </div>
                       )}
@@ -2582,7 +2622,7 @@ function App() {
                       <ProviderBrandIcon providerId={activeProviderId} className="w-4 h-4 object-contain" />
                     </div>
                     <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
-                      {PROVIDERS.find(p => p.id === activeProviderId)?.label || 'Local LLM'}
+                      {activeProviderId === 'local' ? (localEngine === 'docker' ? 'Docker Models' : (localEngine === 'ollama' ? 'Ollama' : 'vLLM')) : (PROVIDERS.find(p => p.id === activeProviderId)?.label || 'Local LLM')}
                     </span>
                     <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
                       <ChevronsUpDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />

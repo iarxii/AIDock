@@ -26,6 +26,35 @@ OPENAI_COMPATIBLE_DEFAULTS = {
     "cloudflare_ai_gateway": ("https://gateway.ai.cloudflare.com", "CLOUDFLARE_API_KEY", "default"),
 }
 
+def normalize_endpoint_url(url: Optional[str]) -> Optional[str]:
+    """
+    Normalizes local loopback addresses (127.0.0.1, localhost, 0.0.0.0)
+    to 'host.docker.internal' when running inside a Docker container,
+    so that host services (such as Ollama or vLLM running on the host machine)
+    can be reached from the backend container.
+    """
+    if not url:
+        return url
+    in_docker = os.getenv("CONTAINER_MODE") == "true" or os.path.exists('/.dockerenv') or os.path.exists('/workspace')
+    if not in_docker:
+        return url
+
+    try:
+        from urllib.parse import urlsplit, urlunsplit
+        parts = urlsplit(url)
+        if parts.hostname in ("127.0.0.1", "localhost", "0.0.0.0"):
+            port_str = f":{parts.port}" if parts.port else ""
+            netloc = f"host.docker.internal{port_str}"
+            if parts.username or parts.password:
+                auth = parts.username or ""
+                if parts.password:
+                    auth += f":{parts.password}"
+                netloc = f"{auth}@{netloc}"
+            return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+    except Exception as e:
+        logger.debug(f"Failed to normalize endpoint url '{url}': {e}")
+    return url
+
 def resolve_local_model_tag(requested_name: str, base_url: str) -> str:
     """
     Resolves a display name (like 'Gemma4 E4B') or short tag to the actual model tag registered in the local engine.
@@ -36,7 +65,8 @@ def resolve_local_model_tag(requested_name: str, base_url: str) -> str:
         
     try:
         import requests
-        url = base_url.rstrip('/') + '/api/tags'
+        base_url_norm = normalize_endpoint_url(base_url) or base_url
+        url = base_url_norm.rstrip('/') + '/api/tags'
         r = requests.get(url, timeout=2)
         if r.status_code == 200:
             models = r.json().get("models", [])
@@ -81,7 +111,8 @@ def get_llm(provider: str, model: str, api_key: Optional[str] = None, base_url: 
     if provider == "local":
         in_docker = os.getenv("CONTAINER_MODE") == "true" or os.path.exists('/.dockerenv') or os.path.exists('/workspace')
         default_base_url = "http://model-runner.docker.internal" if in_docker else "http://localhost:12434"
-        resolved_base_url = base_url or os.getenv("LLM_BASE_URL", default_base_url)
+        raw_base_url = base_url or os.getenv("LLM_BASE_URL", default_base_url)
+        resolved_base_url = normalize_endpoint_url(raw_base_url)
         resolved_model = resolve_local_model_tag(model_name, resolved_base_url)
         logger.info(f"Local LLM resolved model tag: '{resolved_model}' from request: '{model_name}' on {resolved_base_url}")
         return ChatOllama(
@@ -110,7 +141,7 @@ def get_llm(provider: str, model: str, api_key: Optional[str] = None, base_url: 
             return ChatOpenAI(
                 model=model_name or "claude-3-5-sonnet-20241022",
                 openai_api_key=key,
-                openai_api_base=base_url,
+                openai_api_base=normalize_endpoint_url(base_url),
                 temperature=temperature
             )
         try:
@@ -133,7 +164,8 @@ def get_llm(provider: str, model: str, api_key: Optional[str] = None, base_url: 
     elif provider in OPENAI_COMPATIBLE_DEFAULTS:
         default_url, env_key, default_model = OPENAI_COMPATIBLE_DEFAULTS[provider]
         key = api_key or os.getenv(env_key)
-        endpoint = base_url or default_url
+        raw_endpoint = base_url or default_url
+        endpoint = normalize_endpoint_url(raw_endpoint)
         if not key and provider != "ollama_cloud":
             raise ValueError(f"{provider.capitalize()} API key is missing. Set {env_key} environment variable or configure it in Provider Settings.")
         return ChatOpenAI(
@@ -149,7 +181,7 @@ def get_llm(provider: str, model: str, api_key: Optional[str] = None, base_url: 
             return ChatOpenAI(
                 model=model_name or "default",
                 openai_api_key=api_key or "placeholder",
-                openai_api_base=base_url,
+                openai_api_base=normalize_endpoint_url(base_url),
                 temperature=temperature
             )
         elif api_key:

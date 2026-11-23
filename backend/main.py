@@ -20,6 +20,7 @@ from fastapi import Request
 from datetime import datetime
 from backend.db.session import init_db
 from backend.agent.graph import create_agent_graph
+from backend.agent.llm_factory import normalize_endpoint_url
 from langchain_core.messages import HumanMessage
 
 # Configure backend logging
@@ -170,13 +171,14 @@ async def chat_endpoint(request: ChatRequest):
                 logger.warning(f"Failed to fetch cloud API keys from profile: {e}")
 
         # Initialize state with user message, session_id and optional model slug
+        normalized_base_url = normalize_endpoint_url(request.base_url)
         initial_state = {
             "messages": [HumanMessage(content=request.message)],
             "session_id": request.session_id,
             "model_slug": request.model_slug,
             "provider": provider,
             "api_key": api_key,
-            "base_url": request.base_url
+            "base_url": normalized_base_url
         }
         
         project_workspace = Path("/workspace") / request.session_id
@@ -200,7 +202,7 @@ async def chat_endpoint(request: ChatRequest):
                 request.model_slug, 
                 provider, 
                 api_key,
-                request.base_url
+                normalized_base_url
             ))
         
         # Invoke LangGraph agent
@@ -432,7 +434,7 @@ def list_local_models():
     slugs = _read_whitelist()
     in_docker = os.getenv("CONTAINER_MODE") == "true" or os.path.exists('/.dockerenv') or os.path.exists('/workspace')
     default_base_url = "http://model-runner.docker.internal" if in_docker else "http://localhost:12434"
-    base_url = os.getenv("LLM_BASE_URL", default_base_url)
+    base_url = normalize_endpoint_url(os.getenv("LLM_BASE_URL", default_base_url)) or default_base_url
     
     # Query live tags from local engine
     try:
@@ -494,7 +496,8 @@ class ModelDiscoveryRequest(BaseModel):
 def proxy_models(req: ModelDiscoveryRequest):
     """Proxy model discovery requests for Cloud/BYOK providers to avoid CORS issues in browser."""
     pid = req.provider.lower().strip()
-    base_url = (req.base_url or "").rstrip("/")
+    raw_base_url = (req.base_url or "").rstrip("/")
+    base_url = (normalize_endpoint_url(raw_base_url) or "").rstrip("/")
     api_key = req.api_key or ""
     headers = {}
     url = f"{base_url}/models" if base_url else ""
