@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Send, User, Activity,
   Download, FileText, ChevronDown, Save, X, Edit, FileCode,
-  Folder, Plus, RefreshCw, Trash2, Settings, Moon, Sun,
+  Plus, RefreshCw, Trash2, Settings, Moon, Sun,
   PanelLeft, Layers, Search, Check, FolderGit2, ChevronsUpDown,
   Bot, Boxes, Sparkles, Globe, Cloud, LayoutGrid, Box,
   SlidersHorizontal, Key, Eye, EyeOff, Server,
@@ -2058,19 +2058,6 @@ function App() {
       {/* Docked SpiritLlama-style Harness Bar */}
       <div className="shrink-0 z-30 bg-[var(--bg-surface)] border-b border-[var(--border-default)] px-6 py-2 flex flex-wrap items-center justify-between gap-3 shadow-[var(--shadow-l1)]">
         <div className="flex items-center gap-3 text-xs">
-          {/* Sidepanel trigger for SpiritLlama-style Left Sidepanel */}
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`p-1.5 rounded-md text-xs font-semibold flex items-center justify-center border transition-all cursor-pointer ${
-              isSidebarOpen
-                ? 'bg-[#0db7ed] text-white border-[#0aa5d6] shadow-sm'
-                : 'bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] border-[var(--border-subtle)]'
-            }`}
-            title="Toggle Left Sidepanel (SpiritLlama UI)"
-          >
-            <PanelLeft className="w-4 h-4 text-[#0db7ed]" />
-          </button>
-
           {/* Workspace & Files drawer trigger button */}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -2081,8 +2068,12 @@ function App() {
             }`}
             title="Toggle Workspace & Files Sidepanel"
           >
-            <Folder className="w-3.5 h-3.5 text-[#0db7ed]" />
-            <span>Workspace & Files</span>
+            <PanelLeft className={`w-4 h-4 ${
+              isSidebarOpen
+                ? 'text-white'
+                : 'text-[#0db7ed]'
+            }`} />
+            <span>Workspace</span>
             {files.length > 0 && (
               <span className="font-mono text-[10px] bg-black/10 dark:bg-white/10 px-1.5 py-0.2 rounded font-bold">
                 {files.length}
