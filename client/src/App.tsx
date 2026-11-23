@@ -1311,7 +1311,7 @@ function App() {
   return (
     <div className="flex h-screen w-screen overflow-hidden overscroll-none bg-[var(--bg-canvas)] text-[var(--text-primary)] transition-colors duration-200 antialiased select-none">
       {/* ── SpiritLlama Left Sidebar (Docked 1:1) ── */}
-      <aside className={`bg-[var(--bg-surface)] border-r border-[var(--border-default)] flex flex-col justify-between shrink-0 z-30 transition-all duration-300 h-full overflow-hidden select-none ${
+      <aside className={`bg-[var(--bg-surface)] border-r border-[var(--border-default)] flex flex-col justify-between shrink-0 z-40 transition-all duration-300 h-full overflow-hidden select-none ${
         isSidebarOpen ? "w-[260px]" : "w-0 border-none"
       }`}>
         {/* TOP SCROLLABLE SECTION */}
@@ -1328,7 +1328,7 @@ function App() {
             </button>
 
             <div
-              className="w-18 h-18 rounded-2xl bg-white shadow-md flex items-center justify-center p-2 mb-1.5 border-2 border-[#0db7ed] hover:scale-105 transition-transform cursor-pointer"
+              className="w-18 h-18 rounded-2xl bg-transparent shadow-md flex items-center justify-center p-2 mb-1.5 border-2 hover:scale-105 transition-transform cursor-pointer"
               onClick={() => {
                 setMessages([]);
                 setIsSidebarOpen(false);
@@ -1935,11 +1935,12 @@ function App() {
 
         {/* Left: Branding + Blue 'New Chat' Icon Button */}
         <div className="flex items-center gap-3 relative z-10">
-          <div className="w-9 h-9 rounded-md bg-white flex items-center justify-center p-1 shadow-[0_2px_10px_rgba(0,0,0,0.18)] shrink-0">
-            <img src={spiritDockLogo} alt="SpiritDock Logo" className="w-6 h-6 object-contain" />
+          <div className="w-9 h-9 rounded-md flex items-center justify-center p-1 shadow-[0_2px_10px_rgba(0,0,0,0.18)] shrink-0">
+            {/* <img src={spiritDockLogo} alt="SpiritDock Logo" className="w-6 h-6 object-contain" /> */}
+            <MascotLogo className="w-8 h-8 text-[#0db7ed]" />
           </div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-base font-bold tracking-tight text-white">AIDOCK</h1>
+            <h1 className="text-base font-bold tracking-tight text-white">Spirit Bird <span className='text-[#0db7ed]'>AIDock</span></h1>
             <button
               type="button"
               onClick={() => {
@@ -2083,13 +2084,6 @@ function App() {
 
           <div className="h-4 w-px bg-[var(--border-subtle)]" />
 
-          <div className="flex items-center gap-2 font-semibold text-[var(--text-primary)]">
-            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-[#0db7ed] shadow-[0_0_8px_rgba(13,183,237,0.7)] animate-pulse' : 'bg-red-500'}`} />
-            <span>{connected ? 'Neural Link Active' : 'Offline'}</span>
-          </div>
-
-          <div className="h-4 w-px bg-[var(--border-subtle)]" />
-
           {/* Clickable Provider Badge */}
           <button
             type="button"
@@ -2101,24 +2095,15 @@ function App() {
             className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] hover:bg-[#0db7ed]/10 border border-[var(--border-subtle)] hover:border-[#0db7ed]/50 px-2.5 py-0.5 rounded text-[var(--text-secondary)] hover:text-[#0db7ed] flex items-center gap-1.5 transition-colors cursor-pointer"
             title="Configure Active Provider & API Keys"
           >
-            <span>Provider:</span>
+            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-[#0db7ed] shadow-[0_0_8px_rgba(13,183,237,0.7)] animate-pulse' : 'bg-red-500'}`} />
+            <span>{connected ? 'Active' : 'Offline'}</span>
+            <span> | </span>
             <b className="text-[var(--text-primary)]">{PROVIDERS.find(p => p.id === activeProviderId)?.label || 'Local'}</b>
-          </button>
-
-          <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
-            <span>Model:</span>
+            <span> | </span>
             <b className="text-[var(--text-primary)]">{(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop()}</b>
-          </div>
-
-          <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
-            <span>Space:</span>
-            <b className="text-[var(--text-primary)]">{cloudSpaceSlug || 'Local'}</b>
-          </div>
-
-          <div className="font-mono text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded text-[var(--text-secondary)] flex items-center gap-1.5">
-            <span>Route:</span>
-            <b className="text-[var(--text-primary)] capitalize">{backendMode.replace('-', ' ')}</b>
-          </div>
+            <span> | </span>
+            <b className="text-[var(--text-primary)] capitalize">{backendMode.replace('-', ' ')} Server</b>
+          </button>
         </div>
 
         <div className="flex items-center gap-3">
