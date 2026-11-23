@@ -59,9 +59,15 @@ def resolve_local_model_tag(requested_name: str, base_url: str) -> str:
     """
     Resolves a display name (like 'Gemma4 E4B') or short tag to the actual model tag registered in the local engine.
     """
+    active_env_image = os.getenv("LLM_IMAGE", "").strip()
+    active_env_model = os.getenv("LLM_MODEL_NAME", "").strip()
+
     if not requested_name:
-        image = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
-        return os.getenv("LLM_MODEL_NAME") or f"docker.io/{image}"
+        if active_env_model:
+            return active_env_model
+        if active_env_image:
+            return f"docker.io/{active_env_image}" if not active_env_image.startswith("docker.io/") else active_env_image
+        return "docker.io/ai/mistral:7B-Q4_K_M"
         
     try:
         import requests
@@ -88,10 +94,10 @@ def resolve_local_model_tag(requested_name: str, base_url: str) -> str:
     except Exception as e:
         logger.debug(f"Failed querying local tags: {e}")
         
-    if "gemma" in requested_name.lower():
-        image = os.getenv("LLM_IMAGE", "ai/gemma4:E4B")
-        return f"docker.io/{image}" if not image.startswith("docker.io/") else image
-        
+    # If no local tag match, fall back to active configured image if it matches requested name
+    if active_env_image and (requested_name.lower() in active_env_image.lower() or active_env_image.lower() in requested_name.lower()):
+        return f"docker.io/{active_env_image}" if not active_env_image.startswith("docker.io/") else active_env_image
+
     return requested_name
 
 def get_llm(provider: str, model: str, api_key: Optional[str] = None, base_url: Optional[str] = None, temperature: float = 0.3):

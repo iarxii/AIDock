@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+import re
 from pathlib import Path
 import click
 import questionary
@@ -86,6 +87,104 @@ def is_model_pulled(image: str) -> bool:
     available_set = get_locally_available_models()
     return is_model_in_available_set(image, available_set)
 
+# Known parameter weights and typical disk footprint for models without explicit size in tags
+KNOWN_MODEL_SPECS = {
+    "ai/smolvlm": ("2.2B", "~1.4 GB"),
+    "ai/moondream2": ("1.8B", "~1.2 GB"),
+    "ai/lfm3-omni": ("2B", "~1.5 GB"),
+    "ai/granite4:micro": ("1B", "~0.8 GB"),
+    "ai/granite-4.0-micro": ("1B", "~0.8 GB"),
+    "ai/granite4:h-micro": ("1B", "~0.8 GB"),
+    "ai/granite-4.0-h-micro": ("1B", "~0.8 GB"),
+    "ai/granite-4.0-h-nano": ("3B", "~1.9 GB"),
+    "ai/granite-4.0-h-tiny": ("7B", "~4.3 GB"),
+    "ai/medgemma": ("4B", "~2.6 GB"),
+    "ai/stable-diffusion": ("1B", "~2.1 GB"),
+    "ai/stable-diffusion:q4": ("1B", "~1.1 GB"),
+    "ai/mistral:7b-q4_k_m": ("7B", "~4.4 GB"),
+    "ai/gemma4:e4b": ("7.52B", "7.52 GB"),
+}
+
+def get_live_model_stats() -> dict:
+    """Parse docker model ls output for actual parameters and disk size."""
+    stats = {}
+    try:
+        proc = subprocess.run(["docker", "model", "ls"], capture_output=True, text=True, timeout=4, check=False)
+        if proc.returncode == 0:
+            lines = proc.stdout.strip().splitlines()
+            if len(lines) > 1:
+                # Header: MODEL NAME  PARAMETERS  QUANTIZATION   ARCHITECTURE  MODEL ID      CREATED       CONTEXT  SIZE
+                for line in lines[1:]:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        name = parts[0]
+                        raw_params = parts[1] if parts[1] != "<none>" else ""
+                        # Verify raw_params is a valid parameter tag (e.g., 7.52B, 4B) and not a hex model ID
+                        params = raw_params if bool(re.match(r'^[0-9]+(?:\.[0-9]+)?[bB]$', raw_params)) else ""
+                        
+                        raw_size = parts[-1] if len(parts) >= 8 and parts[-1] != "<none>" else ""
+                        formatted_size = ""
+                        if raw_size:
+                            if raw_size.endswith("B") and not any(raw_size.endswith(x) for x in ["GB", "MB", "KB"]):
+                                formatted_size = f"{raw_size[:-1]} GB"
+                            else:
+                                formatted_size = raw_size
+                        
+                        entry = {"params": params, "size": formatted_size}
+                        stats[name.lower()] = entry
+                        stats[f"ai/{name.lower()}"] = entry
+                        if ":" in name:
+                            stats[name.split(":")[0].lower()] = entry
+    except Exception:
+        pass
+    return stats
+
+def get_model_spec(image: str, live_stats: dict = None) -> tuple:
+    """
+    Returns (weight_param, disk_size) for any model image.
+    Uses live Docker stats if available, otherwise calculates from quantization and known specs.
+    """
+    clean_img = image.strip().lower()
+    tag_clean = clean_img.split("/")[-1]
+    
+    # 1. Check live docker model runner stats
+    if live_stats:
+        for key in [clean_img, tag_clean, f"ai/{tag_clean}"]:
+            if key in live_stats:
+                st = live_stats[key]
+                p = st.get("params")
+                s = st.get("size")
+                if p and s:
+                    return (p, s)
+                if p and not s:
+                    m = re.search(r'([0-9]+(?:\.[0-9]+)?)[bB]', p)
+                    if m:
+                        p_val = float(m.group(1))
+                        factor = 1.05 if "q8" in clean_img else (0.35 if "q2" in clean_img else 0.60)
+                        return (p, f"~{p_val * factor:.1f} GB")
+                    return (p, "Unknown")
+
+    # 2. Check known static lookup
+    for key, spec in KNOWN_MODEL_SPECS.items():
+        if clean_img == key or tag_clean == key.split("/")[-1]:
+            return spec
+
+    # 3. Dynamic regex extraction from image tag name (e.g. :4b, -8b, :e4b, _9b)
+    m = re.search(r'[:\-_eE]([0-9]+(?:\.[0-9]+)?)[bB]', clean_img)
+    if m:
+        param_num = float(m.group(1))
+        param_str = f"{m.group(1)}B"
+        if "q8" in clean_img:
+            factor = 1.05
+        elif "q2" in clean_img:
+            factor = 0.35
+        else:
+            factor = 0.60
+        disk_est = f"~{param_num * factor:.1f} GB"
+        return (param_str, disk_est)
+
+    return ("Unknown", "Unknown")
+
 def print_active_model_banner(prefix: str = "Active Docker LLM Model Engine"):
     """Display a clear, prominent panel detailing the loaded LLM model and engine configuration."""
     import dotenv
@@ -96,6 +195,9 @@ def print_active_model_banner(prefix: str = "Active Docker LLM Model Engine"):
     llm_image = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
     llm_model_name = os.getenv("LLM_MODEL_NAME", llm_image.split("/")[-1].split(":")[0])
     llm_base_url = os.getenv("LLM_BASE_URL", "http://model-runner.docker.internal")
+
+    live_stats = get_live_model_stats()
+    weight, disk_size = get_model_spec(llm_image, live_stats)
 
     running_models = []
     try:
@@ -120,6 +222,8 @@ def print_active_model_banner(prefix: str = "Active Docker LLM Model Engine"):
     table.add_row("Service Target:", "models: llm (docker-compose.yml)")
     table.add_row("Configured Image:", f"[bold green]{llm_image}[/]  (LLM_IMAGE in .env)")
     table.add_row("Resolved Model Tag:", f"[bold yellow]{llm_model_name}[/]  (LLM_MODEL_NAME in .env)")
+    table.add_row("Model Weight (Params):", f"[bold cyan]{weight}[/]")
+    table.add_row("Disk / VRAM Size:", f"[bold magenta]{disk_size}[/]")
     table.add_row("Runner Endpoint:", f"[blue]{llm_base_url}[/]  (Port 12434 internal)")
     table.add_row("Context Window:", "2048 tokens")
     table.add_row("Model Runner State:", runner_detail)
@@ -234,17 +338,6 @@ def get_model_profiles():
     }
     return profiles
 
-PROFILES = {
-    "general": ["ai/mistral:7B-Q4_K_M", "ai/gemma4:E4B"],
-    "coding": ["ai/deepseek-r1-distill-llama:8B-Q4_0", "ai/granite-4.0-h-tiny:7B"],
-    "data_analyst": ["ai/qwen3.5:9B-UD-Q4_K_XL"],
-    "business_analyst": ["ai/ministral3:8B"],
-    "fin_trader": ["ai/qwen3-reranker-vllm:4B"],
-    "sci_tech": ["ai/qwen3-vl:8B"],
-    "art_gen": ["ai/stable-diffusion:Q4"],
-    "researcher": ["ai/mistral:7B-Q4_K_M"]
-}
-
 def is_in_container() -> bool:
     return os.getenv("CONTAINER_MODE") == "true" or os.path.exists("/.dockerenv")
 
@@ -337,6 +430,7 @@ def setup(ctx):
 
     with console.status("[bold cyan]Scanning local Docker models and images...[/]"):
         available_set = get_locally_available_models()
+        live_stats = get_live_model_stats()
 
     entries = load_docker_models_list()
     profiles = get_model_profiles()
@@ -367,7 +461,8 @@ def setup(ctx):
             pulled = is_model_in_available_set(img, available_set)
             status_tag = "[Pulled]" if pulled else "[Available]"
             cat_tag = categorize_model(img)
-            label = f"{img:<40} [{cat_tag:<11}] {status_tag}"
+            weight, disk_size = get_model_spec(img, live_stats)
+            label = f"{img:<36} [{weight:<6} | {disk_size:<9}] [{cat_tag:<11}] {status_tag}"
             model_choices.append(questionary.Choice(title=label, value=img))
 
         model_choice = questionary.select(
@@ -598,12 +693,14 @@ def models_cmd(ctx, model_name, boot, reboot):
     else:
         with console.status("[bold cyan]Scanning local Docker models and images...[/]"):
             available_set = get_locally_available_models()
+            live_stats = get_live_model_stats()
 
         choices = []
         for e in entries:
             pulled = is_model_in_available_set(e["image"], available_set)
             status_tag = "[Pulled]" if pulled else "[Available]"
-            label = f"{e['image']:<38} [{e['category']:<11}] {status_tag}"
+            weight, disk_size = get_model_spec(e["image"], live_stats)
+            label = f"{e['image']:<36} [{weight:<6} | {disk_size:<9}] [{e['category']:<11}] {status_tag}"
             choices.append(questionary.Choice(title=label, value=e))
 
         selected_entry = questionary.select(
@@ -667,7 +764,7 @@ def launch_cli(ctx, session):
 def chat(session):
     """Start an interactive agent chat session harness."""
     import dotenv
-    dotenv.load_dotenv(str(ENV_FILE))
+    dotenv.load_dotenv(str(ENV_FILE), override=True)
     
     try:
         art_path = ROOT_DIR / "cli" / "spiritbird-ascii-art.txt"
@@ -966,7 +1063,7 @@ def agent_cmd(args):
         sys.exit(1)
 
     import dotenv
-    dotenv.load_dotenv(str(ENV_FILE))
+    dotenv.load_dotenv(str(ENV_FILE), override=True)
 
     env = os.environ.copy()
 

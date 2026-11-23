@@ -25,6 +25,7 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/aidock
       - LLM_BASE_URL=http://model-runner.docker.internal
       - LLM_MODEL_NAME=docker.io/${LLM_IMAGE:-ai/mistral:7B-Q4_K_M}
+      - LLM_IMAGE=${LLM_IMAGE:-ai/mistral:7B-Q4_K_M}
     volumes:
       - ${WORKSPACE_MOUNT_PATH}:/workspace
     depends_on:
