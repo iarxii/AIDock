@@ -112,14 +112,17 @@
   --header-gradient: linear-gradient(135deg, #07080c 0%, #10121a 60%, #034b63 160%);
 }
 
-body {
+html, body {
   margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
   background-color: var(--bg-canvas);
   color: var(--text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  min-height: 100vh;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
