@@ -46,6 +46,9 @@ class ChatRequest(BaseModel):
     provider: Optional[str] = None
     api_key: Optional[str] = None
     base_url: Optional[str] = None
+    spiritcloud_token: Optional[str] = None
+    spirit_cloud_api_url: Optional[str] = None
+    # Backward compatibility aliases
     cloud_token: Optional[str] = None
     cloud_api_url: Optional[str] = None
 
@@ -141,13 +144,15 @@ async def chat_endpoint(request: ChatRequest):
     try:
         provider = request.provider or "local"
         api_key = request.api_key
+        spiritcloud_token = request.spiritcloud_token or request.cloud_token
+        spirit_cloud_api_url = request.spirit_cloud_api_url or request.cloud_api_url
         
-        # If in cloud mode and we have a cloud token, fetch keys from cloud
-        if provider != "local" and not api_key and request.cloud_token and request.cloud_api_url:
+        # If in cloud mode and we have a SpiritCloud token, fetch keys from cloud
+        if provider != "local" and not api_key and spiritcloud_token and spirit_cloud_api_url:
             try:
                 import requests
-                headers = {"Authorization": f"Bearer {request.cloud_token}"}
-                profile_url = f"{request.cloud_api_url.rstrip('/')}/api/v1/auth/me"
+                headers = {"Authorization": f"Bearer {spiritcloud_token}"}
+                profile_url = f"{spirit_cloud_api_url.rstrip('/')}/api/v1/auth/me"
                 resp = requests.get(profile_url, headers=headers, timeout=5)
                 if resp.status_code == 200:
                     profile_data = resp.json()
@@ -226,7 +231,9 @@ async def chat_endpoint(request: ChatRequest):
         logger.info(f"Chat request succeeded - Session: {request.session_id} - Response length: {len(last_message.content)} chars")
         return {
             "response": last_message.content,
-            "workspace_used": result.get("workspace_path")
+            "workspace_used": result.get("workspace_path"),
+            "provider": provider,
+            "model_used": request.model_slug or result.get("model_used")
         }
     except Exception as e:
         logger.error(f"Chat request failed - Session: {request.session_id} - Error: {str(e)}", exc_info=True)

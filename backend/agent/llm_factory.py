@@ -8,6 +8,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 logger = logging.getLogger("aidock.agent.llm_factory")
 
 OPENAI_COMPATIBLE_DEFAULTS = {
+    "nvidia": ("https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY", "meta/llama-3.1-70b-instruct"),
     "openai": ("https://api.openai.com/v1", "OPENAI_API_KEY", "gpt-4o"),
     "groq": ("https://api.groq.com/openai/v1", "GROQ_API_KEY", "llama-3.3-70b-versatile"),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "meta-llama/llama-3.3-70b-instruct"),
@@ -21,6 +22,8 @@ OPENAI_COMPATIBLE_DEFAULTS = {
     "cerebras": ("https://api.cerebras.ai/v1", "CEREBRAS_API_KEY", "llama3.1-70b"),
     "ollama_cloud": ("https://ollama.com/v1", "OLLAMA_API_KEY", "llama3.3"),
     "azure": ("", "AZURE_OPENAI_API_KEY", "gpt-4o"),
+    "workers_ai": ("https://api.cloudflare.com/client/v4/accounts", "CLOUDFLARE_API_KEY", "@cf/meta/llama-3-8b-instruct"),
+    "cloudflare_ai_gateway": ("https://gateway.ai.cloudflare.com", "CLOUDFLARE_API_KEY", "default"),
 }
 
 def get_llm(provider: str, model: str, api_key: Optional[str] = None, base_url: Optional[str] = None, temperature: float = 0.3):
@@ -106,13 +109,15 @@ def get_llm(provider: str, model: str, api_key: Optional[str] = None, base_url: 
 
     else:
         logger.warning(f"Unknown or custom LLM provider: '{provider}'. Checking base_url or falling back to Local Ollama.")
-        if base_url or api_key:
+        if base_url:
             return ChatOpenAI(
                 model=model_name or "default",
                 openai_api_key=api_key or "placeholder",
-                openai_api_base=base_url or "http://localhost:8000/v1",
+                openai_api_base=base_url,
                 temperature=temperature
             )
+        elif api_key:
+            raise ValueError(f"Custom provider '{provider}' requires an endpoint base_url to be configured.")
         in_docker = os.getenv("CONTAINER_MODE") == "true" or os.path.exists('/.dockerenv') or os.path.exists('/workspace')
         default_base_url = "http://model-runner.docker.internal" if in_docker else "http://localhost:12434"
         return ChatOllama(

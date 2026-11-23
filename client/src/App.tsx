@@ -21,6 +21,9 @@ interface Message {
   content: string;
   workspaceUsed?: string;
   latencyMs?: number;
+  provider?: string;
+  model?: string;
+  providerLabel?: string;
 }
 
 interface WorkspaceFile {
@@ -566,8 +569,10 @@ function App() {
   const selectActiveProvider = (provId: string) => {
     setActiveProviderId(provId);
     localStorage.setItem('ai_provider', provId);
-    const chosenModel = providerSelectedModels[provId] || (providerDiscoveredModels[provId] || [])[0] || '';
-    setActiveModel(chosenModel);
+    const chosenModel = providerSelectedModels[provId] || (provId === 'local' ? localSelectedModel : (providerDiscoveredModels[provId] || [])[0] || '');
+    if (chosenModel) {
+      setActiveModel(chosenModel);
+    }
   };
 
   const saveAndTestProviderConfig = async (provId: string) => {
@@ -954,21 +959,26 @@ function App() {
           const data = await res.json();
           // Local: { model_name }  |  Cloud: { status, timestamp }
           if (data.model_name) {
-            setActiveModel(data.model_name);
+            setLocalSelectedModel(data.model_name);
+            if (activeProviderId === 'local') {
+              setActiveModel(data.model_name);
+            }
           } else if (data.status === 'healthy') {
-            setActiveModel(`AICodex Cloud · ${cloudSpaceSlug}`);
+            if (isCloudMode()) {
+              setActiveModel(`AICodex Cloud · ${cloudSpaceSlug}`);
+            }
           }
           setConnected(true);
         } else if (res.status === 401 && isCloudMode()) {
-          setActiveModel('Auth Required');
+          if (isCloudMode()) setActiveModel('Auth Required');
           setConnected(false);
         } else {
-          setActiveModel('Disconnected');
+          if (activeProviderId === 'local') setActiveModel('Disconnected');
           setConnected(false);
         }
       } catch (err) {
         console.error('Error fetching model info:', err);
-        setActiveModel('Connection Error');
+        if (activeProviderId === 'local') setActiveModel('Connection Error');
         setConnected(false);
       }
     };
@@ -1179,7 +1189,8 @@ function App() {
     const provDef = PROVIDERS.find(p => p.id === provId) || PROVIDERS[0];
     const apiKey = (providerApiKeys[provId] || '').trim();
     const baseUrl = (providerBaseUrls[provId] || '').trim();
-    const modelSlug = providerSelectedModels[provId] || activeModel;
+    const modelSlug = providerSelectedModels[provId] || (provId === 'local' ? localSelectedModel : activeModel);
+    const effectiveBaseUrl = baseUrl || provDef.defaultUrl || undefined;
 
     // Guard: cloud mode requires a JWT
     if (isCloudMode() && !cloudToken) {
@@ -1188,6 +1199,9 @@ function App() {
         id: `msg_${Date.now()}_e`,
         sender: 'bot',
         content: 'Cloud inference requires credentials. Open Settings and sign in to AICodex Cloud first.',
+        provider: provId,
+        model: modelSlug || activeModel,
+        providerLabel: provDef.label
       };
       setMessages(prev => [...prev, errorMessage]);
       return;
@@ -1200,6 +1214,9 @@ function App() {
         id: `msg_${Date.now()}_e`,
         sender: 'bot',
         content: `API Key required for **${provDef.label}**. Click the **${provDef.label}** pill in the top header or open Connection Settings to enter your API key.`,
+        provider: provId,
+        model: modelSlug || activeModel,
+        providerLabel: provDef.label
       };
       setMessages(prev => [...prev, errorMessage]);
       return;
@@ -1239,9 +1256,11 @@ function App() {
               message: currentInput, 
               session_id: sessionId, 
               provider: provId,
-              model_slug: modelSlug || localSelectedModel || undefined,
+              model_slug: modelSlug || (provId === 'local' ? localSelectedModel : undefined),
               api_key: apiKey || undefined,
-              base_url: baseUrl || undefined,
+              base_url: effectiveBaseUrl,
+              spiritcloud_token: cloudToken || undefined,
+              spirit_cloud_api_url: getCloudBase(),
               cloud_token: cloudToken || undefined,
               cloud_api_url: getCloudBase()
             }),
@@ -1282,6 +1301,9 @@ function App() {
         content: responseText,
         workspaceUsed,
         latencyMs: latency,
+        provider: data.provider || provId,
+        model: data.model_used || modelSlug || activeModel,
+        providerLabel: provDef.label
       }]);
       playAlertSound('success');
 
@@ -1295,6 +1317,9 @@ function App() {
         content: isConnectionError
           ? 'Error: Failed to connect to backend. Check that Docker is running or your cloud credentials are valid.'
           : `Error: ${err.message || 'An unknown error occurred.'}`,
+        provider: provId,
+        model: modelSlug || activeModel,
+        providerLabel: provDef.label
       }]);
     } finally {
       setLoading(false);
@@ -1939,8 +1964,8 @@ function App() {
             {/* <img src={spiritDockLogo} alt="SpiritDock Logo" className="w-6 h-6 object-contain" /> */}
             <MascotLogo className="w-8 h-8 text-[#0db7ed]" />
           </div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-base font-bold tracking-tight text-white">Spirit Bird <span className='text-[#0db7ed]'>AIDock</span></h1>
+          <div className="flex items-center gap-2.5 me-2">
+            <h1 className="text-base font-bold tracking-tight text-white"><span className="hidden lg:block">Spirit Bird </span><span className='text-[#0db7ed]'>AIDock</span></h1>
             <button
               type="button"
               onClick={() => {
@@ -2243,11 +2268,15 @@ function App() {
                       {/* LLM Logo & Model Badge inside Assistant bubbles */}
                       {msg.sender === 'bot' && msg.id.indexOf('_sys') === -1 && (
                         <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border-subtle)] mb-1 text-[11px] text-[var(--text-muted)] font-semibold">
-                          <div className="w-3.5 h-3.5 rounded bg-[#0db7ed] flex items-center justify-center text-white shrink-0">
-                            <MascotLogo className="w-2.5 h-2.5 text-white" />
+                          <div className="w-4 h-4 rounded bg-white border border-black/10 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
+                            <ProviderBrandIcon providerId={msg.provider || activeProviderId} className="w-3 h-3 object-contain" />
                           </div>
-                          <span className="font-bold text-[var(--text-primary)]">{activeModel}</span>
-                          <span className="text-[9px] font-mono bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-1.5 py-0.2 rounded text-[var(--text-secondary)]">Model Runner</span>
+                          <span className="font-bold text-[var(--text-primary)]">
+                            {((msg.model || (msg.provider ? providerSelectedModels[msg.provider] : '') || activeModel || '').split('/').pop()) || 'Assistant'}
+                          </span>
+                          <span className="text-[9px] font-mono bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-1.5 py-0.2 rounded text-[var(--text-secondary)]">
+                            {msg.providerLabel || PROVIDERS.find(p => p.id === (msg.provider || activeProviderId))?.label || (activeProviderId === 'local' ? (localEngine === 'docker' ? 'Docker Models' : (localEngine === 'ollama' ? 'Ollama' : 'vLLM')) : 'Cloud API')}
+                          </span>
                         </div>
                       )}
                       

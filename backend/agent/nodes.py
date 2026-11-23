@@ -193,9 +193,9 @@ def reason_node(state: AgentState):
             return []
 
     def is_valid_slug(slug: str) -> bool:
-        # Allow patterns like owner/model or owner/model:tag with safe chars
-        pattern = r'^[a-z0-9._-]+/[a-z0-9._-]+(:[A-Za-z0-9._-]+)?$'
-        if not re.match(pattern, slug):
+        # Allow patterns like owner/model or alphanumeric model names with safe chars
+        pattern = r'^[a-zA-Z0-9._\s:/-]+$'
+        if not re.match(pattern, slug.strip()):
             return False
 
         # If there's an explicit allow-list, require membership
@@ -252,4 +252,4 @@ def reason_node(state: AgentState):
     logger.info(f"LLM Reasoning - model response received (length: {len(response.content)} chars)")
     
     has_tool_calls = hasattr(response, "tool_calls") and len(response.tool_calls) > 0
-    return {"messages": [response], "is_complete": not has_tool_calls}
+    return {"messages": [response], "is_complete": not has_tool_calls, "model_used": model}
