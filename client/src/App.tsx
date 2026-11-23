@@ -6,7 +6,8 @@ import {
   PanelLeft, Layers, Search, Check, FolderGit2, ChevronsUpDown,
   Bot, Boxes, Sparkles, Globe, Cloud, LayoutGrid, Box,
   SlidersHorizontal, Key, Eye, EyeOff, Server,
-  Volume2, VolumeX, LogOut, Paperclip, Code, MessageSquare, PenTool, Cpu
+  Volume2, VolumeX, LogOut, Paperclip, Code, MessageSquare, PenTool, Cpu,
+  FolderPlus
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -14,6 +15,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import spiritDockLogo from './assets/SpiritDock_Logo.svg';
+import FileTree from './components/FileTree';
 
 interface Message {
   id: string;
@@ -84,6 +86,37 @@ export const PROVIDERS: AIProvider[] = [
   { id: 'workers_ai', label: 'Cloudflare Workers AI', desc: 'Cloudflare edge serverless AI inference', badge: 'WORKERS_AI', requiresKey: false, defaultUrl: 'https://api.cloudflare.com/client/v4/accounts', coreGroup: 'cloud', defaultModels: [] },
   { id: 'cloudflare_ai_gateway', label: 'Cloudflare AI Gateway', desc: 'Universal AI gateway with smart fallbacks', badge: 'CF_GATEWAY', requiresKey: false, defaultUrl: 'https://gateway.ai.cloudflare.com', coreGroup: 'cloud', defaultModels: [] },
   { id: 'azure', label: 'Azure OpenAI', desc: 'Enterprise OpenAI deployed on Microsoft Azure', badge: 'AZURE', requiresKey: true, defaultUrl: 'https://{resource}.openai.azure.com/openai/deployments', coreGroup: 'cloud', defaultModels: [] },
+];
+
+export interface WorkspaceProject {
+  id: string;
+  name: string;
+  path: string;
+  isGit?: boolean;
+}
+
+export interface ChatSessionItem {
+  id?: number;
+  session_id: string;
+  title: string;
+  created_at: string;
+  updated_at?: string;
+  workspaceId?: string;
+  space_type?: string;
+}
+
+export const DEFAULT_WORKSPACES: WorkspaceProject[] = [
+  { id: 'default', name: 'Local Session', path: '/workspace', isGit: true },
+  { id: 'spirit-book', name: 'spirit-book', path: '/workspace/spirit-book', isGit: false },
+  { id: 'ai-codex', name: 'AI_Codex Root', path: 'C:/AppDev/My_Linkdin/projects/iarxii', isGit: true },
+];
+
+export const CODEX_SPACES_CATALOG = [
+  { id: 'space_code_lab', slug: 'gemma4-code-lab', name: 'Gemma 4 Code Lab', tag: 'CODE LAB', color: '#0db7ed', desc: 'MTP Speculative Decoding', date: 'Active' },
+  { id: 'space_trading', slug: 'fintrader', name: 'FinTrader Analytics Lab', tag: 'TRADING', color: '#ea580c', desc: 'Market & Technical Analysis', date: 'Active' },
+  { id: 'space_health', slug: 'med-gemma', name: 'MedGemma Soft Lab', tag: 'HEALTH', color: '#10b981', desc: 'Clinical Q&A & Research', date: 'Active' },
+  { id: 'space_artgen', slug: 'artgen', name: 'ArtGen Design Lab', tag: 'CREATIVE', color: '#8b5cf6', desc: 'Visual Prompting & UI/UX', date: 'Active' },
+  { id: 'space_spiritbook', slug: 'spiritbook', name: 'SpiritBook Audio Lab', tag: 'LINGUISTIC', color: '#f59e0b', desc: 'Language & Educational Tutor', date: 'Active' },
 ];
 
 function MascotLogo({ className }: { className?: string }) {
@@ -196,7 +229,6 @@ function App() {
   const [activeSidebarTab, setActiveSidebarTab] = useState<'standard' | 'spaces'>('standard');
   const [showFunctionShortcuts, setShowFunctionShortcuts] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState('');
-  const [activeStandardWorkspace, setActiveStandardWorkspace] = useState<'local' | 'ollama' | 'codex-root'>('local');
 
   // Alert Sounds state and acoustic feedback
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
@@ -465,7 +497,10 @@ function App() {
   
   // Latency timer state
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [activeModel, setActiveModel] = useState('Gemma4 E4B');
+  const [activeModel, setActiveModel] = useState<string>(() => {
+    const savedProv = localStorage.getItem('ai_provider') || 'local';
+    return localStorage.getItem(`ai_model_${savedProv}`) || '';
+  });
   
   // ── Cloud Credentials ─────────────────────────────────────────────────────
   const CLOUD_BE = 'https://aicodex-be-1096425756328.us-central1.run.app';
@@ -864,6 +899,85 @@ function App() {
   const [isFileTreeExpanded, setIsFileTreeExpanded] = useState(true);
   const [isSidebarModelListExpanded, setIsSidebarModelListExpanded] = useState(false);
 
+  // Workspaces (Projects) state
+  const [workspaces, setWorkspaces] = useState<WorkspaceProject[]>(() => {
+    try {
+      const saved = localStorage.getItem('aidock_workspaces');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_WORKSPACES;
+  });
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>(() => {
+    return localStorage.getItem('aidock_active_workspace') || 'default';
+  });
+  const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
+  const [isNewWorkspaceModalOpen, setIsNewWorkspaceModalOpen] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [newWorkspacePath, setNewWorkspacePath] = useState('');
+
+  const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0] || DEFAULT_WORKSPACES[0];
+
+  // Sessions (Chats) state
+  const [sessionsList, setSessionsList] = useState<ChatSessionItem[]>([]);
+
+  const fetchSessionsList = async () => {
+    try {
+      const res = await fetch(getBackendUrl('sessions'));
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setSessionsList(data);
+        }
+      }
+    } catch (e) {
+      console.debug('Failed to fetch sessions:', e);
+    }
+  };
+
+  const handleSelectSession = async (sId: string) => {
+    setSessionId(sId);
+    try {
+      const res = await fetch(getBackendUrl(`sessions/${sId}/messages`));
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.messages)) {
+          const mapped: Message[] = data.messages.map((m: any) => ({
+            id: m.id || `msg_${Date.now()}`,
+            sender: m.sender || 'bot',
+            content: m.content || '',
+            workspaceUsed: m.workspaceUsed,
+            provider: m.provider,
+            model: m.model,
+            providerLabel: m.providerLabel
+          }));
+          setMessages(mapped);
+        }
+      }
+      fetchFiles(sId);
+    } catch (e) {
+      console.error('Failed to load session messages:', e);
+    }
+  };
+
+  const handleNewChat = () => {
+    const newId = `session_${Date.now()}`;
+    setSessionId(newId);
+    setMessages([]);
+    setFiles([]);
+    fetchFiles(newId);
+  };
+
+  const formatSessionDate = (dateStr?: string) => {
+    if (!dateStr) return 'Recently';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return 'Recently';
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return 'Recently';
+    }
+  };
+
   // Auto-load spaces when token already exists on mount
   useEffect(() => {
     if (cloudToken && isCloudMode()) {
@@ -935,10 +1049,11 @@ function App() {
   }, [input]);
 
   // Fetch workspace files list
-  const fetchFiles = async () => {
+  const fetchFiles = async (targetSessionId?: string) => {
     try {
+      const sId = targetSessionId || sessionId;
       const headers: HeadersInit = isCloudMode() ? cloudAuthHeaders() : {};
-      const res = await fetch(getBackendUrl(`files?session_id=${sessionId}`), { headers });
+      const res = await fetch(getBackendUrl(`files?session_id=${sId}`), { headers });
       if (res.ok) {
         const data = await res.json();
         setFiles(data.files || []);
@@ -948,10 +1063,11 @@ function App() {
     }
   };
 
-  // Fetch files when messages list changes
+  // Fetch files and sessions when messages list or session changes
   useEffect(() => {
     fetchFiles();
-  }, [messages]);
+    fetchSessionsList();
+  }, [messages, sessionId]);
 
   // Fetch active model info on mount and when backendMode/token changes
   useEffect(() => {
@@ -1232,6 +1348,8 @@ function App() {
     const baseUrl = (providerBaseUrls[provId] || '').trim();
     const modelSlug = providerSelectedModels[provId] || (provId === 'local' ? localSelectedModel : activeModel);
     const effectiveBaseUrl = baseUrl || provDef.defaultUrl || undefined;
+    const effectiveProviderLabel = provId === 'local' ? (localEngine === 'docker' ? 'Docker Models' : (localEngine === 'ollama' ? 'Ollama' : 'vLLM')) : provDef.label;
+    const effectiveModelName = modelSlug || (provId === 'local' ? localSelectedModel : (providerSelectedModels[provId] || activeModel || 'Model'));
 
     // Guard: cloud mode requires a JWT
     if (isCloudMode() && !cloudToken) {
@@ -1241,8 +1359,8 @@ function App() {
         sender: 'bot',
         content: 'Cloud inference requires credentials. Open Settings and sign in to AICodex Cloud first.',
         provider: provId,
-        model: modelSlug || activeModel,
-        providerLabel: provDef.label
+        model: effectiveModelName,
+        providerLabel: effectiveProviderLabel
       };
       setMessages(prev => [...prev, errorMessage]);
       return;
@@ -1254,10 +1372,10 @@ function App() {
       const errorMessage: Message = {
         id: `msg_${Date.now()}_e`,
         sender: 'bot',
-        content: `API Key required for **${provDef.label}**. Click the **${provDef.label}** pill in the top header or open Connection Settings to enter your API key.`,
+        content: `API Key required for **${effectiveProviderLabel}**. Click the **${effectiveProviderLabel}** pill in the top header or open Connection Settings to enter your API key.`,
         provider: provId,
-        model: modelSlug || activeModel,
-        providerLabel: provDef.label
+        model: effectiveModelName,
+        providerLabel: effectiveProviderLabel
       };
       setMessages(prev => [...prev, errorMessage]);
       return;
@@ -1343,8 +1461,8 @@ function App() {
         workspaceUsed,
         latencyMs: latency,
         provider: data.provider || provId,
-        model: data.model_used || modelSlug || activeModel,
-        providerLabel: provDef.label
+        model: data.model_used || effectiveModelName,
+        providerLabel: effectiveProviderLabel
       }]);
       playAlertSound('success');
 
@@ -1359,8 +1477,8 @@ function App() {
           ? 'Error: Failed to connect to backend. Check that Docker is running or your cloud credentials are valid.'
           : `Error: ${err.message || 'An unknown error occurred.'}`,
         provider: provId,
-        model: modelSlug || activeModel,
-        providerLabel: provDef.label
+        model: effectiveModelName,
+        providerLabel: effectiveProviderLabel
       }]);
     } finally {
       setLoading(false);
@@ -1405,7 +1523,7 @@ function App() {
             </div>
 
             <div className="font-extrabold text-base tracking-tight text-[var(--text-primary)] flex items-center gap-0.5">
-              Spirit<span className="text-[#0db7ed]">Dock</span><span className="text-[var(--text-muted)] font-mono text-xs font-normal">.ai</span>
+              AI<span className="text-[#0db7ed]">Dock</span><span className="text-[var(--text-muted)] font-mono text-xs font-normal">.dc</span>
             </div>
 
             <div className="flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-[0.2em] text-[var(--text-muted)] font-bold mt-0.5">
@@ -1415,17 +1533,14 @@ function App() {
           </div>
 
           {/* 2. ACTIVE PROJECT / WORKSPACE SELECTOR BAR */}
-          <div className="px-3 pt-2.5 pb-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+          <div className="px-3 pt-2.5 pb-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] relative">
             <div className="flex items-center justify-between mb-1 px-0.5">
               <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Active Workspace</span>
               <button 
                 type="button" 
-                onClick={() => {
-                  setMessages([]);
-                  setIsSidebarOpen(false);
-                }}
+                onClick={() => setIsNewWorkspaceModalOpen(true)}
                 className="text-[9px] font-bold text-[#0db7ed] hover:underline cursor-pointer flex items-center gap-0.5"
-                title="Create New Session"
+                title="Create New Workspace"
               >
                 <Plus className="w-3 h-3" /> New
               </button>
@@ -1433,26 +1548,74 @@ function App() {
 
             <div 
               className="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl bg-[var(--bg-surface-elevated)] hover:bg-[#0db7ed]/5 border border-[var(--border-subtle)] hover:border-[#0db7ed]/50 text-left transition-all cursor-pointer shadow-sm"
-              onClick={() => setActiveSidebarTab('standard')}
+              onClick={() => setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen)}
             >
               <div className="flex items-center gap-2 min-w-0">
                 <FolderGit2 className="w-4 h-4 text-[#0db7ed] shrink-0" />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-[var(--text-primary)] truncate">
-                      {cloudSpaceSlug === 'spirit-llama' ? 'SpiritLlama Harness' : (cloudSpaceSlug || 'Local Session')}
+                      {activeWorkspace.name}
                     </span>
                     <span className="px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-600 text-[8px] font-mono font-bold shrink-0">
-                      active
+                      git
                     </span>
                   </div>
-                  <div className="text-[9px] font-mono text-[var(--text-muted)] truncate" title={`/workspace/${sessionId.slice(-12)}`}>
-                    /workspace/{sessionId.slice(-12)}
+                  <div className="text-[9px] font-mono text-[var(--text-muted)] truncate" title={activeWorkspace.path}>
+                    {activeWorkspace.path}
                   </div>
                 </div>
               </div>
               <ChevronsUpDown className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" />
             </div>
+
+            {/* Dropdown list of workspaces */}
+            {isWorkspaceDropdownOpen && (
+              <div className="absolute left-3 right-3 top-[100%] z-50 mt-1 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-xl overflow-hidden py-1">
+                <div className="px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border-subtle)]">
+                  Available Workspaces
+                </div>
+                <div className="max-h-48 overflow-y-auto py-1">
+                  {workspaces.map(w => {
+                    const isActive = w.id === activeWorkspaceId;
+                    return (
+                      <div
+                        key={w.id}
+                        onClick={() => {
+                          setActiveWorkspaceId(w.id);
+                          localStorage.setItem('aidock_active_workspace', w.id);
+                          setIsWorkspaceDropdownOpen(false);
+                        }}
+                        className={`px-2.5 py-2 flex items-center justify-between text-xs cursor-pointer transition-colors ${
+                          isActive ? 'bg-[#0db7ed]/10 text-[#0db7ed] font-semibold' : 'text-[var(--text-primary)] hover:bg-[var(--bg-surface-elevated)]'
+                        }`}
+                      >
+                        <div className="min-w-0 pr-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate">{w.name}</span>
+                            {w.isGit && <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-black/10 dark:bg-white/10 text-[var(--text-secondary)]">git</span>}
+                          </div>
+                          <div className="text-[9px] font-mono text-[var(--text-muted)] truncate">{w.path}</div>
+                        </div>
+                        {isActive && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0" />}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="pt-1 border-t border-[var(--border-subtle)] px-2 pb-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsWorkspaceDropdownOpen(false);
+                      setIsNewWorkspaceModalOpen(true);
+                    }}
+                    className="w-full py-1.5 px-2 rounded-lg text-[10px] font-bold text-[#0db7ed] hover:bg-[#0db7ed]/10 flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" /> New Workspace...
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 3. MODELS SECTION PANEL (Dynamic for ALL providers!) */}
@@ -1461,14 +1624,23 @@ function App() {
               <button
                 type="button"
                 onClick={() => setIsSidebarModelListExpanded(!isSidebarModelListExpanded)}
-                className="flex items-center gap-1.5 min-w-0 cursor-pointer group text-left"
+                className="flex items-center gap-1.5 min-w-0 cursor-pointer group text-left max-w-[200px]"
                 title={isSidebarModelListExpanded ? "Collapse Models List" : "Expand Models List"}
               >
-                <ChevronDown className={`w-3 h-3 text-[var(--text-muted)] group-hover:text-[#0db7ed] transition-transform duration-200 ${isSidebarModelListExpanded ? '' : '-rotate-90'}`} />
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)] group-hover:text-[var(--text-primary)]">Models</span>
-                <span className="px-1.5 py-0.2 rounded bg-[#0db7ed]/15 text-[#0db7ed] border border-[#0db7ed]/30 text-[8px] font-mono font-bold uppercase">
-                  {PROVIDERS.find(p => p.id === activeProviderId)?.badge || 'LOCAL'}
-                </span>
+                <ChevronDown className={`w-3 h-3 text-[var(--text-muted)] group-hover:text-[#0db7ed] transition-transform duration-200 shrink-0 ${isSidebarModelListExpanded ? '' : '-rotate-90'}`} />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)] group-hover:text-[var(--text-primary)] shrink-0">Models</span>
+                {isSidebarModelListExpanded ? (
+                  <span className="px-1.5 py-0.2 rounded bg-[#0db7ed]/15 text-[#0db7ed] border border-[#0db7ed]/30 text-[8px] font-mono font-bold uppercase shrink-0">
+                    {PROVIDERS.find(p => p.id === activeProviderId)?.badge || 'LOCAL'}
+                  </span>
+                ) : (
+                  <span 
+                    className="max-w-[125px] truncate px-1.5 py-0.2 rounded bg-[#0db7ed]/15 text-[#0db7ed] border border-[#0db7ed]/30 text-[8px] font-mono font-bold uppercase"
+                    title={`${PROVIDERS.find(p => p.id === activeProviderId)?.badge || 'LOCAL'} | ${(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop() || 'None'}`}
+                  >
+                    {PROVIDERS.find(p => p.id === activeProviderId)?.badge || 'LOCAL'} | {(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop() || 'None'}
+                  </span>
+                )}
               </button>
               <div className="flex items-center gap-1">
                 <button 
@@ -1494,29 +1666,32 @@ function App() {
               </div>
             </div>
 
-            {/* Active Model Header Display - Interactive Toggle */}
-            <div 
-              onClick={() => setIsSidebarModelListExpanded(!isSidebarModelListExpanded)}
-              className="text-[11px] font-mono bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] hover:border-[#0db7ed]/40 px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-1.5 mb-1.5 shadow-sm cursor-pointer transition-all select-none"
-              title={isSidebarModelListExpanded ? "Click to collapse model selection list" : "Click to expand model selection list"}
-            >
-              <div className="flex items-center gap-1.5 min-w-0">
-                <div className="w-5 h-5 rounded-md bg-white border border-black/10 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
-                  <ProviderBrandIcon providerId={activeProviderId} className="w-3.5 h-3.5 object-contain" />
+            {/* Collapsible Container (Active Model Strip + Selectable Models) */}
+            {isSidebarModelListExpanded && (
+              <div className="space-y-1.5 animate-in fade-in duration-150">
+                {/* Active Model Header Display Strip */}
+                <div 
+                  onClick={() => setIsSidebarModelListExpanded(false)}
+                  className="text-[11px] font-mono bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] hover:border-[#0db7ed]/40 px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-1.5 shadow-sm cursor-pointer transition-all select-none"
+                  title="Click to collapse model selection list"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="w-5 h-5 rounded-md bg-white border border-black/10 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
+                      <ProviderBrandIcon providerId={activeProviderId} className="w-3.5 h-3.5 object-contain" />
+                    </div>
+                    <span className="font-bold text-[var(--text-primary)] truncate" title={activeModel}>
+                      {activeModel ? activeModel.split('/').pop() : 'Scanning...'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[9px] text-[#0db7ed] font-semibold">Active</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                  </div>
                 </div>
-                <span className="font-bold text-[var(--text-primary)] truncate" title={activeModel}>
-                  {activeModel ? activeModel.split('/').pop() : 'Scanning...'}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-[9px] text-[#0db7ed] font-semibold">Active</span>
-                <ChevronDown className={`w-3.5 h-3.5 text-[var(--text-muted)] transition-transform duration-200 ${isSidebarModelListExpanded ? '' : '-rotate-90'}`} />
-              </div>
-            </div>
 
-            {/* Selectable Model Pills (Collapsible, collapsed by default) */}
-            {isSidebarModelListExpanded && (() => {
-              const activeProv = PROVIDERS.find(p => p.id === activeProviderId);
+                {/* Selectable Model Pills */}
+                {(() => {
+                  const activeProv = PROVIDERS.find(p => p.id === activeProviderId);
               const discovered = providerDiscoveredModels[activeProviderId] || [];
               const hasKey = Boolean(providerApiKeys[activeProviderId]);
 
@@ -1585,6 +1760,8 @@ function App() {
                 </div>
               );
             })()}
+              </div>
+            )}
           </div>
 
           {/* 4. SUB-NAVIGATION TABS: Standard vs CodexSpaces */}
@@ -1644,231 +1821,152 @@ function App() {
           <div className="p-3 flex-1 overflow-y-auto space-y-3">
             {activeSidebarTab === 'standard' ? (
               <>
-                {/* Standard Workspaces items */}
+                {/* Standard Tab: Chats (Sessions) inside Active Workspace */}
                 <div className="space-y-1.5">
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-1">
-                    Workspaces
-                  </div>
-
-                  {/* Local Session */}
-                  <div
-                    onClick={() => {
-                      setActiveStandardWorkspace('local');
-                      setCloudSpaceSlug('local-session');
-                      localStorage.setItem('aidock_cloud_space', 'local-session');
-                    }}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${
-                      activeStandardWorkspace === 'local'
-                        ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
-                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-[var(--text-primary)]">Local Session</span>
-                        <span className="text-[8px] font-mono bg-black/10 dark:bg-white/10 px-1 py-0.2 rounded text-[var(--text-secondary)]">/workspace</span>
-                      </div>
-                      <div className="text-[10px] text-[var(--text-secondary)] truncate">Ephemeral sandbox & files</div>
-                    </div>
-                    {activeStandardWorkspace === 'local' && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
-                  </div>
-
-                  {/* OllamaOpt Engine */}
-                  <div
-                    onClick={() => {
-                      setActiveStandardWorkspace('ollama');
-                      setCloudSpaceSlug('ollama-opt');
-                      localStorage.setItem('aidock_cloud_space', 'ollama-opt');
-                    }}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${
-                      activeStandardWorkspace === 'ollama'
-                        ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
-                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-[var(--text-primary)]">OllamaOpt Engine</span>
-                        <span className="text-[8px] font-mono bg-[#0db7ed]/15 text-[#0db7ed] px-1 py-0.2 rounded font-bold">11434</span>
-                      </div>
-                      <div className="text-[10px] text-[var(--text-secondary)] truncate">Local GGUF model runner</div>
-                    </div>
-                    {activeStandardWorkspace === 'ollama' && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
-                  </div>
-
-                  {/* AI_Codex Knowledge Base */}
-                  <div
-                    onClick={() => {
-                      setActiveStandardWorkspace('codex-root');
-                      setCloudSpaceSlug('ai-codex');
-                      localStorage.setItem('aidock_cloud_space', 'ai-codex');
-                    }}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${
-                      activeStandardWorkspace === 'codex-root'
-                        ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
-                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-[var(--text-primary)]">AI_Codex Root</span>
-                        <span className="text-[8px] font-mono bg-black/10 dark:bg-white/10 px-1 py-0.2 rounded text-[var(--text-secondary)]">Repo</span>
-                      </div>
-                      <div className="text-[10px] text-[var(--text-secondary)] truncate">Architecture & specs</div>
-                    </div>
-                    {activeStandardWorkspace === 'codex-root' && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
-                  </div>
-                </div>
-
-                {/* Workspace Files Section */}
-                <div className="space-y-1.5 pt-2 border-t border-[var(--border-subtle)]">
                   <div className="flex items-center justify-between px-1">
-                    <span 
-                      onClick={() => setIsFileTreeExpanded(!isFileTreeExpanded)}
-                      className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-primary)] flex items-center gap-1"
-                    >
-                      <ChevronDown className={`w-3 h-3 transition-transform ${isFileTreeExpanded ? '' : '-rotate-90'}`} />
-                      Workspace Files ({files.length})
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                      Chats ({sessionsList.filter(s => !sidebarSearch || s.title.toLowerCase().includes(sidebarSearch.toLowerCase())).length})
                     </span>
                     <button
-                      onClick={() => fetchFiles()}
-                      className="text-[9px] text-[#0db7ed] hover:underline flex items-center gap-0.5 cursor-pointer"
+                      type="button"
+                      onClick={() => {
+                        handleNewChat();
+                        setIsSidebarOpen(false);
+                      }}
+                      className="text-[9px] font-bold text-[#0db7ed] hover:underline flex items-center gap-0.5 cursor-pointer"
+                      title="Start New Chat Session"
                     >
-                      <RefreshCw className="w-2.5 h-2.5" /> Refresh
+                      <Plus className="w-3 h-3" /> New Chat
                     </button>
                   </div>
 
-                  {isFileTreeExpanded && (
-                    <div className="space-y-1 max-h-48 overflow-y-auto pr-0.5">
-                      {files.length === 0 ? (
-                        <p className="text-[11px] text-[var(--text-muted)] italic px-1 py-1">No files in sandbox</p>
-                      ) : (
-                        files.map(f => (
-                          <div 
-                            key={f.name} 
-                            onClick={() => openFileInEditor(f.path)}
-                            className="flex items-center justify-between p-1.5 rounded-lg bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] hover:border-[#0db7ed]/40 text-xs cursor-pointer transition-all"
-                            title="Click to open in editor"
+                  <div className="space-y-1 max-h-56 overflow-y-auto pr-0.5">
+                    {sessionsList
+                      .filter(s => !sidebarSearch || s.title.toLowerCase().includes(sidebarSearch.toLowerCase()))
+                      .map(s => {
+                        const sid = s.session_id || String(s.id || '');
+                        const isActive = sid === sessionId;
+                        return (
+                          <div
+                            key={sid}
+                            onClick={() => {
+                              handleSelectSession(sid);
+                              setIsSidebarOpen(false);
+                            }}
+                            className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+                              isActive
+                                ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
+                                : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
+                            }`}
                           >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <FileCode className="w-3.5 h-3.5 text-[#0db7ed] shrink-0" />
-                              <span className="font-mono text-[11px] truncate text-[var(--text-primary)]">{f.name}</span>
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${
+                                isActive
+                                  ? 'bg-[#0db7ed] border-[#0db7ed] text-white shadow-xs'
+                                  : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-muted)]'
+                              }`}>
+                                <Layers className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-[var(--text-primary)] truncate" title={s.title}>
+                                  {s.title}
+                                </div>
+                                <div className="text-[10px] font-mono text-[var(--text-muted)] truncate">
+                                  {formatSessionDate(s.created_at)}
+                                </div>
+                              </div>
                             </div>
-                            <span className="text-[9px] font-mono text-[var(--text-muted)]">{(f.size / 1024).toFixed(1)}k</span>
+                            {isActive && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0" />}
                           </div>
-                        ))
-                      )}
-                    </div>
-                  )}
+                        );
+                      })}
+                    {sessionsList.length === 0 && (
+                      <p className="text-[11px] text-[var(--text-muted)] italic px-1 py-1">No chats found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Workspace Files (Collapsible Recursive File Tree) */}
+                <div className="pt-2 border-t border-[var(--border-subtle)]">
+                  <FileTree
+                    files={files}
+                    onOpenFile={openFileInEditor}
+                    onRefresh={() => fetchFiles(sessionId)}
+                    isExpanded={isFileTreeExpanded}
+                    onToggleExpanded={() => setIsFileTreeExpanded(!isFileTreeExpanded)}
+                  />
                 </div>
               </>
             ) : (
               <>
-                {/* CodexSpaces items */}
+                {/* CodexSpaces Catalog Tab */}
                 <div className="space-y-1.5">
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-1">
-                    CodexSpaces
-                  </div>
-
-                  {/* SpiritLlama */}
-                  <div
-                    onClick={() => {
-                      setCloudSpaceSlug('spirit-llama');
-                      localStorage.setItem('aidock_cloud_space', 'spirit-llama');
-                    }}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${
-                      cloudSpaceSlug === 'spirit-llama'
-                        ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
-                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-[var(--text-primary)]">SpiritLlama.cpp</span>
-                        <span className="text-[8px] font-mono bg-[#0db7ed]/15 text-[#0db7ed] px-1 py-0.2 rounded font-bold">8080</span>
-                      </div>
-                      <div className="text-[10px] text-[var(--text-secondary)] truncate">WPF Native Vulkan/CUDA GGUF</div>
-                    </div>
-                    {cloudSpaceSlug === 'spirit-llama' && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
-                  </div>
-
-                  {/* VSCodex */}
-                  <div
-                    onClick={() => {
-                      setCloudSpaceSlug('vscodex-bridge');
-                      localStorage.setItem('aidock_cloud_space', 'vscodex-bridge');
-                    }}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${
-                      cloudSpaceSlug === 'vscodex-bridge'
-                        ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
-                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <Code className="w-3.5 h-3.5 text-[#0db7ed]" />
-                        <span className="text-xs font-bold text-[var(--text-primary)]">VSCodex Bridge</span>
-                        <span className="text-[8px] font-mono bg-black/10 dark:bg-white/10 px-1 py-0.2 rounded text-[var(--text-secondary)]">VSCode</span>
-                      </div>
-                      <div className="text-[10px] text-[var(--text-secondary)] truncate">Monaco Canvas &amp; extension sync</div>
-                    </div>
-                    {cloudSpaceSlug === 'vscodex-bridge' && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
-                  </div>
-
-                  {/* Cloud Spaces */}
-                  {cloudSpaces.length > 0 ? (
-                    cloudSpaces.map(s => (
-                      <div
-                        key={s.slug}
-                        onClick={() => {
-                          setCloudSpaceSlug(s.slug);
-                          localStorage.setItem('aidock_cloud_space', s.slug);
-                        }}
-                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${
-                          cloudSpaceSlug === s.slug
-                            ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
-                            : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
-                        }`}
-                      >
-                        <div className="min-w-0">
-                          <span className="text-xs font-bold text-[var(--text-primary)]">{s.name}</span>
-                          <div className="text-[10px] text-[var(--text-secondary)] truncate">{s.description || s.slug}</div>
-                        </div>
-                        {cloudSpaceSlug === s.slug && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
-                      </div>
-                    ))
-                  ) : (
-                    <div
-                      onClick={() => {
-                        setCloudSpaceSlug('spirit-book');
-                        localStorage.setItem('aidock_cloud_space', 'spirit-book');
-                      }}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between gap-2 ${
-                        cloudSpaceSlug === 'spirit-book'
-                          ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
-                      }`}
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                      CodexSpaces ({CODEX_SPACES_CATALOG.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowSettingsModal(true)}
+                      className="text-[9px] font-bold text-[#0db7ed] hover:underline flex items-center gap-0.5 cursor-pointer"
+                      title="Configure Cloud Spaces"
                     >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <Cloud className="w-3.5 h-3.5 text-[#0db7ed]" />
-                          <span className="text-xs font-bold text-[var(--text-primary)]">Spirit Book</span>
-                        </div>
-                        <div className="text-[10px] text-[var(--text-secondary)] truncate">Default cloud space</div>
-                      </div>
-                      {cloudSpaceSlug === 'spirit-book' && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0 mt-0.5" />}
-                    </div>
-                  )}
+                      <Plus className="w-3 h-3" /> Browse
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
+                    {CODEX_SPACES_CATALOG
+                      .filter(space => !sidebarSearch || space.name.toLowerCase().includes(sidebarSearch.toLowerCase()) || space.desc.toLowerCase().includes(sidebarSearch.toLowerCase()))
+                      .map(space => {
+                        const isActiveSpace = cloudSpaceSlug === space.slug;
+                        return (
+                          <div
+                            key={space.id}
+                            onClick={() => {
+                              setCloudSpaceSlug(space.slug);
+                              localStorage.setItem('aidock_cloud_space', space.slug);
+                              setIsSidebarOpen(false);
+                            }}
+                            className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+                              isActiveSpace
+                                ? 'border-[#0db7ed] bg-[#0db7ed]/10 shadow-sm'
+                                : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${
+                                isActiveSpace
+                                  ? 'bg-[#0db7ed] border-[#0db7ed] text-white shadow-xs'
+                                  : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[#0db7ed]'
+                              }`}>
+                                <Box className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-bold text-[var(--text-primary)] truncate">{space.name}</span>
+                                  <span className="text-[8px] font-mono bg-black/10 dark:bg-white/10 px-1 py-0.2 rounded text-[var(--text-secondary)] font-bold">{space.tag}</span>
+                                </div>
+                                <div className="text-[10px] text-[var(--text-secondary)] truncate">{space.desc}</div>
+                              </div>
+                            </div>
+                            {isActiveSpace && <Check className="w-3.5 h-3.5 text-[#0db7ed] shrink-0" />}
+                          </div>
+                        );
+                      })}
+                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowSettingsModal(true)}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all bg-[var(--bg-surface-elevated)] hover:bg-[#0db7ed]/10 border border-[var(--border-subtle)] hover:border-[#0db7ed]/40 text-[var(--text-secondary)] hover:text-[#0db7ed] shadow-sm mt-3 cursor-pointer"
-                >
-                  <Layers className="w-3.5 h-3.5 text-[#0db7ed]" />
-                  <span>Browse Cloud Spaces</span>
-                </button>
+                {/* Workspace Files */}
+                <div className="pt-2 border-t border-[var(--border-subtle)]">
+                  <FileTree
+                    files={files}
+                    onOpenFile={openFileInEditor}
+                    onRefresh={() => fetchFiles(sessionId)}
+                    isExpanded={isFileTreeExpanded}
+                    onToggleExpanded={() => setIsFileTreeExpanded(!isFileTreeExpanded)}
+                  />
+                </div>
               </>
             )}
           </div>
@@ -1880,7 +1978,7 @@ function App() {
             <button
               type="button"
               onClick={() => {
-                setMessages([]);
+                handleNewChat();
                 setIsSidebarOpen(false);
               }}
               className="flex-1 py-2 px-3 rounded-xl bg-[#0db7ed] hover:bg-[#0099cc] active:bg-[#0aa5d6] text-white text-xs font-bold shadow-[0_4px_14px_rgba(13,183,237,0.35)] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
@@ -2177,11 +2275,13 @@ function App() {
             <span className={`w-2 h-2 rounded-full ${connected ? 'bg-[#0db7ed] shadow-[0_0_8px_rgba(13,183,237,0.7)] animate-pulse' : 'bg-red-500'}`} />
             <span>{connected ? 'Active' : 'Offline'}</span>
             <span> | </span>
-            <b className="text-[var(--text-primary)]">{PROVIDERS.find(p => p.id === activeProviderId)?.label || 'Local'}</b>
+            <b className="text-[var(--text-primary)]">{activeProviderId === 'local' ? (localEngine === 'docker' ? 'Docker Models' : (localEngine === 'ollama' ? 'Ollama' : 'vLLM')) : (PROVIDERS.find(p => p.id === activeProviderId)?.label || 'Cloud API')}</b>
             <span> | </span>
-            <b className="text-[var(--text-primary)]">{(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop()}</b>
+            <b className="text-[var(--text-primary)]">{(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop() || 'No Model'}</b>
             <span> | </span>
-            <b className="text-[var(--text-primary)] capitalize">{backendMode.replace('-', ' ')} Server</b>
+            <b className="text-[var(--text-primary)] capitalize">
+              {activeProviderId === 'local' ? 'Local Engine' : (isCloudMode() ? 'Spirit Cloud' : 'Cloud BYOK')}
+            </b>
           </button>
         </div>
 
@@ -2388,109 +2488,8 @@ function App() {
               <div ref={messagesEndRef} />
             </div>
 
-          </div>
-        </section>
-
-        {/* Right column: Text Editor Pane */}
-        {isTextEditorOpen && (
-          <section className="lg:col-span-4 flex flex-col h-full min-h-0 bg-[var(--bg-editor)] text-[#E8ECF2] rounded-2xl border border-[var(--border-default)] shadow-[var(--shadow-l1)] p-4 overflow-hidden transition-all duration-300">
-            {/* Editor Header */}
-            <div className="flex items-center justify-between pb-2.5 border-b border-white/10 mb-2.5">
-              <div className="flex items-center gap-2 truncate mr-2">
-                <FileCode className="w-4 h-4 text-[#0db7ed] shrink-0" />
-                <span className="text-xs font-mono font-bold tracking-wide truncate" title={editorFilename}>{editorFilename}</span>
-                <span className={`w-2 h-2 rounded-full shrink-0 ${editorSaved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} title={editorSaved ? 'Saved' : 'Unsaved changes'} />
-              </div>
-              <button
-                onClick={() => setIsTextEditorOpen(false)}
-                className="text-[#7A7D8E] hover:text-white transition-colors duration-150 focus:outline-none"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Format toggle & status bar */}
-            <div className="flex items-center justify-between mb-2.5 text-xs">
-              <div className="flex bg-white/10 rounded-md p-0.5 border border-white/10">
-                <button
-                  onClick={() => {
-                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
-                    setEditorFormat('markdown');
-                    setEditorFilename(`chat_export_${sessionId}.md`);
-                    setEditorContent(generateMarkdown(messages));
-                    setEditorSaved(true);
-                  }}
-                  className={`px-2.5 py-1 rounded font-bold transition-all ${editorFormat === 'markdown' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
-                >
-                  MD
-                </button>
-                <button
-                  onClick={() => {
-                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
-                    setEditorFormat('json');
-                    setEditorFilename(`chat_export_${sessionId}.json`);
-                    setEditorContent(generateJSON(messages));
-                    setEditorSaved(true);
-                  }}
-                  className={`px-2.5 py-1 rounded font-bold transition-all ${editorFormat === 'json' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
-                >
-                  JSON
-                </button>
-              </div>
-
-              {saveStatusText ? (
-                <span className="text-emerald-400 font-medium animate-pulse">{saveStatusText}</span>
-              ) : (
-                <span className="text-[#7A7D8E] font-mono text-[11px]">
-                  {editorSaved ? 'All changes saved' : 'Unsaved changes*'}
-                </span>
-              )}
-            </div>
-
-            {/* Textarea container */}
-            <div className="flex-1 relative flex bg-[#0d0e15] rounded-md border border-white/5 overflow-hidden p-3 font-mono text-xs">
-              {/* Line numbers */}
-              <div ref={lineNumbersRef} className="select-none text-right pr-3 border-r border-white/10 text-white/30 font-mono leading-6 overflow-hidden">
-                {Array.from({ length: Math.max(editorContent.split('\n').length, 15) }).map((_, i) => (
-                  <div key={i}>{i + 1}</div>
-                ))}
-              </div>
-              <textarea
-                ref={editorTextareaRef}
-                value={editorContent}
-                onScroll={handleEditorScroll}
-                onChange={(e) => {
-                  setEditorContent(e.target.value);
-                  setEditorSaved(false);
-                }}
-                className="flex-1 bg-transparent resize-none pl-3 outline-none border-none text-[#E8ECF2] font-mono leading-6 overflow-y-auto scrollbar-thin placeholder-white/20"
-                placeholder="Edit file contents..."
-              />
-            </div>
-
-            {/* Editor Actions */}
-            <div className="flex gap-2 mt-3 pt-2.5 border-t border-white/10">
-              <button
-                onClick={() => handleSaveFile(editorContent, editorFilename)}
-                className="flex-1 bg-[#0db7ed] hover:bg-[#0099cc] text-white text-xs font-semibold py-2 px-3 rounded-md flex items-center justify-center gap-1.5 shadow-sm transition-all"
-              >
-                <Save className="w-3.5 h-3.5" />
-                <span>Save to Workspace</span>
-              </button>
-              <button
-                onClick={() => triggerDownload(editorContent, editorFilename)}
-                className="bg-white/10 hover:bg-white/15 text-white text-xs font-semibold py-2 px-3 rounded-md flex items-center justify-center gap-1.5 border border-white/10 transition-all"
-                title="Download locally"
-              >
-                <Download className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </section>
-        )}
-      </main>
-
-      {/* ── FLOATING USER CHAT INPUT DOCK (SpiritLlama UI 1:1) ── */}
-      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 max-w-4xl w-[calc(100%-3rem)] z-30 shrink-0">
+            {/* ── FLOATING USER CHAT INPUT DOCK (SpiritLlama UI 1:1) ── */}
+      <div className="pt-2 z-20 shrink-0 w-full max-w-4xl mx-auto relative">
         
         {/* SPECIALIZATION MENU POPUP */}
         {isSpecializationMenuOpen && (
@@ -2968,7 +2967,7 @@ function App() {
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={fetchFiles}
+                onClick={() => fetchFiles()}
                 className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] rounded-md transition-colors cursor-pointer"
                 title="Refresh Files"
               >
@@ -3063,11 +3062,203 @@ function App() {
         </div>
 
       </div>
+
+
+          </div>
+        </section>
+
+        {/* Right column: Text Editor Pane */}
+        {isTextEditorOpen && (
+          <section className="lg:col-span-4 flex flex-col h-full min-h-0 bg-[var(--bg-editor)] text-[#E8ECF2] rounded-2xl border border-[var(--border-default)] shadow-[var(--shadow-l1)] p-4 overflow-hidden transition-all duration-300">
+            {/* Editor Header */}
+            <div className="flex items-center justify-between pb-2.5 border-b border-white/10 mb-2.5">
+              <div className="flex items-center gap-2 truncate mr-2">
+                <FileCode className="w-4 h-4 text-[#0db7ed] shrink-0" />
+                <span className="text-xs font-mono font-bold tracking-wide truncate" title={editorFilename}>{editorFilename}</span>
+                <span className={`w-2 h-2 rounded-full shrink-0 ${editorSaved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} title={editorSaved ? 'Saved' : 'Unsaved changes'} />
+              </div>
+              <button
+                onClick={() => setIsTextEditorOpen(false)}
+                className="text-[#7A7D8E] hover:text-white transition-colors duration-150 focus:outline-none"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Format toggle & status bar */}
+            <div className="flex items-center justify-between mb-2.5 text-xs">
+              <div className="flex bg-white/10 rounded-md p-0.5 border border-white/10">
+                <button
+                  onClick={() => {
+                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
+                    setEditorFormat('markdown');
+                    setEditorFilename(`chat_export_${sessionId}.md`);
+                    setEditorContent(generateMarkdown(messages));
+                    setEditorSaved(true);
+                  }}
+                  className={`px-2.5 py-1 rounded font-bold transition-all ${editorFormat === 'markdown' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
+                >
+                  MD
+                </button>
+                <button
+                  onClick={() => {
+                    if (!editorSaved && !confirm('Discard unsaved changes?')) return;
+                    setEditorFormat('json');
+                    setEditorFilename(`chat_export_${sessionId}.json`);
+                    setEditorContent(generateJSON(messages));
+                    setEditorSaved(true);
+                  }}
+                  className={`px-2.5 py-1 rounded font-bold transition-all ${editorFormat === 'json' ? 'bg-[#0db7ed] text-white shadow-sm' : 'text-[#7A7D8E] hover:text-white'}`}
+                >
+                  JSON
+                </button>
+              </div>
+
+              {saveStatusText ? (
+                <span className="text-emerald-400 font-medium animate-pulse">{saveStatusText}</span>
+              ) : (
+                <span className="text-[#7A7D8E] font-mono text-[11px]">
+                  {editorSaved ? 'All changes saved' : 'Unsaved changes*'}
+                </span>
+              )}
+            </div>
+
+            {/* Textarea container */}
+            <div className="flex-1 relative flex bg-[#0d0e15] rounded-md border border-white/5 overflow-hidden p-3 font-mono text-xs">
+              {/* Line numbers */}
+              <div ref={lineNumbersRef} className="select-none text-right pr-3 border-r border-white/10 text-white/30 font-mono leading-6 overflow-hidden">
+                {Array.from({ length: Math.max(editorContent.split('\n').length, 15) }).map((_, i) => (
+                  <div key={i}>{i + 1}</div>
+                ))}
+              </div>
+              <textarea
+                ref={editorTextareaRef}
+                value={editorContent}
+                onScroll={handleEditorScroll}
+                onChange={(e) => {
+                  setEditorContent(e.target.value);
+                  setEditorSaved(false);
+                }}
+                className="flex-1 bg-transparent resize-none pl-3 outline-none border-none text-[#E8ECF2] font-mono leading-6 overflow-y-auto scrollbar-thin placeholder-white/20"
+                placeholder="Edit file contents..."
+              />
+            </div>
+
+            {/* Editor Actions */}
+            <div className="flex gap-2 mt-3 pt-2.5 border-t border-white/10">
+              <button
+                onClick={() => handleSaveFile(editorContent, editorFilename)}
+                className="flex-1 bg-[#0db7ed] hover:bg-[#0099cc] text-white text-xs font-semibold py-2 px-3 rounded-md flex items-center justify-center gap-1.5 shadow-sm transition-all"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save to Workspace</span>
+              </button>
+              <button
+                onClick={() => triggerDownload(editorContent, editorFilename)}
+                className="bg-white/10 hover:bg-white/15 text-white text-xs font-semibold py-2 px-3 rounded-md flex items-center justify-center gap-1.5 border border-white/10 transition-all"
+                title="Download locally"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </section>
+        )}
+      </main>
+
+      
       </div>
 
             </div>
 
-      {/* SpiritLlama Harness-style System Settings Modal */}
+      
+      {/* New Workspace Creation Modal */}
+      {isNewWorkspaceModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-2xl w-full max-w-md shadow-2xl p-5 relative flex flex-col gap-4 text-[var(--text-primary)]">
+            <button
+              onClick={() => setIsNewWorkspaceModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-elevated)] transition-colors cursor-pointer"
+              title="Close (Esc)"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-2.5 pb-2 border-b border-[var(--border-subtle)]">
+              <div className="w-8 h-8 rounded-lg bg-[#0db7ed]/15 text-[#0db7ed] flex items-center justify-center">
+                <FolderPlus className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">Create New Workspace</h3>
+                <p className="text-[10px] text-[var(--text-muted)]">Configure a local folder mount for your project chats.</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">
+                  Workspace Name
+                </label>
+                <input
+                  type="text"
+                  value={newWorkspaceName}
+                  onChange={(e) => setNewWorkspaceName(e.target.value)}
+                  placeholder="e.g. My Next.js Project"
+                  className="w-full bg-[var(--bg-surface-elevated)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[#0db7ed]"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">
+                  Folder Path (Local Mount)
+                </label>
+                <input
+                  type="text"
+                  value={newWorkspacePath}
+                  onChange={(e) => setNewWorkspacePath(e.target.value)}
+                  placeholder="e.g. /workspace/my-project or C:\\Projects\\MyProject"
+                  className="w-full bg-[var(--bg-surface-elevated)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-xs font-mono text-[var(--text-primary)] focus:outline-none focus:border-[#0db7ed]"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={() => setIsNewWorkspaceModalOpen(false)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface-elevated)] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!newWorkspaceName.trim()}
+                onClick={() => {
+                  if (!newWorkspaceName.trim()) return;
+                  const newWs: WorkspaceProject = {
+                    id: `ws_${Date.now()}`,
+                    name: newWorkspaceName.trim(),
+                    path: newWorkspacePath.trim() || `/workspace/${newWorkspaceName.trim().toLowerCase().replace(/\s+/g, '-')}`,
+                    isGit: true
+                  };
+                  setWorkspaces(prev => [...prev, newWs]);
+                  setActiveWorkspaceId(newWs.id);
+                  localStorage.setItem('aidock_active_workspace', newWs.id);
+                  setNewWorkspaceName('');
+                  setNewWorkspacePath('');
+                  setIsNewWorkspaceModalOpen(false);
+                  playAlertSound('success');
+                }}
+                className="px-4 py-1.5 rounded-xl text-xs font-bold bg-[#0db7ed] hover:bg-[#0099cc] text-white transition-all shadow-sm disabled:opacity-40 cursor-pointer"
+              >
+                Create Workspace
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+{/* SpiritLlama Harness-style System Settings Modal */}
       {showSettingsModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-2xl w-full max-w-4xl shadow-[var(--shadow-modal)] p-6 relative flex flex-col gap-4 h-[86vh] max-h-[760px] text-[var(--text-primary)]">

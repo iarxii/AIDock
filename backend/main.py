@@ -223,6 +223,9 @@ async def chat_endpoint(request: ChatRequest):
             "sender": "bot",
             "content": last_message.content,
             "workspaceUsed": result.get("workspace_path"),
+            "provider": provider,
+            "model": request.model_slug or result.get("model_used"),
+            "providerLabel": provider.upper() if provider != "local" else "Docker Models",
             "created_at": datetime.utcnow().isoformat()
         }
         past_messages.append(user_msg)
