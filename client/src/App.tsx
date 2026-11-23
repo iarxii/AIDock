@@ -858,6 +858,7 @@ function App() {
   // Workspace Files state
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
   const [isFileTreeExpanded, setIsFileTreeExpanded] = useState(true);
+  const [isSidebarModelListExpanded, setIsSidebarModelListExpanded] = useState(false);
 
   // Auto-load spaces when token already exists on mount
   useEffect(() => {
@@ -1417,12 +1418,18 @@ function App() {
           {/* 3. MODELS SECTION PANEL (Dynamic for ALL providers!) */}
           <div className="px-3 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)]">
             <div className="flex items-center justify-between mb-1.5 px-0.5">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Models</span>
+              <button
+                type="button"
+                onClick={() => setIsSidebarModelListExpanded(!isSidebarModelListExpanded)}
+                className="flex items-center gap-1.5 min-w-0 cursor-pointer group text-left"
+                title={isSidebarModelListExpanded ? "Collapse Models List" : "Expand Models List"}
+              >
+                <ChevronDown className={`w-3 h-3 text-[var(--text-muted)] group-hover:text-[#0db7ed] transition-transform duration-200 ${isSidebarModelListExpanded ? '' : '-rotate-90'}`} />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)] group-hover:text-[var(--text-primary)]">Models</span>
                 <span className="px-1.5 py-0.2 rounded bg-[#0db7ed]/15 text-[#0db7ed] border border-[#0db7ed]/30 text-[8px] font-mono font-bold uppercase">
                   {PROVIDERS.find(p => p.id === activeProviderId)?.badge || 'LOCAL'}
                 </span>
-              </div>
+              </button>
               <div className="flex items-center gap-1">
                 <button 
                   type="button" 
@@ -1447,8 +1454,12 @@ function App() {
               </div>
             </div>
 
-            {/* Active Model Header Display */}
-            <div className="text-[11px] font-mono bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-1.5 mb-1.5 shadow-sm">
+            {/* Active Model Header Display - Interactive Toggle */}
+            <div 
+              onClick={() => setIsSidebarModelListExpanded(!isSidebarModelListExpanded)}
+              className="text-[11px] font-mono bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] hover:border-[#0db7ed]/40 px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-1.5 mb-1.5 shadow-sm cursor-pointer transition-all select-none"
+              title={isSidebarModelListExpanded ? "Click to collapse model selection list" : "Click to expand model selection list"}
+            >
               <div className="flex items-center gap-1.5 min-w-0">
                 <div className="w-5 h-5 rounded-md bg-white border border-black/10 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
                   <ProviderBrandIcon providerId={activeProviderId} className="w-3.5 h-3.5 object-contain" />
@@ -1457,11 +1468,14 @@ function App() {
                   {activeModel ? activeModel.split('/').pop() : 'Scanning...'}
                 </span>
               </div>
-              <span className="text-[9px] text-[#0db7ed] font-semibold shrink-0">Active</span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[9px] text-[#0db7ed] font-semibold">Active</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-[var(--text-muted)] transition-transform duration-200 ${isSidebarModelListExpanded ? '' : '-rotate-90'}`} />
+              </div>
             </div>
 
-            {/* Selectable Model Pills (Available for ALL providers) */}
-            {(() => {
+            {/* Selectable Model Pills (Collapsible, collapsed by default) */}
+            {isSidebarModelListExpanded && (() => {
               const activeProv = PROVIDERS.find(p => p.id === activeProviderId);
               const discovered = providerDiscoveredModels[activeProviderId] || [];
               const hasKey = Boolean(providerApiKeys[activeProviderId]);
