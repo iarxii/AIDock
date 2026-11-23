@@ -130,7 +130,13 @@ def init_node(state: AgentState):
     project_workspace = base_workspace / session_id
     project_workspace.mkdir(parents=True, exist_ok=True)
     
-    return {"workspace_path": str(project_workspace)}
+    return {
+        "workspace_path": str(project_workspace),
+        "model_slug": state.get("model_slug"),
+        "base_url": state.get("base_url"),
+        "provider": state.get("provider"),
+        "api_key": state.get("api_key")
+    }
 
 def reason_node(state: AgentState):
     """Reasoning node that calls the local LLM."""
@@ -219,11 +225,16 @@ def reason_node(state: AgentState):
             model = model_slug
 
     if not model:
-        # Fall back to configured environment variables
-        model = os.getenv("LLM_MODEL_NAME")
+        if provider != "local":
+            from backend.agent.llm_factory import OPENAI_COMPATIBLE_DEFAULTS
+            if provider in OPENAI_COMPATIBLE_DEFAULTS:
+                model = OPENAI_COMPATIBLE_DEFAULTS[provider][2]
         if not model:
-            image = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
-            model = f"docker.io/{image}"
+            # Fall back to configured environment variables
+            model = os.getenv("LLM_MODEL_NAME")
+            if not model:
+                image = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
+                model = f"docker.io/{image}"
 
     base_url = state.get("base_url")
     llm = get_llm(provider=provider, model=model, api_key=api_key, base_url=base_url)

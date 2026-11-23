@@ -1965,7 +1965,7 @@ function App() {
             <MascotLogo className="w-8 h-8 text-[#0db7ed]" />
           </div>
           <div className="flex items-center gap-2.5 me-2">
-            <h1 className="text-base font-bold tracking-tight text-white"><span className="hidden lg:block">Spirit Bird </span><span className='text-[#0db7ed]'>AIDock</span></h1>
+            <h1 className="text-base font-bold tracking-tight text-white"><span className="hidden lg:inline-block">Spirit Bird </span><span className='text-[#0db7ed]'>AIDock</span></h1>
             <button
               type="button"
               onClick={() => {
