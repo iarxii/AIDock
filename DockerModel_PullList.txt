@@ -1,0 +1,37 @@
+docker pull ai/qwen3:4b-thinking-2507-q8_0
+docker pull ai/qwen3:4b-instruct-2507-q4_K_M
+docker pull ai/qwen3:8b-q4_K_M
+docker pull ai/qwen3.5:4b-mlx
+docker pull ai/lfm3-omni
+docker pull ai/lfm3-vl:2b-q8_0
+docker pull ai/lfm3:1.7b
+docker pull ai/bonsai-2:9b
+docker pull ai/bonsai-2:9b-q2_0
+docker pull ai/mimo-v2.6:9b-q8_0
+docker pull ai/nemotron-3-nano:4b
+docker pull ai/nemotron-3-nano:4b-q4_K_M
+docker pull ai/nemotron-3-nano:4b-q8_0
+docker pull ai/nemotron-3.5-bolt:e4b
+docker pull ai/nemotron-3.5-bolt:e4b-q4_K_M
+docker pull ai/nemotron-3.5-bolt:e4b-q8_0
+docker pull ai/ornith-1.5:9b-mlx-4bit
+docker pull ai/smollm2:1.7b
+docker model pull ai/smolvlm
+docker pull ai/granite4:micro
+docker pull ai/granite4:h-micro
+docker model pull ai/granite-4.0-micro
+docker model pull ai/granite-4.0-h-micro
+docker model pull ai/granite-4.0-h-nano
+docker model pull ai/granite-4.0-h-tiny
+docker model pull ai/moondream2
+docker pull ai/medgemma
+docker pull ai/medgemma:4b-q4_K_M
+docker pull ai/medgemma:4b-q8_0
+docker pull ai/ministral-3:3b-reasoning
+docker pull ai/ministral-3:3b-reasoning-q4_K_M
+docker pull ai/ministral-3:8b-reasoning
+docker pull ai/ministral-3:8b-reasoning-q4_K_M
+docker pull ai/ministral-3:8b-instruct
+docker pull ai/ministral-3:8b-instruct-q4_K_M
+docker model pull ai/stable-diffusion
+docker model pull ai/stable-diffusion:Q4

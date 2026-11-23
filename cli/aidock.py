@@ -6,6 +6,7 @@ import click
 import questionary
 from rich.console import Console
 from dotenv import set_key
+import requests
 
 if hasattr(sys.stdout, "reconfigure"):
     try:
@@ -21,6 +22,69 @@ if hasattr(sys.stderr, "reconfigure"):
 console = Console()
 ROOT_DIR = Path(__file__).parent.parent
 ENV_FILE = ROOT_DIR / ".env"
+PULL_LIST_FILE = ROOT_DIR / "DockerModel_PullList.txt"
+
+def is_model_pulled(image: str) -> bool:
+    """Check if a docker image or docker model is already available locally."""
+    try:
+        res = subprocess.run(["docker", "image", "inspect", image], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+        if res.returncode == 0:
+            return True
+        res_m = subprocess.run(["docker", "model", "inspect", image], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+        if res_m.returncode == 0:
+            return True
+    except Exception:
+        pass
+    return False
+
+def categorize_model(image: str) -> str:
+    """Infer functional category for model tags."""
+    img = image.lower()
+    if "diffusion" in img:
+        return "IMAGE-GEN"
+    if any(k in img for k in ["vl", "omni", "moondream", "smolvlm"]):
+        return "VISION/MM"
+    if "medgemma" in img:
+        return "MEDICAL"
+    if any(k in img for k in ["thinking", "reasoning", "r1"]):
+        return "REASONING"
+    if any(k in img for k in ["nano", "micro", "tiny", "1.7b", "2b"]):
+        return "LIGHTWEIGHT"
+    if "coder" in img or "coding" in img:
+        return "CODING"
+    return "GENERAL"
+
+def load_docker_models_list():
+    """Parse DockerModel_PullList.txt and extract structured model entries."""
+    if not PULL_LIST_FILE.exists():
+        return []
+    
+    entries = []
+    lines = PULL_LIST_FILE.read_text(encoding="utf-8").splitlines()
+    for line in lines:
+        cleaned = line.strip()
+        if not cleaned or cleaned.startswith("#"):
+            continue
+        cmd_type = "docker"
+        image = cleaned
+        if cleaned.startswith("docker model pull"):
+            cmd_type = "model"
+            image = cleaned[len("docker model pull"):].strip()
+        elif cleaned.startswith("docker pull"):
+            cmd_type = "docker"
+            image = cleaned[len("docker pull"):].strip()
+            
+        parts = image.split("/")[-1]
+        short_name = parts.split(":")[0]
+        entries.append({
+            "raw": cleaned,
+            "cmd_type": cmd_type,
+            "image": image,
+            "tag": parts,
+            "short_name": short_name,
+            "category": categorize_model(image)
+        })
+    return entries
 
 PROFILES = {
     "general": ["ai/mistral:7B-Q4_K_M", "ai/gemma4:E4B"],
@@ -84,10 +148,12 @@ def get_service_url(service_name, container_port):
         pass
     return None
 
-@click.group()
-def cli():
+@click.group(invoke_without_command=True)
+@click.pass_context
+def cli(ctx):
     """AIDock CLI: Streamlined Local LLM Workspace Manager"""
-    pass
+    if ctx.invoked_subcommand is None:
+        interactive_menu(ctx)
 
 @cli.command()
 def setup():
@@ -236,6 +302,168 @@ def reload(ctx, fe, be, db):
     console.print("\n[bold blue]Reloading AIDock...[/]")
     ctx.invoke(stop)
     ctx.invoke(start)
+
+@cli.command(name="dockerbuild")
+@click.argument("service", required=False, default=None)
+@click.option("--no-cache", is_flag=True, help="Do not use cache when building the image.")
+@click.option("--boot", is_flag=True, help="Boot (start) the stack immediately after build completes.")
+@click.pass_context
+def dockerbuild_cmd(ctx, service, no_cache, boot):
+    """Build Docker Compose service images with options for target, cache, and auto-boot."""
+    assert_host_only("dockerbuild")
+    check_docker()
+
+    target_service = service
+    use_no_cache = no_cache
+    auto_boot = boot
+
+    if not target_service:
+        target_service = questionary.select(
+            "Which service would you like to build?",
+            choices=[
+                questionary.Choice("All Services (client + backend + db)", value="all"),
+                questionary.Choice("Frontend Client (client)", value="client"),
+                questionary.Choice("Backend Engine (backend)", value="backend"),
+                questionary.Choice("Database (db)", value="db")
+            ]
+        ).ask()
+        if not target_service:
+            console.print("[yellow]Build cancelled.[/]")
+            return
+
+        if not no_cache:
+            use_no_cache = questionary.confirm("Clean build without cache (--no-cache)?", default=False).ask()
+
+        if not boot:
+            auto_boot = questionary.confirm("Boot / start containers immediately after build?", default=True).ask()
+
+    # Map aliases
+    if target_service in ["fe", "frontend"]:
+        target_service = "client"
+    elif target_service in ["be"]:
+        target_service = "backend"
+
+    build_cmd = ["docker", "compose", "build"]
+    if use_no_cache:
+        build_cmd.append("--no-cache")
+    if target_service and target_service != "all":
+        build_cmd.append(target_service)
+
+    console.print(f"\n[bold blue]Executing Docker Build:[/] [cyan]{' '.join(build_cmd)}[/]")
+    proc = subprocess.run(build_cmd, cwd=ROOT_DIR)
+    if proc.returncode != 0:
+        console.print("[bold red]Error:[/] Docker build failed. Review output above.", style="red")
+        sys.exit(1)
+
+    console.print("[bold green]✓ Docker build completed successfully![/]")
+
+    if auto_boot:
+        console.print("\n[blue]Booting containers with updated images...[/]")
+        up_cmd = ["docker", "compose", "up", "-d"]
+        if target_service and target_service != "all":
+            up_cmd.append(target_service)
+        subprocess.run(up_cmd, cwd=ROOT_DIR)
+        console.print("[bold green]✓ Containers are up and running.[/]")
+
+@cli.command(name="models")
+@click.argument("model_name", required=False, default=None)
+@click.option("--boot", is_flag=True, help="Boot (start) the AIDock stack after setting the model.")
+@click.option("--reboot", is_flag=True, help="Reboot (rebuild & restart) the AIDock stack after setting the model.")
+@click.pass_context
+def models_cmd(ctx, model_name, boot, reboot):
+    """Select and pull models from DockerModel_PullList.txt, then boot or reboot."""
+    assert_host_only("models")
+    check_docker()
+
+    entries = load_docker_models_list()
+    if not entries:
+        console.print("[red]Error:[/] DockerModel_PullList.txt not found or empty in project root.")
+        sys.exit(1)
+
+    selected_entry = None
+    if model_name:
+        req = model_name.strip().lower()
+        for e in entries:
+            if req in [e["image"].lower(), e["tag"].lower(), e["short_name"].lower()]:
+                selected_entry = e
+                break
+        if not selected_entry:
+            console.print(f"[yellow]Note:[/] '{model_name}' not in PullList. Using custom image tag '{model_name}'.")
+            selected_entry = {
+                "raw": f"docker pull {model_name}",
+                "cmd_type": "docker",
+                "image": model_name,
+                "tag": model_name.split("/")[-1],
+                "short_name": model_name.split("/")[-1].split(":")[0],
+                "category": categorize_model(model_name)
+            }
+    else:
+        choices = []
+        for e in entries:
+            pulled = is_model_pulled(e["image"])
+            status_tag = "[Pulled]" if pulled else "[Available]"
+            label = f"{e['image']:<38} [{e['category']:<11}] {status_tag}"
+            choices.append(questionary.Choice(title=label, value=e))
+
+        selected_entry = questionary.select(
+            "Select a Docker Model from PullList:",
+            choices=choices
+        ).ask()
+
+        if not selected_entry:
+            console.print("[yellow]Model selection cancelled.[/]")
+            return
+
+    target_image = selected_entry["image"]
+    cmd_type = selected_entry["cmd_type"]
+    pull_cmd = ["docker", "model", "pull", target_image] if cmd_type == "model" else ["docker", "pull", target_image]
+
+    console.print(f"\n[bold blue]Pulling Docker Model:[/] [cyan]{' '.join(pull_cmd)}[/]")
+    pull_proc = subprocess.run(pull_cmd)
+    if pull_proc.returncode != 0:
+        alt_cmd = ["docker", "pull", target_image] if cmd_type == "model" else ["docker", "model", "pull", target_image]
+        console.print(f"[yellow]Retrying with alternative command:[/] {' '.join(alt_cmd)}")
+        pull_proc = subprocess.run(alt_cmd)
+
+    if pull_proc.returncode == 0:
+        console.print(f"[green]✓ Successfully verified/pulled model:[/] [bold]{target_image}[/]")
+    else:
+        console.print(f"[bold red]Warning:[/] Model pull returned non-zero code. Proceeding with configuration update...")
+
+    if not ENV_FILE.exists():
+        ENV_FILE.touch()
+    set_key(str(ENV_FILE), "LLM_IMAGE", target_image)
+    simple_model_name = selected_entry["short_name"]
+    set_key(str(ENV_FILE), "LLM_MODEL_NAME", simple_model_name)
+    console.print(f"[green]✓ Updated .env: LLM_IMAGE={target_image}, LLM_MODEL_NAME={simple_model_name}[/]\n")
+
+    action = None
+    if boot:
+        action = "boot"
+    elif reboot:
+        action = "reboot"
+    else:
+        action = questionary.select(
+            "What would you like to do next?",
+            choices=[
+                questionary.Choice("Boot (Start Docker Compose stack now)", value="boot"),
+                questionary.Choice("Reboot (Rebuild and restart stack)", value="reboot"),
+                questionary.Choice("Stay current (Just save to .env, do not restart)", value="stay")
+            ]
+        ).ask()
+
+    if action == "boot":
+        ctx.invoke(start)
+    elif action == "reboot":
+        ctx.invoke(reload)
+    else:
+        console.print("[green]Configuration saved. You can start AIDock whenever you're ready with `aidock start` or `aidock reload`.[/]")
+
+@cli.command(name="docker-models", hidden=True)
+@click.pass_context
+def docker_models_alias(ctx, **kwargs):
+    """Alias for 'models'."""
+    ctx.forward(models_cmd)
 
 @cli.command(name="cli")
 @click.option('--session', default=None, help="Specific session ID to bind to.")
@@ -579,6 +807,84 @@ def agent_cmd(args):
 def pi_cmd(ctx, args):
     """Alias for 'agent' - Launch Pi-CLI binary."""
     ctx.invoke(agent_cmd, args=args)
+
+def interactive_menu(ctx):
+    """Interactive categorized menu launched when no CLI arguments are provided."""
+    assert_host_only("interactive_menu")
+
+    try:
+        art_path = ROOT_DIR / "cli" / "spiritbird-ascii-art.txt"
+        if art_path.exists():
+            art = art_path.read_text(encoding="utf-8")
+            console.print(f"[bold blue]{art}[/]")
+    except Exception:
+        pass
+
+    console.print("[bold cyan]========================================================================[/]")
+    console.print("[bold cyan]                 AIDOCK - Local AI Workspace Manager[/]")
+    console.print("[bold cyan]========================================================================[/]")
+
+    import dotenv
+    dotenv.load_dotenv(str(ENV_FILE))
+    active_model = os.getenv("LLM_IMAGE", "ai/mistral:7B-Q4_K_M")
+    workspace = os.getenv("WORKSPACE_MOUNT_PATH", "Not configured")
+    console.print(f"Active Model: [green]{active_model}[/] | Workspace: [yellow]{workspace}[/]\n")
+
+    choices = [
+        questionary.Separator("── DOCKER MANAGEMENT ──────────────────────────"),
+        questionary.Choice("Start Stack (start)               - Bring up AIDock containers", value="start"),
+        questionary.Choice("Stop Stack (stop)                 - Stop all running AIDock containers", value="stop"),
+        questionary.Choice("Build Containers (dockerbuild)    - Build Docker images (all, fe, be)", value="dockerbuild"),
+        questionary.Choice("Reload Services (reload)          - Rebuild and restart containers", value="reload"),
+        questionary.Choice("System Status (status)            - Check health, active model, and files", value="status"),
+
+        questionary.Separator("── DOCKER MODELS (MODEL RUNNER) ───────────────"),
+        questionary.Choice("Docker Models (models)            - Pick from PullList & Boot / Reboot", value="models"),
+
+        questionary.Separator("── AGENT CHAT & HARNESS ───────────────────────"),
+        questionary.Choice("Interactive Chat (chat / cli)     - Full interactive terminal chat session", value="chat"),
+        questionary.Choice("Run Single Prompt (run)           - Execute a single prompt and exit", value="run"),
+        questionary.Choice("Pi-CLI Coding Agent (agent / pi)  - Launch standalone Pi-CLI binary", value="agent"),
+
+        questionary.Separator("── SETUP & MAINTENANCE ────────────────────────"),
+        questionary.Choice("Setup Workspace (setup)           - Interactive workspace & profile setup", value="setup"),
+        questionary.Choice("Prune Cache (prune)               - Remove unused Docker images & cache", value="prune"),
+        questionary.Choice("Exit                              - Exit AIDock CLI", value="exit"),
+    ]
+
+    action = questionary.select(
+        "Select an AIDock action to run:",
+        choices=choices
+    ).ask()
+
+    if not action or action == "exit":
+        console.print("[yellow]Exiting AIDock CLI.[/]")
+        return
+
+    if action == "start":
+        ctx.invoke(start)
+    elif action == "stop":
+        ctx.invoke(stop)
+    elif action == "dockerbuild":
+        ctx.invoke(dockerbuild_cmd)
+    elif action == "reload":
+        ctx.invoke(reload)
+    elif action == "status":
+        ctx.invoke(status)
+    elif action == "models":
+        ctx.invoke(models_cmd)
+    elif action == "chat":
+        ctx.invoke(chat)
+    elif action == "run":
+        prompt = questionary.text("Enter prompt/task to run:").ask()
+        if prompt:
+            ctx.invoke(run, prompt=prompt)
+    elif action == "agent":
+        ctx.invoke(agent_cmd, args=())
+    elif action == "setup":
+        ctx.invoke(setup)
+    elif action == "prune":
+        ctx.invoke(prune)
 
 if __name__ == "__main__":
     cli()
