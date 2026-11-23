@@ -484,7 +484,16 @@ def proxy_models(req: ModelDiscoveryRequest):
     headers = {}
     url = f"{base_url}/models" if base_url else ""
 
-    if pid == "nvidia":
+    if pid == "local":
+        if "11434" in base_url or "ollama" in base_url:
+            url = f"{base_url}/api/tags"
+        elif "8000" in base_url or "vllm" in base_url or base_url.endswith("/v1"):
+            url = f"{base_url}/models" if base_url.endswith("/v1") else f"{base_url}/v1/models"
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+        else:
+            return list_local_models()
+    elif pid == "nvidia":
         url = f"{base_url or 'https://integrate.api.nvidia.com/v1'}/models"
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"

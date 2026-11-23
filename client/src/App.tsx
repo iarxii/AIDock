@@ -58,29 +58,29 @@ export interface AIProvider {
 
 export const PROVIDERS: AIProvider[] = [
   // Neural Core (Local)
-  { id: 'local', label: 'Local LLM', desc: 'Ollama or llama-server (Container / Local :11434)', badge: 'LOCAL', requiresKey: false, defaultUrl: 'http://127.0.0.1:11434', coreGroup: 'neural', defaultModels: ['ai/mistral:7B-Q4_K_M', 'llama3.2:3b', 'gemma2:9b', 'qwen2.5:7b'] },
-  { id: 'litert', label: 'LiteRT (Web Local)', desc: 'On-device client inference (WebGPU/WASM)', badge: 'LITERT', requiresKey: false, defaultUrl: '', coreGroup: 'neural', placeholder: true, defaultModels: ['gemma-2b-it-webgpu'] },
-  { id: 'transformers', label: 'Transformers (HF)', desc: 'Local Hugging Face runtime (Coming Soon)', badge: 'TRANSFORMERS', requiresKey: false, defaultUrl: '', coreGroup: 'neural', placeholder: true, defaultModels: ['xenova/gpt2'] },
+  { id: 'local', label: 'Local LLM', desc: 'Docker Models / Ollama / vLLM local runners', badge: 'LOCAL', requiresKey: false, defaultUrl: 'http://model-runner.docker.internal', coreGroup: 'neural', defaultModels: [] },
+  { id: 'litert', label: 'LiteRT (Web Local)', desc: 'On-device client inference (WebGPU/WASM)', badge: 'LITERT', requiresKey: false, defaultUrl: '', coreGroup: 'neural', placeholder: true, defaultModels: [] },
+  { id: 'transformers', label: 'Transformers (HF)', desc: 'Local Hugging Face runtime (Coming Soon)', badge: 'TRANSFORMERS', requiresKey: false, defaultUrl: '', coreGroup: 'neural', placeholder: true, defaultModels: [] },
 
   // Cloud Core (BYOK Cloud API Providers)
-  { id: 'nvidia', label: 'NVIDIA NIM', desc: 'Optimized enterprise models (Llama 3.3, Nemotron, DeepSeek)', badge: 'NVIDIA', requiresKey: true, defaultUrl: 'https://integrate.api.nvidia.com/v1', coreGroup: 'cloud', defaultModels: ['meta/llama-3.3-70b-instruct', 'nvidia/llama-3.1-nemotron-70b-instruct', 'deepseek-ai/deepseek-r1', 'meta/llama-3.1-8b-instruct', 'mistralai/mistral-large-2-instruct'] },
-  { id: 'openai', label: 'OpenAI', desc: 'Direct GPT-4o, o1, and o3-mini models', badge: 'OPENAI', requiresKey: true, defaultUrl: 'https://api.openai.com/v1', coreGroup: 'cloud', defaultModels: ['gpt-4o', 'gpt-4o-mini', 'o3-mini', 'o1', 'gpt-4-turbo'] },
-  { id: 'gemini', label: 'Gemini', desc: 'Google Gemini 2.0 & 1.5 Flash/Pro', badge: 'GEMINI', requiresKey: true, defaultUrl: 'https://generativelanguage.googleapis.com/v1beta', coreGroup: 'cloud', defaultModels: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'] },
-  { id: 'anthropic', label: 'Anthropic', desc: 'Claude 3.7 & 3.5 Sonnet / Haiku', badge: 'ANTHROPIC', requiresKey: true, defaultUrl: 'https://api.anthropic.com', coreGroup: 'cloud', defaultModels: ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'] },
-  { id: 'groq', label: 'Groq', desc: 'Ultra-fast LPU inference (Llama 3.3)', badge: 'GROQ', requiresKey: true, defaultUrl: 'https://api.groq.com/openai/v1', coreGroup: 'cloud', defaultModels: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768', 'gemma2-9b-it'] },
-  { id: 'openrouter', label: 'OpenRouter', desc: 'Multi-model gateway & unified routing', badge: 'OPENROUTER', requiresKey: true, defaultUrl: 'https://openrouter.ai/api/v1', coreGroup: 'cloud', defaultModels: ['meta-llama/llama-3.3-70b-instruct', 'google/gemini-2.0-flash-exp:free', 'anthropic/claude-3.5-sonnet', 'deepseek/deepseek-chat'] },
-  { id: 'deepseek', label: 'DeepSeek', desc: 'DeepSeek-V3 & DeepSeek-R1 reasoning', badge: 'DEEPSEEK', requiresKey: true, defaultUrl: 'https://api.deepseek.com/v1', coreGroup: 'cloud', defaultModels: ['deepseek-chat', 'deepseek-reasoner'] },
-  { id: 'xai', label: 'xAI', desc: 'Grok-2 & Grok-beta models direct', badge: 'XAI', requiresKey: true, defaultUrl: 'https://api.x.ai/v1', coreGroup: 'cloud', defaultModels: ['grok-2-1212', 'grok-beta'] },
-  { id: 'together', label: 'Together AI', desc: 'Fast open-source model hosting', badge: 'TOGETHER', requiresKey: true, defaultUrl: 'https://api.together.xyz/v1', coreGroup: 'cloud', defaultModels: ['meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo', 'mistralai/Mixtral-8x22B-Instruct-v0.1'] },
-  { id: 'fireworks', label: 'Fireworks AI', desc: 'Low-latency serverless model inference', badge: 'FIREWORKS', requiresKey: true, defaultUrl: 'https://api.fireworks.ai/inference/v1', coreGroup: 'cloud', defaultModels: ['accounts/fireworks/models/llama-v3p1-70b-instruct', 'accounts/fireworks/models/deepseek-v3'] },
-  { id: 'mistral', label: 'Mistral AI', desc: 'Mistral Large & Codestral models', badge: 'MISTRAL', requiresKey: true, defaultUrl: 'https://api.mistral.ai/v1', coreGroup: 'cloud', defaultModels: ['mistral-large-latest', 'codestral-latest', 'mistral-small-latest'] },
-  { id: 'perplexity', label: 'Perplexity', desc: 'Search-augmented real-time reasoning', badge: 'PERPLEXITY', requiresKey: true, defaultUrl: 'https://api.perplexity.ai', coreGroup: 'cloud', defaultModels: ['sonar-pro', 'sonar'] },
-  { id: 'cohere', label: 'Cohere', desc: 'Command R+ enterprise multilingual', badge: 'COHERE', requiresKey: true, defaultUrl: 'https://api.cohere.com/v1', coreGroup: 'cloud', defaultModels: ['command-r-plus', 'command-r'] },
-  { id: 'cerebras', label: 'Cerebras', desc: 'Wafer-scale instantaneous generation', badge: 'CEREBRAS', requiresKey: true, defaultUrl: 'https://api.cerebras.ai/v1', coreGroup: 'cloud', defaultModels: ['llama3.1-70b', 'llama3.1-8b'] },
-  { id: 'ollama_cloud', label: 'Ollama Cloud', desc: 'Remote Ollama server instances', badge: 'OLLAMA_CLOUD', requiresKey: false, defaultUrl: 'https://ollama.com', coreGroup: 'cloud', defaultModels: ['llama3.3', 'mistral', 'qwen2.5'] },
-  { id: 'workers_ai', label: 'Cloudflare Workers AI', desc: 'Cloudflare edge serverless AI inference', badge: 'WORKERS_AI', requiresKey: false, defaultUrl: 'https://api.cloudflare.com/client/v4/accounts', coreGroup: 'cloud', defaultModels: ['@cf/meta/llama-3.3-70b-instruct', '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b'] },
-  { id: 'cloudflare_ai_gateway', label: 'Cloudflare AI Gateway', desc: 'Universal AI gateway with smart fallbacks', badge: 'CF_GATEWAY', requiresKey: false, defaultUrl: 'https://gateway.ai.cloudflare.com', coreGroup: 'cloud', defaultModels: ['meta-llama/llama-3.3-70b-instruct'] },
-  { id: 'azure', label: 'Azure OpenAI', desc: 'Enterprise OpenAI deployed on Microsoft Azure', badge: 'AZURE', requiresKey: true, defaultUrl: 'https://{resource}.openai.azure.com/openai/deployments', coreGroup: 'cloud', defaultModels: ['gpt-4o', 'gpt-4o-mini'] },
+  { id: 'nvidia', label: 'NVIDIA NIM', desc: 'Optimized enterprise models (Llama 3.3, Nemotron, DeepSeek)', badge: 'NVIDIA', requiresKey: true, defaultUrl: 'https://integrate.api.nvidia.com/v1', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'openai', label: 'OpenAI', desc: 'Direct GPT-4o, o1, and o3-mini models', badge: 'OPENAI', requiresKey: true, defaultUrl: 'https://api.openai.com/v1', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'gemini', label: 'Gemini', desc: 'Google Gemini 2.0 & 1.5 Flash/Pro', badge: 'GEMINI', requiresKey: true, defaultUrl: 'https://generativelanguage.googleapis.com/v1beta', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'anthropic', label: 'Anthropic', desc: 'Claude 3.7 & 3.5 Sonnet / Haiku', badge: 'ANTHROPIC', requiresKey: true, defaultUrl: 'https://api.anthropic.com', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'groq', label: 'Groq', desc: 'Ultra-fast LPU inference (Llama 3.3)', badge: 'GROQ', requiresKey: true, defaultUrl: 'https://api.groq.com/openai/v1', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'openrouter', label: 'OpenRouter', desc: 'Multi-model gateway & unified routing', badge: 'OPENROUTER', requiresKey: true, defaultUrl: 'https://openrouter.ai/api/v1', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'deepseek', label: 'DeepSeek', desc: 'DeepSeek-V3 & DeepSeek-R1 reasoning', badge: 'DEEPSEEK', requiresKey: true, defaultUrl: 'https://api.deepseek.com/v1', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'xai', label: 'xAI', desc: 'Grok-2 & Grok-beta models direct', badge: 'XAI', requiresKey: true, defaultUrl: 'https://api.x.ai/v1', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'together', label: 'Together AI', desc: 'Fast open-source model hosting', badge: 'TOGETHER', requiresKey: true, defaultUrl: 'https://api.together.xyz/v1', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'fireworks', label: 'Fireworks AI', desc: 'Low-latency serverless model inference', badge: 'FIREWORKS', requiresKey: true, defaultUrl: 'https://api.fireworks.ai/inference/v1', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'mistral', label: 'Mistral AI', desc: 'Mistral Large & Codestral models', badge: 'MISTRAL', requiresKey: true, defaultUrl: 'https://api.mistral.ai/v1', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'perplexity', label: 'Perplexity', desc: 'Search-augmented real-time reasoning', badge: 'PERPLEXITY', requiresKey: true, defaultUrl: 'https://api.perplexity.ai', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'cohere', label: 'Cohere', desc: 'Command R+ enterprise multilingual', badge: 'COHERE', requiresKey: true, defaultUrl: 'https://api.cohere.com/v1', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'cerebras', label: 'Cerebras', desc: 'Wafer-scale instantaneous generation', badge: 'CEREBRAS', requiresKey: true, defaultUrl: 'https://api.cerebras.ai/v1', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'ollama_cloud', label: 'Ollama Cloud', desc: 'Remote Ollama server instances', badge: 'OLLAMA_CLOUD', requiresKey: false, defaultUrl: 'https://ollama.com', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'workers_ai', label: 'Cloudflare Workers AI', desc: 'Cloudflare edge serverless AI inference', badge: 'WORKERS_AI', requiresKey: false, defaultUrl: 'https://api.cloudflare.com/client/v4/accounts', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'cloudflare_ai_gateway', label: 'Cloudflare AI Gateway', desc: 'Universal AI gateway with smart fallbacks', badge: 'CF_GATEWAY', requiresKey: false, defaultUrl: 'https://gateway.ai.cloudflare.com', coreGroup: 'cloud', defaultModels: [] },
+  { id: 'azure', label: 'Azure OpenAI', desc: 'Enterprise OpenAI deployed on Microsoft Azure', badge: 'AZURE', requiresKey: true, defaultUrl: 'https://{resource}.openai.azure.com/openai/deployments', coreGroup: 'cloud', defaultModels: [] },
 ];
 
 function MascotLogo({ className }: { className?: string }) {
@@ -114,7 +114,7 @@ export function ProviderBrandIcon({
   const [error, setError] = useState(false);
   const iconMap: Record<string, string> = {
     local: '/assets/aicodex-spirit-bird.svg',
-    litert: '/assets/brand-icons/litert.svg',
+    litert: '/assets/brand-icons/litert.png',
     transformers: '/assets/brand-icons/huggingface.svg',
     openai: '/assets/brand-icons/openai.svg',
     nvidia: '/assets/brand-icons/nvidia.svg',
@@ -535,15 +535,20 @@ function App() {
     return gws;
   });
 
+  type LocalEngine = 'docker' | 'ollama' | 'vllm';
+  const [localEngine, setLocalEngine] = useState<LocalEngine>(() => 
+    (localStorage.getItem('aidock_local_engine') as LocalEngine) || 'docker'
+  );
+
   const [providerDiscoveredModels, setProviderDiscoveredModels] = useState<Record<string, string[]>>(() => {
     const map: Record<string, string[]> = {};
     PROVIDERS.forEach(p => {
       try {
         const saved = JSON.parse(localStorage.getItem(`discovered_models_${p.id}`) || 'null');
         if (Array.isArray(saved) && saved.length > 0) map[p.id] = saved;
-        else map[p.id] = p.defaultModels;
+        else map[p.id] = [];
       } catch {
-        map[p.id] = p.defaultModels;
+        map[p.id] = [];
       }
     });
     return map;
@@ -553,7 +558,7 @@ function App() {
     const map: Record<string, string> = {};
     PROVIDERS.forEach(p => {
       const saved = localStorage.getItem(`ai_model_${p.id}`);
-      map[p.id] = saved || p.defaultModels[0] || '';
+      map[p.id] = saved || '';
     });
     return map;
   });
@@ -561,8 +566,7 @@ function App() {
   const selectActiveProvider = (provId: string) => {
     setActiveProviderId(provId);
     localStorage.setItem('ai_provider', provId);
-    const provDef = PROVIDERS.find(p => p.id === provId) || PROVIDERS[0];
-    const chosenModel = providerSelectedModels[provId] || (providerDiscoveredModels[provId] || provDef.defaultModels)[0] || 'Default';
+    const chosenModel = providerSelectedModels[provId] || (providerDiscoveredModels[provId] || [])[0] || '';
     setActiveModel(chosenModel);
   };
 
@@ -628,11 +632,34 @@ function App() {
             }
           }
         } else if (provId === 'local') {
-          const res = await fetch(`${effectiveUrl}/api/tags`).catch(() => fetch('/api/models'));
-          if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data.models)) {
-              discovered = data.models.map((m: any) => m.name || m.model || m);
+          if (localEngine === 'docker') {
+            const res = await fetch(getBackendUrl('models/local')).catch(() => null);
+            if (res && res.ok) {
+              const data = await res.json();
+              discovered = data.models || [];
+            }
+            if (discovered.length === 0) {
+              const infoRes = await fetch(getBackendUrl('info')).catch(() => null);
+              if (infoRes && infoRes.ok) {
+                const infoData = await infoRes.json();
+                if (infoData.model_name) discovered = [infoData.model_name];
+              }
+            }
+          } else if (localEngine === 'ollama') {
+            const res = await fetch(`${effectiveUrl}/api/tags`).catch(() => null);
+            if (res && res.ok) {
+              const data = await res.json();
+              if (Array.isArray(data.models)) {
+                discovered = data.models.map((m: any) => m.name || m.model || m);
+              }
+            }
+          } else if (localEngine === 'vllm') {
+            const endpoint = effectiveUrl.endsWith('/v1') ? `${effectiveUrl}/models` : `${effectiveUrl}/v1/models`;
+            const res = await fetch(endpoint).catch(() => null);
+            if (res && res.ok) {
+              const data = await res.json();
+              const items = Array.isArray(data.data) ? data.data : Array.isArray(data.models) ? data.models : [];
+              discovered = items.map((m: any) => m.id || m.name).filter(Boolean);
             }
           }
         } else if (key || provId === 'ollama_cloud') {
@@ -665,7 +692,7 @@ function App() {
           if (activeProviderId === provId) setActiveModel(discovered[0]);
         }
       } else {
-        setProviderConfigStatus('Config saved. (Using curated fallback model list)');
+        setProviderConfigStatus('Config saved. (No live models returned from endpoint)');
       }
     } catch (err: any) {
       setProviderConfigStatus(`Config saved locally. Note: ${err.message || 'Direct probe skipped'}`);
@@ -952,17 +979,45 @@ function App() {
   const fetchLocalModels = async () => {
     if (isCloudMode()) return;
     try {
-      const res = await fetch(getBackendUrl('models'));
-      if (res.ok) {
-        const data = await res.json();
-        const slugs: string[] = data.models || [];
-        if (slugs.length > 0) {
-          setProviderDiscoveredModels(prev => ({ ...prev, local: slugs }));
-          if (!localSelectedModel) {
-            setLocalSelectedModel(slugs[0]);
-            localStorage.setItem('aidock_local_model', slugs[0]);
-            if (activeProviderId === 'local') setActiveModel(slugs[0]);
+      let slugs: string[] = [];
+      if (localEngine === 'docker') {
+        const res = await fetch(getBackendUrl('models/local')).catch(() => null);
+        if (res && res.ok) {
+          const data = await res.json();
+          slugs = data.models || [];
+        }
+        if (slugs.length === 0) {
+          const infoRes = await fetch(getBackendUrl('info')).catch(() => null);
+          if (infoRes && infoRes.ok) {
+            const infoData = await infoRes.json();
+            if (infoData.model_name) slugs = [infoData.model_name];
           }
+        }
+      } else if (localEngine === 'ollama') {
+        const ollamaUrl = providerBaseUrls['local'] || 'http://127.0.0.1:11434';
+        const res = await fetch(`${ollamaUrl}/api/tags`).catch(() => null);
+        if (res && res.ok) {
+          const data = await res.json();
+          slugs = (data.models || []).map((m: any) => m.name || m.model || m);
+        }
+      } else if (localEngine === 'vllm') {
+        const vllmUrl = providerBaseUrls['local'] || 'http://127.0.0.1:8000/v1';
+        const endpoint = vllmUrl.endsWith('/v1') ? `${vllmUrl}/models` : `${vllmUrl}/v1/models`;
+        const res = await fetch(endpoint).catch(() => null);
+        if (res && res.ok) {
+          const data = await res.json();
+          slugs = (data.data || []).map((m: any) => m.id || m.name);
+        }
+      }
+
+      if (slugs.length > 0) {
+        setProviderDiscoveredModels(prev => ({ ...prev, local: slugs }));
+        localStorage.setItem('discovered_models_local', JSON.stringify(slugs));
+        setLocalSelectedModel(slugs[0]);
+        if (!providerSelectedModels['local'] || !slugs.includes(providerSelectedModels['local'])) {
+          setProviderSelectedModels(prev => ({ ...prev, local: slugs[0] }));
+          localStorage.setItem('ai_model_local', slugs[0]);
+          if (activeProviderId === 'local') setActiveModel(slugs[0]);
         }
       }
     } catch (e) {
@@ -972,7 +1027,7 @@ function App() {
 
   useEffect(() => {
     fetchLocalModels();
-  }, [backendMode]);
+  }, [backendMode, localEngine]);
 
   // Load a file from tree into editor
   const openFileInEditor = async (filePath: string) => {
@@ -1370,7 +1425,9 @@ function App() {
             {/* Active Model Header Display */}
             <div className="text-[11px] font-mono bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-1.5 mb-1.5 shadow-sm">
               <div className="flex items-center gap-1.5 min-w-0">
-                <ProviderBrandIcon providerId={activeProviderId} className="w-3.5 h-3.5 shrink-0" />
+                <div className="w-5 h-5 rounded-md bg-white border border-black/10 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
+                  <ProviderBrandIcon providerId={activeProviderId} className="w-3.5 h-3.5 object-contain" />
+                </div>
                 <span className="font-bold text-[var(--text-primary)] truncate" title={activeModel}>
                   {activeModel ? activeModel.split('/').pop() : 'Scanning...'}
                 </span>
@@ -1379,34 +1436,76 @@ function App() {
             </div>
 
             {/* Selectable Model Pills (Available for ALL providers) */}
-            <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-0.5">
-              {((providerDiscoveredModels[activeProviderId] && providerDiscoveredModels[activeProviderId].length > 0)
-                ? providerDiscoveredModels[activeProviderId]
-                : (PROVIDERS.find(p => p.id === activeProviderId)?.defaultModels || [])
-              ).map(m => {
-                const isSelected = (providerSelectedModels[activeProviderId] === m || activeModel === m);
-                const shortName = m.split('/').pop() || m;
+            {(() => {
+              const activeProv = PROVIDERS.find(p => p.id === activeProviderId);
+              const discovered = providerDiscoveredModels[activeProviderId] || [];
+              const hasKey = Boolean(providerApiKeys[activeProviderId]);
+
+              if (activeProv?.coreGroup === 'cloud' && !hasKey) {
                 return (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => {
-                      setProviderSelectedModels(prev => ({ ...prev, [activeProviderId]: m }));
-                      setActiveModel(m);
-                      localStorage.setItem(`ai_model_${activeProviderId}`, m);
-                    }}
-                    className={`px-1.5 py-0.5 rounded text-[9px] font-mono border transition-all cursor-pointer truncate max-w-[190px] ${
-                      isSelected
-                        ? 'border-[#0db7ed] bg-[#0db7ed]/15 text-[#0db7ed] font-bold shadow-xs'
-                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[#0db7ed]/40 hover:text-[var(--text-primary)]'
-                    }`}
-                    title={m}
-                  >
-                    {shortName}
-                  </button>
+                  <div className="p-2 rounded-lg bg-[var(--bg-surface)] border border-dashed border-[var(--border-subtle)] text-[10px] text-[var(--text-muted)] text-center space-y-1">
+                    <div>API Key Required</div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedModalProvId(activeProviderId);
+                        setSettingsTab('providers');
+                        setShowSettingsModal(true);
+                      }}
+                      className="text-[9px] font-bold text-[#0db7ed] hover:underline cursor-pointer block w-full"
+                    >
+                      Configure Key ▸
+                    </button>
+                  </div>
                 );
-              })}
-            </div>
+              }
+
+              if (discovered.length === 0) {
+                return (
+                  <div className="p-2 rounded-lg bg-[var(--bg-surface)] border border-dashed border-[var(--border-subtle)] text-[10px] text-[var(--text-muted)] text-center space-y-1">
+                    <div>No models loaded</div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (activeProviderId === 'local') fetchLocalModels();
+                        else saveAndTestProviderConfig(activeProviderId);
+                      }}
+                      className="text-[9px] font-bold text-[#0db7ed] hover:underline cursor-pointer block w-full"
+                    >
+                      Scan Models ↻
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-0.5">
+                  {discovered.map(m => {
+                    const isSelected = (providerSelectedModels[activeProviderId] === m || activeModel === m);
+                    const shortName = m.split('/').pop() || m;
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => {
+                          setProviderSelectedModels(prev => ({ ...prev, [activeProviderId]: m }));
+                          setActiveModel(m);
+                          localStorage.setItem(`ai_model_${activeProviderId}`, m);
+                        }}
+                        className={`px-1.5 py-0.5 rounded text-[9px] font-mono border transition-all cursor-pointer truncate max-w-[190px] ${
+                          isSelected
+                            ? 'border-[#0db7ed] bg-[#0db7ed]/15 text-[#0db7ed] font-bold shadow-xs'
+                            : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[#0db7ed]/40 hover:text-[var(--text-primary)]'
+                        }`}
+                        title={m}
+                      >
+                        {shortName}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
 
           {/* 4. SUB-NAVIGATION TABS: Standard vs CodexSpaces */}
@@ -1912,14 +2011,16 @@ function App() {
             className="group relative flex items-center h-8 px-2.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/25 text-white transition-all duration-300 ease-in-out cursor-pointer hover:px-3 shadow-sm"
             title="Active AI Provider & Model Configuration"
           >
-            <ProviderBrandIcon providerId={activeProviderId} className="w-4 h-4 shrink-0" />
+            <div className="w-5 h-5 rounded-md bg-white border border-black/10 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
+              <ProviderBrandIcon providerId={activeProviderId} className="w-3.5 h-3.5 object-contain" />
+            </div>
             <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed] shrink-0 ml-1.5 animate-pulse" />
             <span className="max-w-0 opacity-0 overflow-hidden whitespace-nowrap text-xs font-semibold group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out flex items-center gap-1.5">
               <span className="font-bold text-white uppercase text-[10px] tracking-tight">
                 {PROVIDERS.find(p => p.id === activeProviderId)?.label || 'Local LLM'}
               </span>
               <span className="text-[10px] font-mono text-[#0db7ed] bg-black/40 px-1.5 py-0.5 rounded border border-[#0db7ed]/30">
-                {(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop()}
+                {(providerSelectedModels[activeProviderId] || activeModel || '').split('/').pop() || 'No Model Loaded'}
               </span>
             </span>
           </button>
@@ -2375,41 +2476,35 @@ function App() {
             <div className="mb-3 pb-3 border-b border-black/[0.06] dark:border-white/[0.08] space-y-2.5">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Backend Route</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Local Engine</span>
                   <div className="flex rounded-lg bg-[var(--bg-surface-elevated)] border border-black/[0.06] dark:border-white/[0.08] p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setBackendMode('container-direct')}
-                      className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-tight transition-all cursor-pointer ${
-                        backendMode === 'container-direct'
-                          ? 'bg-[#0db7ed]/20 text-[#0db7ed] shadow-sm border border-[#0db7ed]/40'
-                          : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      Llama.cpp
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBackendMode('cloud-spaces')}
-                      className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-tight transition-all cursor-pointer ${
-                        backendMode === 'cloud-spaces'
-                          ? 'bg-[#0db7ed]/20 text-[#0db7ed] shadow-sm border border-[#0db7ed]/40'
-                          : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      Ollama
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBackendMode('host-standard')}
-                      className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-tight transition-all cursor-pointer ${
-                        backendMode === 'host-standard'
-                          ? 'bg-[#0db7ed]/20 text-[#0db7ed] shadow-sm border border-[#0db7ed]/40'
-                          : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      Cloud BYOK
-                    </button>
+                    {[
+                      { id: 'docker', label: 'Docker Models', url: 'http://model-runner.docker.internal' },
+                      { id: 'ollama', label: 'Ollama', url: 'http://127.0.0.1:11434' },
+                      { id: 'vllm', label: 'vLLM', url: 'http://127.0.0.1:8000/v1' }
+                    ].map(eng => {
+                      const isAct = (activeProviderId === 'local' && localEngine === eng.id);
+                      return (
+                        <button
+                          key={eng.id}
+                          type="button"
+                          onClick={() => {
+                            selectActiveProvider('local');
+                            setLocalEngine(eng.id as LocalEngine);
+                            localStorage.setItem('aidock_local_engine', eng.id);
+                            setProviderBaseUrls(prev => ({ ...prev, local: eng.url }));
+                            fetchLocalModels();
+                          }}
+                          className={`px-2.5 py-1 rounded-md text-[10px] font-bold tracking-tight transition-all cursor-pointer ${
+                            isAct
+                              ? 'bg-[#0db7ed]/20 text-[#0db7ed] shadow-sm border border-[#0db7ed]/40'
+                              : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                          }`}
+                        >
+                          {eng.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -2464,7 +2559,9 @@ function App() {
                     }}
                     className="relative w-full cursor-pointer rounded-xl bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] py-2 pl-3 pr-8 text-left shadow-sm transition-all flex items-center gap-2.5 h-[38px]"
                   >
-                    <ProviderBrandIcon providerId={activeProviderId} className="w-5 h-5 shrink-0" />
+                    <div className="w-6 h-6 rounded-md bg-white border border-black/10 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
+                      <ProviderBrandIcon providerId={activeProviderId} className="w-4 h-4 object-contain" />
+                    </div>
                     <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
                       {PROVIDERS.find(p => p.id === activeProviderId)?.label || 'Local LLM'}
                     </span>
@@ -2512,7 +2609,9 @@ function App() {
                                 }`}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <ProviderBrandIcon providerId={p.id} className="w-4 h-4 shrink-0" />
+                                  <div className="w-6 h-6 rounded-md bg-white border border-black/10 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
+                                    <ProviderBrandIcon providerId={p.id} className="w-4 h-4 object-contain" />
+                                  </div>
                                   <div className="min-w-0">
                                     <div className="text-xs font-semibold truncate">{p.label}</div>
                                     <div className="text-[9px] text-[var(--text-muted)] truncate">{p.desc}</div>
@@ -2549,7 +2648,9 @@ function App() {
                                 }`}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <ProviderBrandIcon providerId={p.id} className="w-4 h-4 shrink-0" />
+                                  <div className="w-6 h-6 rounded-md bg-white border border-black/10 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
+                                    <ProviderBrandIcon providerId={p.id} className="w-4 h-4 object-contain" />
+                                  </div>
                                   <div className="min-w-0">
                                     <div className="text-xs font-semibold truncate">{p.label}</div>
                                     <div className="text-[9px] text-[var(--text-muted)] truncate">{p.desc}</div>
@@ -2631,17 +2732,40 @@ function App() {
 
                       <div className="overflow-y-auto space-y-1 max-h-[220px] pr-1">
                         {(() => {
-                          const modelsList = (providerDiscoveredModels[activeProviderId] && providerDiscoveredModels[activeProviderId].length > 0)
-                            ? providerDiscoveredModels[activeProviderId]
-                            : (PROVIDERS.find(p => p.id === activeProviderId)?.defaultModels || []);
-                          
+                          const activeProv = PROVIDERS.find(p => p.id === activeProviderId);
+                          const hasKey = Boolean(providerApiKeys[activeProviderId]);
+                          const modelsList = providerDiscoveredModels[activeProviderId] || [];
+
+                          if (activeProv?.coreGroup === 'cloud' && !hasKey) {
+                            return (
+                              <div className="py-4 px-3 text-center text-xs space-y-2">
+                                <div className="font-semibold text-[var(--text-secondary)]">API Key Required</div>
+                                <div className="text-[10px] text-[var(--text-muted)]">
+                                  Configure your {activeProv.label} API key in Settings to view available live models.
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedModalProvId(activeProviderId);
+                                    setSettingsTab('providers');
+                                    setShowSettingsModal(true);
+                                    setIsModelListboxOpen(false);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-[#0db7ed] hover:bg-[#0099cc] text-white text-[10px] font-bold shadow-sm cursor-pointer"
+                                >
+                                  Configure in Settings
+                                </button>
+                              </div>
+                            );
+                          }
+
                           const filtered = modelsList.filter(m => m.toLowerCase().includes(modelSearchQuery.toLowerCase()));
 
                           if (filtered.length === 0) {
                             return (
-                              <div className="py-4 text-center text-xs text-[var(--text-muted)]">
-                                No matching models found.<br />
-                                Enter custom model slug below.
+                              <div className="py-4 text-center text-xs text-[var(--text-muted)] space-y-1">
+                                <div>No live models detected.</div>
+                                <div className="text-[10px]">Enter custom model slug below.</div>
                               </div>
                             );
                           }
@@ -2726,7 +2850,9 @@ function App() {
                 }`}
                 title="Toggle Provider & Backend bar"
               >
-                <ProviderBrandIcon providerId={activeProviderId} className="w-3.5 h-3.5 shrink-0" />
+                <div className="w-5 h-5 rounded-md bg-white border border-black/10 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
+                  <ProviderBrandIcon providerId={activeProviderId} className="w-3.5 h-3.5 object-contain" />
+                </div>
                 <span>Provider</span>
               </button>
 
@@ -2996,7 +3122,9 @@ function App() {
                                 }`}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <ProviderBrandIcon providerId={p.id} className="w-4 h-4 shrink-0" />
+                                  <div className="w-6 h-6 rounded-md bg-white border border-black/10 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
+                                    <ProviderBrandIcon providerId={p.id} className="w-4 h-4 object-contain" />
+                                  </div>
                                   <div className="min-w-0">
                                     <div className="text-xs font-bold truncate flex items-center gap-1.5">
                                       <span>{p.label}</span>
@@ -3040,7 +3168,9 @@ function App() {
                                 }`}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <ProviderBrandIcon providerId={p.id} className="w-4 h-4 shrink-0" />
+                                  <div className="w-6 h-6 rounded-md bg-white border border-black/10 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
+                                    <ProviderBrandIcon providerId={p.id} className="w-4 h-4 object-contain" />
+                                  </div>
                                   <div className="min-w-0">
                                     <div className="text-xs font-bold truncate flex items-center gap-1.5">
                                       <span>{p.label}</span>
@@ -3098,6 +3228,47 @@ function App() {
                           </button>
                         )}
                       </div>
+
+                      {/* Local Engine Switch (Docker Models / Ollama / vLLM) */}
+                      {selectedProv.id === 'local' && (
+                        <div className="space-y-1.5 p-3 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                            Local Engine Runtime
+                          </label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {[
+                              { id: 'docker', label: 'Docker Models', desc: 'Container Runner', url: 'http://model-runner.docker.internal' },
+                              { id: 'ollama', label: 'Ollama', desc: 'Daemon :11434', url: 'http://127.0.0.1:11434' },
+                              { id: 'vllm', label: 'vLLM', desc: 'vLLM Server :8000', url: 'http://127.0.0.1:8000/v1' }
+                            ].map(eng => {
+                              const isSel = localEngine === eng.id;
+                              return (
+                                <button
+                                  key={eng.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setLocalEngine(eng.id as LocalEngine);
+                                    localStorage.setItem('aidock_local_engine', eng.id);
+                                    setProviderBaseUrls(prev => ({ ...prev, local: eng.url }));
+                                    fetchLocalModels();
+                                  }}
+                                  className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                                    isSel
+                                      ? 'bg-[#0db7ed]/20 border-[#0db7ed] text-[var(--text-primary)] shadow-xs'
+                                      : 'bg-[var(--bg-surface-elevated)] border-[var(--border-default)] hover:border-[#0db7ed]/40 text-[var(--text-secondary)]'
+                                  }`}
+                                >
+                                  <div className="text-xs font-bold flex items-center justify-between">
+                                    <span>{eng.label}</span>
+                                    {isSel && <span className="w-1.5 h-1.5 rounded-full bg-[#0db7ed]" />}
+                                  </div>
+                                  <div className="text-[9px] text-[var(--text-muted)] mt-0.5">{eng.desc}</div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
 
                       {/* API Key Field */}
                       {selectedProv.requiresKey && (
@@ -3205,35 +3376,66 @@ function App() {
                           className="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-xs font-mono text-[var(--text-primary)] focus:outline-none focus:border-[#0db7ed]"
                         />
 
-                        {/* Discovered / Default Model Chips */}
-                        <div className="border border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] p-2.5 rounded-xl space-y-1.5">
-                          <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                            Available Models (Click to Select)
-                          </div>
-                          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                            {(providerDiscoveredModels[selectedProv.id] || selectedProv.defaultModels).map(m => {
-                              const isChosen = providerSelectedModels[selectedProv.id] === m;
-                              return (
-                                <button
-                                  key={m}
-                                  type="button"
-                                  onClick={() => {
-                                    setProviderSelectedModels(prev => ({ ...prev, [selectedProv.id]: m }));
-                                    localStorage.setItem(`ai_model_${selectedProv.id}`, m);
-                                    if (activeProviderId === selectedProv.id) setActiveModel(m);
-                                  }}
-                                  className={`px-2 py-1 rounded-lg text-[10px] font-mono border transition-all cursor-pointer ${
-                                    isChosen
-                                      ? 'border-[#0db7ed] bg-[#0db7ed]/20 text-[#0db7ed] font-bold shadow-sm'
-                                      : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[#0db7ed]/50'
-                                  }`}
-                                >
-                                  {m}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
+                        {/* Discovered Model Chips */}
+                        {(() => {
+                          const discovered = providerDiscoveredModels[selectedProv.id] || [];
+                          const hasKey = Boolean(providerApiKeys[selectedProv.id]);
+
+                          return (
+                            <div className="border border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] p-2.5 rounded-xl space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                                  Available Models (Click to Select)
+                                </div>
+                                {discovered.length > 0 && (
+                                  <span className="text-[9px] font-mono text-[#0db7ed] font-bold">
+                                    {discovered.length} LIVE DISCOVERED
+                                  </span>
+                                )}
+                              </div>
+
+                              {selectedProv.coreGroup === 'cloud' && !hasKey ? (
+                                <div className="p-3 rounded-lg bg-[var(--bg-surface)] border border-dashed border-[var(--border-subtle)] text-center space-y-1">
+                                  <div className="text-xs font-semibold text-[var(--text-secondary)]">API Key Required</div>
+                                  <div className="text-[10px] text-[var(--text-muted)]">
+                                    Enter your {selectedProv.label} API key above and click &quot;Save &amp; Discover Live Models&quot; to load your account&apos;s available models.
+                                  </div>
+                                </div>
+                              ) : discovered.length === 0 ? (
+                                <div className="p-3 rounded-lg bg-[var(--bg-surface)] border border-dashed border-[var(--border-subtle)] text-center space-y-1">
+                                  <div className="text-xs font-semibold text-[var(--text-secondary)]">No Models Discovered Yet</div>
+                                  <div className="text-[10px] text-[var(--text-muted)]">
+                                    Click &quot;Save &amp; Discover Live Models&quot; below to query the endpoint, or enter a model ID above.
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                                  {discovered.map(m => {
+                                    const isChosen = providerSelectedModels[selectedProv.id] === m;
+                                    return (
+                                      <button
+                                        key={m}
+                                        type="button"
+                                        onClick={() => {
+                                          setProviderSelectedModels(prev => ({ ...prev, [selectedProv.id]: m }));
+                                          localStorage.setItem(`ai_model_${selectedProv.id}`, m);
+                                          if (activeProviderId === selectedProv.id) setActiveModel(m);
+                                        }}
+                                        className={`px-2 py-1 rounded-lg text-[10px] font-mono border transition-all cursor-pointer ${
+                                          isChosen
+                                            ? 'border-[#0db7ed] bg-[#0db7ed]/20 text-[#0db7ed] font-bold shadow-sm'
+                                            : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[#0db7ed]/50'
+                                        }`}
+                                      >
+                                        {m}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Action buttons */}
