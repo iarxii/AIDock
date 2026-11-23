@@ -153,7 +153,6 @@ async def chat_endpoint(request: ChatRequest):
                     profile_data = resp.json()
                     settings_str = profile_data.get("settings")
                     if settings_str:
-                        import json
                         settings_data = json.loads(settings_str)
                         api_keys = settings_data.get("api_keys", {})
                         # Normalize key resolution
@@ -466,6 +465,111 @@ def list_models():
         return {"models": slugs}
     except Exception as e:
         logger.warning(f"Failed to fetch CodexSpace models: {e}")
+        return {"models": [], "error": str(e)}
+
+
+class ModelDiscoveryRequest(BaseModel):
+    provider: str
+    base_url: Optional[str] = None
+    api_key: Optional[str] = None
+    account_id: Optional[str] = None
+
+
+@app.post("/proxy/models")
+def proxy_models(req: ModelDiscoveryRequest):
+    """Proxy model discovery requests for Cloud/BYOK providers to avoid CORS issues in browser."""
+    pid = req.provider.lower().strip()
+    base_url = (req.base_url or "").rstrip("/")
+    api_key = req.api_key or ""
+    headers = {}
+    url = f"{base_url}/models" if base_url else ""
+
+    if pid == "nvidia":
+        url = f"{base_url or 'https://integrate.api.nvidia.com/v1'}/models"
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+    elif pid == "openai":
+        url = f"{base_url or 'https://api.openai.com/v1'}/models"
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+    elif pid == "groq":
+        url = f"{base_url or 'https://api.groq.com/openai/v1'}/models"
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+    elif pid == "openrouter":
+        url = f"{base_url or 'https://openrouter.ai/api/v1'}/models"
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+    elif pid == "deepseek":
+        url = f"{base_url or 'https://api.deepseek.com/v1'}/models"
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+    elif pid == "anthropic":
+        norm = base_url or "https://api.anthropic.com"
+        url = f"{norm}/models" if norm.endswith("/v1") else f"{norm}/v1/models"
+        headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
+    elif pid == "gemini":
+        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+    elif pid == "mistral":
+        url = f"{base_url or 'https://api.mistral.ai/v1'}/models"
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+    elif pid == "perplexity":
+        url = f"{base_url or 'https://api.perplexity.ai'}/models"
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+    elif pid == "cohere":
+        url = f"{base_url or 'https://api.cohere.com/v1'}/models"
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+    elif pid == "cerebras":
+        url = f"{base_url or 'https://api.cerebras.ai/v1'}/models"
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+    elif pid == "together":
+        url = f"{base_url or 'https://api.together.xyz/v1'}/models"
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+    elif pid == "fireworks":
+        url = f"{base_url or 'https://api.fireworks.ai/inference/v1'}/models"
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+    elif pid == "xai":
+        url = f"{base_url or 'https://api.x.ai/v1'}/models"
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+    elif pid == "ollama_cloud":
+        url = f"{base_url or 'https://ollama.com'}/api/tags"
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+    if not url:
+        return {"models": []}
+
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        models = []
+        if isinstance(data, dict):
+            if "data" in data and isinstance(data["data"], list):
+                for m in data["data"]:
+                    mid = m.get("id") if isinstance(m, dict) else str(m)
+                    if mid:
+                        models.append(mid)
+            elif "models" in data and isinstance(data["models"], list):
+                for m in data["models"]:
+                    mid = m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
+                    if mid:
+                        models.append(mid)
+        elif isinstance(data, list):
+            for m in data:
+                mid = m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
+                if mid:
+                    models.append(mid)
+        return {"models": models}
+    except Exception as e:
+        logger.warning(f"Proxy model discovery error for {pid}: {e}")
         return {"models": [], "error": str(e)}
 
 

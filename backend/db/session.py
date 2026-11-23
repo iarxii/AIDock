@@ -27,8 +27,12 @@ AsyncSessionLocal = sessionmaker(
 )
 
 async def init_db():
-    # Setup vector extension if needed
-    async with engine.begin() as conn:
-        from sqlalchemy import text
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        # In a real app we would call base.metadata.create_all(conn) here
+    try:
+        # Setup vector extension if needed
+        async with engine.begin() as conn:
+            from sqlalchemy import text
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            # In a real app we would call base.metadata.create_all(conn) here
+    except Exception as e:
+        db_logger.warning(f"Database initialization deferred (DB unreachable): {e}")
+
