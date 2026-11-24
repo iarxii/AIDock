@@ -238,3 +238,186 @@ html, body {
   max-width: 100%;
   height: auto;
 }
+
+/* ─────────────────────────────────────────────────────────────
+   SPIRIT BIRD PROSE & MESSAGE FORMATTING (BENCHMARKED FROM SPIRITLLAMA)
+   Includes Rich Readability, Kerning, Compact/Roomy Modes & Scrollable Tables
+───────────────────────────────────────────────────────────── */
+.prose-chat {
+  --prose-font-size: 13.5px;
+  --prose-line-height: 1.72;
+  --prose-letter-spacing: 0.012em;
+  --prose-word-spacing: 0.025em;
+  --prose-block-gap: 0.85em;
+  --prose-heading-top: 1.3em;
+  --prose-heading-bottom: 0.45em;
+  --prose-list-gap: 0.36em;
+  --prose-th-pad: 9px 13px;
+  --prose-td-pad: 9px 13px;
+  --prose-table-size: 12.5px;
+  --prose-pre-pad: 12px 14px;
+  --prose-pre-size: 12px;
+  font-family: var(--font-sans);
+  font-size: var(--prose-font-size);
+  line-height: var(--prose-line-height);
+  letter-spacing: var(--prose-letter-spacing);
+  word-spacing: var(--prose-word-spacing);
+  font-kerning: normal;
+  font-variant-ligatures: normal;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  width: 100%;
+  min-width: 0;
+  user-select: text;
+  overflow-wrap: anywhere;
+}
+
+.prose-chat[data-density="compact"],
+[data-msg-density="compact"] .prose-chat {
+  --prose-font-size: 12.25px;
+  --prose-line-height: 1.52;
+  --prose-letter-spacing: 0.008em;
+  --prose-word-spacing: 0.012em;
+  --prose-block-gap: 0.46em;
+  --prose-heading-top: 0.9em;
+  --prose-heading-bottom: 0.32em;
+  --prose-list-gap: 0.18em;
+  --prose-th-pad: 6px 10px;
+  --prose-td-pad: 6px 10px;
+  --prose-table-size: 11.5px;
+  --prose-pre-pad: 8px 11px;
+  --prose-pre-size: 11.25px;
+}
+
+[data-msg-wrap][data-msg-density="compact"] [data-msg-card] {
+  padding: 0.72rem 0.95rem;
+}
+
+[data-msg-wrap][data-msg-density="roomy"] [data-msg-card] {
+  padding: 1rem 1.2rem;
+}
+
+.prose-chat > :first-child {
+  margin-top: 0 !important;
+}
+
+.prose-chat > :last-child {
+  margin-bottom: 0 !important;
+}
+
+.prose-chat p {
+  margin: var(--prose-block-gap) 0;
+}
+
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3,
+.prose-chat h4 {
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.008em;
+  margin-top: var(--prose-heading-top);
+  margin-bottom: var(--prose-heading-bottom);
+}
+
+.prose-chat h1 {
+  font-size: 1.35em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.prose-chat h2 {
+  font-size: 1.2em;
+  padding-bottom: 0.22em;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.prose-chat h3 {
+  font-size: 1.08em;
+}
+
+.prose-chat h4 {
+  font-size: 1em;
+}
+
+.prose-chat strong,
+.prose-chat b {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.prose-chat ul {
+  list-style-type: disc;
+  padding-left: 1.45em;
+  margin: var(--prose-block-gap) 0;
+}
+
+.prose-chat ul ul {
+  list-style-type: circle;
+  margin: 0.22em 0;
+}
+
+.prose-chat ol {
+  list-style-type: decimal;
+  padding-left: 1.55em;
+  margin: var(--prose-block-gap) 0;
+}
+
+.prose-chat li {
+  margin: var(--prose-list-gap) 0;
+  padding-left: 0.18em;
+}
+
+.prose-chat li > p {
+  margin: 0.25em 0;
+}
+
+.prose-chat ul > li::marker {
+  color: var(--accent-primary);
+}
+
+.prose-chat ol > li::marker {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.prose-chat blockquote {
+  margin: var(--prose-block-gap) 0;
+  padding: 0.55em 1em;
+  border-left: 3px solid var(--accent-primary);
+  background: var(--accent-subtle);
+  border-radius: 0 8px 8px 0;
+  color: var(--text-secondary);
+}
+
+.prose-chat hr {
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  margin: calc(var(--prose-block-gap) * 1.25) 0;
+}
+
+/* Contained Horizontally-Scrollable Markdown Tables */
+.msg-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: var(--prose-block-gap) 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  box-shadow: 0 2px 10px -2px rgba(0, 0, 0, 0.15);
+  scrollbar-width: thin;
+}
+
+/* Code Block Line Numbers Gutter */
+.code-line-gutter {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  pointer-events: none;
+}
+

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Send, User, Activity,
   Download, FileText, ChevronDown, Save, X, Edit, FileCode,
@@ -7,7 +7,7 @@ import {
   Bot, Boxes, Sparkles, Globe, Cloud, LayoutGrid, Box,
   SlidersHorizontal, Key, Eye, EyeOff, Server,
   Volume2, VolumeX, LogOut, Paperclip, Code, MessageSquare, PenTool, Cpu,
-  FolderPlus
+  FolderPlus, Copy, Clock, AlignJustify, TextQuote, Undo2, Terminal, ListOrdered
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -26,7 +26,126 @@ interface Message {
   provider?: string;
   model?: string;
   providerLabel?: string;
+  timestamp?: number;
 }
+
+interface CodeBlockProps {
+  language?: string;
+  code: string;
+}
+
+const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
+  const [copied, setCopied] = useState(false);
+  const [showLineNumbers, setShowLineNumbers] = useState(() => {
+    return localStorage.getItem('aidock_code_linenos') !== 'false';
+  });
+
+  useEffect(() => {
+    const handleSync = (e: Event) => {
+      const custom = e as CustomEvent<boolean>;
+      if (typeof custom.detail === 'boolean') {
+        setShowLineNumbers(custom.detail);
+      }
+    };
+    window.addEventListener('aidock:code-linenos-change', handleSync);
+    return () => window.removeEventListener('aidock:code-linenos-change', handleSync);
+  }, []);
+
+  const toggleLineNumbers = () => {
+    const next = !showLineNumbers;
+    setShowLineNumbers(next);
+    localStorage.setItem('aidock_code_linenos', String(next));
+    window.dispatchEvent(new CustomEvent('aidock:code-linenos-change', { detail: next }));
+  };
+
+  const handleCopy = () => {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(code);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const displayLang = (language || 'code').toLowerCase();
+
+  const lines = useMemo(() => {
+    const normalized = code.replace(/\r\n/g, '\n');
+    const split = normalized.split('\n');
+    if (split.length > 1 && split[split.length - 1] === '') {
+      return split.slice(0, -1);
+    }
+    return split;
+  }, [code]);
+
+  return (
+    <div className="not-prose my-3 rounded-xl border border-[var(--border-subtle)] bg-[#070b12] overflow-hidden shadow-md group/code">
+      {/* Code Header Bar */}
+      <div className="flex items-center justify-between px-3.5 py-1.5 bg-[#0d131f] border-b border-[var(--border-subtle)]/60 text-[11px] font-mono select-none">
+        <div className="flex items-center gap-2 text-[var(--text-secondary)]">
+          <Terminal className="w-3.5 h-3.5 text-[#0db7ed]" />
+          <span className="font-semibold uppercase tracking-wider text-[10px] text-[#0db7ed]">{displayLang}</span>
+          <span className="text-[10px] text-slate-500 font-mono">({lines.length} {lines.length === 1 ? 'line' : 'lines'})</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {/* Line Numbers Toggle */}
+          <button
+            type="button"
+            onClick={toggleLineNumbers}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-sans transition-colors cursor-pointer ${
+              showLineNumbers
+                ? 'bg-[#0db7ed]/15 text-[#0db7ed] border border-[#0db7ed]/30'
+                : 'hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-transparent'
+            }`}
+            title={showLineNumbers ? "Hide line numbers" : "Show line numbers"}
+          >
+            <ListOrdered className="w-3 h-3" />
+            <span>{showLineNumbers ? "Lines" : "No Lines"}</span>
+          </button>
+
+          {/* Copy Code Button */}
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="flex items-center gap-1.5 px-2 py-0.5 rounded-md hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer text-[10.5px] font-sans border border-transparent"
+            title="Copy code to clipboard"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3 h-3 text-emerald-400" />
+                <span className="text-emerald-400 font-medium">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3 h-3" />
+                <span>Copy code</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Code Body */}
+      <div className="flex font-mono text-xs leading-relaxed overflow-hidden">
+        {showLineNumbers && (
+          <div
+            aria-hidden="true"
+            className="select-none text-right pr-3 pl-3.5 py-3.5 bg-[#090d16]/70 border-r border-white/10 text-slate-500/70 shrink-0 font-mono text-xs leading-relaxed select-none code-line-gutter"
+            style={{ userSelect: 'none', WebkitUserSelect: 'none', minWidth: `${Math.max(2, String(lines.length).length + 1)}ch` }}
+          >
+            {lines.map((_, i) => (
+              <div key={i}>{i + 1}</div>
+            ))}
+          </div>
+        )}
+        <div className="p-3.5 overflow-x-auto flex-1 font-mono text-xs leading-relaxed text-slate-200 scrollbar-thin scrollbar-thumb-white/10">
+          <pre className="!bg-transparent !p-0 !m-0 !border-0 !shadow-none font-mono text-xs leading-relaxed whitespace-pre">
+            <code>{code}</code>
+          </pre>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface WorkspaceFile {
   name: string;
@@ -501,6 +620,83 @@ function App() {
     const savedProv = localStorage.getItem('ai_provider') || 'local';
     return localStorage.getItem(`ai_model_${savedProv}`) || '';
   });
+
+  // Message format density ('roomy' | 'compact') benchmarked from SpiritLlama Desktop
+  const [messageDensity, setMessageDensity] = useState<'roomy' | 'compact'>(() => {
+    return (localStorage.getItem('spirit_msg_density') as 'roomy' | 'compact') || 'roomy';
+  });
+  const [messageDensityOverrides, setMessageDensityOverrides] = useState<Record<string, 'roomy' | 'compact'>>({});
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+
+  // Global Code Line Numbers state
+  const [codeLineNumbers, setCodeLineNumbers] = useState<boolean>(() => {
+    return localStorage.getItem('aidock_code_linenos') !== 'false';
+  });
+
+  useEffect(() => {
+    const handleSync = (e: Event) => {
+      const custom = e as CustomEvent<boolean>;
+      if (typeof custom.detail === 'boolean') {
+        setCodeLineNumbers(custom.detail);
+      }
+    };
+    window.addEventListener('aidock:code-linenos-change', handleSync);
+    return () => window.removeEventListener('aidock:code-linenos-change', handleSync);
+  }, []);
+
+  const toggleGlobalLineNumbers = () => {
+    const next = !codeLineNumbers;
+    setCodeLineNumbers(next);
+    localStorage.setItem('aidock_code_linenos', String(next));
+    window.dispatchEvent(new CustomEvent('aidock:code-linenos-change', { detail: next }));
+  };
+
+  const getEffectiveDensity = (msgId: string): 'roomy' | 'compact' => {
+    return messageDensityOverrides[msgId] || messageDensity;
+  };
+
+  const toggleMessageDensity = (msgId: string) => {
+    setMessageDensityOverrides(prev => {
+      const current = prev[msgId] || messageDensity;
+      const next = current === 'compact' ? 'roomy' : 'compact';
+      return { ...prev, [msgId]: next };
+    });
+  };
+
+  const toggleGlobalDensity = () => {
+    const next = messageDensity === 'compact' ? 'roomy' : 'compact';
+    setMessageDensity(next);
+    localStorage.setItem('spirit_msg_density', next);
+  };
+
+  const handleCopyMessage = (msgId: string, text: string) => {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+    }
+    setCopiedMessageId(msgId);
+    setTimeout(() => setCopiedMessageId(null), 1500);
+  };
+
+  const handleRestorePrompt = (text: string) => {
+    setInput(text);
+    if (chatInputRef.current) {
+      chatInputRef.current.focus();
+      chatInputRef.current.style.height = 'auto';
+      chatInputRef.current.style.height = `${Math.min(chatInputRef.current.scrollHeight, 180)}px`;
+    }
+  };
+
+  const handleReferenceMessage = (msg: Message) => {
+    const singleLine = msg.content.replace(/\s+/g, ' ').trim();
+    const excerpt = singleLine.length > 220 ? singleLine.slice(0, 220) + '...' : singleLine;
+    const modelName = msg.model ? msg.model.split('/').pop() : 'Assistant';
+    const header = `[Ref: ${msg.providerLabel || 'Spirit Bird'} • ${modelName}]`;
+    const refBlock = `> ${header}\n> ${excerpt}\n\n`;
+    setInput(prev => (prev.trim() ? `${refBlock}${prev}` : refBlock));
+    if (chatInputRef.current) {
+      chatInputRef.current.focus();
+    }
+  };
   
   // ── Cloud Credentials ─────────────────────────────────────────────────────
   const CLOUD_BE = 'https://aicodex-be-1096425756328.us-central1.run.app';
@@ -948,7 +1144,8 @@ function App() {
             workspaceUsed: m.workspaceUsed,
             provider: m.provider,
             model: m.model,
-            providerLabel: m.providerLabel
+            providerLabel: m.providerLabel,
+            timestamp: m.created_at ? new Date(m.created_at).getTime() : Date.now()
           }));
           setMessages(mapped);
         }
@@ -1385,6 +1582,7 @@ function App() {
       id: `msg_${Date.now()}_u`,
       sender: 'user',
       content: input,
+      timestamp: Date.now(),
     };
     setMessages(prev => [...prev, userMessage]);
     const currentInput = input;
@@ -1462,7 +1660,8 @@ function App() {
         latencyMs: latency,
         provider: data.provider || provId,
         model: data.model_used || effectiveModelName,
-        providerLabel: effectiveProviderLabel
+        providerLabel: effectiveProviderLabel,
+        timestamp: Date.now(),
       }]);
       playAlertSound('success');
 
@@ -2407,86 +2606,114 @@ function App() {
 
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             
-            {/* Chat Area Header with Export Menu */}
+            {/* Chat Area Header with Export Menu & Global Density Toggle */}
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] mb-3">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs font-bold text-[var(--text-primary)] tracking-wide uppercase">Active Session Stream</span>
               </div>
               
-              {messages.length > 0 && (
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    onClick={() => setShowExportDropdown(!showExportDropdown)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0db7ed] hover:bg-[#0099cc] text-white text-xs font-semibold rounded-md shadow-sm transition-all duration-150"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Export Chat</span>
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-                  
-                  {showExportDropdown && (
-                    <div className="absolute right-0 mt-1.5 w-56 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-md shadow-[var(--shadow-l2)] z-50 overflow-hidden py-1">
-                      <button
-                        onClick={() => {
-                          setShowExportDropdown(false);
-                          const content = generateJSON(messages);
-                          triggerDownload(content, `chat_export_${sessionId}.json`);
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2"
-                      >
-                        <FileCode className="w-4 h-4 text-[#0db7ed]" /> Download JSON
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowExportDropdown(false);
-                          const content = generateMarkdown(messages);
-                          triggerDownload(content, `chat_export_${sessionId}.md`);
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2"
-                      >
-                        <FileText className="w-4 h-4 text-[#0db7ed]" /> Download Markdown
-                      </button>
-                      <hr className="border-[var(--border-subtle)]" />
-                      <button
-                        onClick={() => {
-                          setShowExportDropdown(false);
-                          const content = generateJSON(messages);
-                          handleSaveFile(content, `chat_export_${sessionId}.json`);
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2"
-                      >
-                        <Save className="w-4 h-4 text-[#0db7ed]" /> Save to Workspace (JSON)
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowExportDropdown(false);
-                          const content = generateMarkdown(messages);
-                          handleSaveFile(content, `chat_export_${sessionId}.md`);
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2"
-                      >
-                        <Save className="w-4 h-4 text-[#0db7ed]" /> Save to Workspace (MD)
-                      </button>
-                      <hr className="border-[var(--border-subtle)]" />
-                      <button
-                        onClick={() => {
-                          setShowExportDropdown(false);
-                          const content = generateMarkdown(messages);
-                          setEditorFormat('markdown');
-                          setEditorFilename(`chat_export_${sessionId}.md`);
-                          setEditorContent(content);
-                          setEditorSaved(true);
-                          setIsTextEditorOpen(true);
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-bold text-[#0db7ed] flex items-center gap-2 bg-[#0db7ed]/5"
-                      >
-                        <Edit className="w-4 h-4 text-[#0db7ed]" /> Open in Text Editor
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {/* Global Code Line Numbers Toggle */}
+                <button
+                  type="button"
+                  onClick={toggleGlobalLineNumbers}
+                  title={codeLineNumbers ? 'Code line numbers: ON — click to hide' : 'Code line numbers: OFF — click to show'}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono rounded-md shadow-xs transition-colors cursor-pointer border ${
+                    codeLineNumbers
+                      ? 'bg-[#0db7ed]/15 border-[#0db7ed]/40 text-[#0db7ed]'
+                      : 'bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <ListOrdered className="w-3.5 h-3.5 text-[#0db7ed]" />
+                  <span>{codeLineNumbers ? 'Lines: On' : 'Lines: Off'}</span>
+                </button>
+
+                {/* Global Density Toggle Pill (Compact / Roomy benchmarked from SpiritLlama) */}
+                <button
+                  type="button"
+                  onClick={toggleGlobalDensity}
+                  title={messageDensity === 'compact' ? 'Format: Compact — click to switch to Roomy view globally' : 'Format: Roomy — click to switch to Compact view globally'}
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-mono rounded-md shadow-xs transition-colors cursor-pointer"
+                >
+                  <AlignJustify className="w-3.5 h-3.5 text-[#0db7ed]" />
+                  <span className="capitalize">{messageDensity}</span>
+                </button>
+
+                {messages.length > 0 && (
+                  <div className="relative" ref={dropdownRef}>
+                    <button
+                      onClick={() => setShowExportDropdown(!showExportDropdown)}
+                      className="flex items-center gap-1.5 px-3 py-1 bg-[#0db7ed] hover:bg-[#0099cc] text-white text-xs font-semibold rounded-md shadow-sm transition-all duration-150"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Export Chat</span>
+                      <ChevronDown className="w-3 h-3" />
+                    </button>
+                    
+                    {showExportDropdown && (
+                      <div className="absolute right-0 mt-1.5 w-56 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-md shadow-[var(--shadow-l2)] z-50 overflow-hidden py-1">
+                        <button
+                          onClick={() => {
+                            setShowExportDropdown(false);
+                            const content = generateJSON(messages);
+                            triggerDownload(content, `chat_export_${sessionId}.json`);
+                          }}
+                          className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2"
+                        >
+                          <FileCode className="w-4 h-4 text-[#0db7ed]" /> Download JSON
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowExportDropdown(false);
+                            const content = generateMarkdown(messages);
+                            triggerDownload(content, `chat_export_${sessionId}.md`);
+                          }}
+                          className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2"
+                        >
+                          <FileText className="w-4 h-4 text-[#0db7ed]" /> Download Markdown
+                        </button>
+                        <hr className="border-[var(--border-subtle)]" />
+                        <button
+                          onClick={() => {
+                            setShowExportDropdown(false);
+                            const content = generateJSON(messages);
+                            handleSaveFile(content, `chat_export_${sessionId}.json`);
+                          }}
+                          className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2"
+                        >
+                          <Save className="w-4 h-4 text-[#0db7ed]" /> Save to Workspace (JSON)
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowExportDropdown(false);
+                            const content = generateMarkdown(messages);
+                            handleSaveFile(content, `chat_export_${sessionId}.md`);
+                          }}
+                          className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2"
+                        >
+                          <Save className="w-4 h-4 text-[#0db7ed]" /> Save to Workspace (MD)
+                        </button>
+                        <hr className="border-[var(--border-subtle)]" />
+                        <button
+                          onClick={() => {
+                            setShowExportDropdown(false);
+                            const content = generateMarkdown(messages);
+                            setEditorFormat('markdown');
+                            setEditorFilename(`chat_export_${sessionId}.md`);
+                            setEditorContent(content);
+                            setEditorSaved(true);
+                            setIsTextEditorOpen(true);
+                          }}
+                          className="w-full text-left px-4 py-2 hover:bg-[var(--bg-surface-hover)] text-xs font-bold text-[#0db7ed] flex items-center gap-2 bg-[#0db7ed]/5"
+                        >
+                          <Edit className="w-4 h-4 text-[#0db7ed]" /> Open in Text Editor
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
 
@@ -2503,72 +2730,238 @@ function App() {
                   </p>
                 </div>
               ) : (
-                messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex gap-2.5 max-w-[85%] ${
-                      msg.sender === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto'
-                    }`}
-                  >
-                    <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 shadow-sm ${
-                      msg.sender === 'user' ? 'bg-[#0db7ed] text-white' : 'bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[#0db7ed]'
-                    }`}>
-                      {msg.sender === 'user' ? <User className="w-4 h-4" /> : <MascotLogo className="w-4 h-4 text-[#0db7ed]" />}
-                    </div>
+                messages.map((msg) => {
+                  const isBot = msg.sender === 'bot';
+                  const density = getEffectiveDensity(msg.id);
+                  const isCompact = density === 'compact';
+                  const isCopied = copiedMessageId === msg.id;
 
-                    <div className="flex flex-col gap-1 max-w-[85%]">
-                      {/* LLM Logo & Model Badge inside Assistant bubbles */}
-                      {msg.sender === 'bot' && msg.id.indexOf('_sys') === -1 && (
-                        <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--border-subtle)] mb-1 text-[11px] text-[var(--text-muted)] font-semibold">
-                          <div className="w-4 h-4 rounded bg-white border border-black/10 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
-                            <ProviderBrandIcon providerId={msg.provider || activeProviderId} className="w-3 h-3 object-contain" />
-                          </div>
-                          <span className="font-bold text-[var(--text-primary)]">
-                            {((msg.model || (msg.provider ? providerSelectedModels[msg.provider] : '') || activeModel || '').split('/').pop()) || 'Assistant'}
-                          </span>
-                          <span className="text-[9px] font-mono bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] px-1.5 py-0.2 rounded text-[var(--text-secondary)]">
-                            {msg.providerLabel || ((msg.provider === 'local' || (!msg.provider && activeProviderId === 'local')) ? (localEngine === 'docker' ? 'Docker Models' : (localEngine === 'ollama' ? 'Ollama' : 'vLLM')) : (PROVIDERS.find(p => p.id === (msg.provider || activeProviderId))?.label || 'Cloud API'))}
-                          </span>
-                        </div>
-                      )}
-                      
+                  return (
+                    <div
+                      key={msg.id}
+                      data-msg-wrap="1"
+                      data-msg-role={msg.sender}
+                      data-msg-density={density}
+                      className={`group flex flex-col w-full ${
+                        msg.sender === 'user' ? 'items-end' : 'items-start'
+                      }`}
+                    >
                       <div
-                        className={`p-3.5 rounded-md text-sm border ${
-                          msg.sender === 'user'
-                            ? 'bg-[#0db7ed] text-white user-corner-glow font-medium border-[#0aa5d6] shadow-sm'
-                            : 'bg-[var(--bg-surface-elevated)] text-[var(--text-primary)] bot-corner-glow border-[var(--border-subtle)] shadow-[var(--shadow-l1)]'
+                        className={`flex gap-2.5 max-w-[90%] lg:max-w-[84%] ${
+                          msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
                         }`}
                       >
-                        {msg.sender === 'user' ? (
-                          <div className="whitespace-pre-wrap">{msg.content}</div>
-                        ) : (
-                          <div className="prose prose-sm max-w-none prose-headings:font-bold prose-headings:text-[var(--text-primary)] text-[var(--text-primary)] prose-a:text-[#0db7ed] prose-code:bg-black/5 dark:prose-code:bg-white/10 prose-code:px-1 prose-code:rounded">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm, remarkMath]}
-                              rehypePlugins={[rehypeKatex]}
+                        {/* Avatar */}
+                        <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 shadow-sm ${
+                          msg.sender === 'user'
+                            ? 'bg-[#0db7ed] text-white'
+                            : 'bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[#0db7ed]'
+                        }`}>
+                          {msg.sender === 'user' ? <User className="w-4 h-4" /> : <MascotLogo className="w-4 h-4 text-[#0db7ed]" />}
+                        </div>
+
+                        {/* Message Content & Card */}
+                        <div className="flex flex-col gap-1 min-w-0 max-w-full">
+                          <div
+                            data-msg-card
+                            className={`rounded-xl border transition-all ${
+                              msg.sender === 'user'
+                                ? 'bg-[#0db7ed] text-white user-corner-glow font-medium border-[#0aa5d6] shadow-sm p-3.5 text-sm'
+                                : 'bg-[var(--bg-surface-elevated)] text-[var(--text-primary)] bot-corner-glow border-[var(--border-subtle)] shadow-[var(--shadow-l1)]'
+                            }`}
+                          >
+                            {/* LLM Logo & Model Badge inside Assistant bubbles */}
+                            {isBot && msg.id.indexOf('_sys') === -1 && (
+                              <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-[var(--border-subtle)] mb-2 text-[11px] text-[var(--text-muted)] font-semibold select-none">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <div className="w-4 h-4 rounded bg-white border border-black/10 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
+                                    <ProviderBrandIcon providerId={msg.provider || activeProviderId} className="w-3 h-3 object-contain" />
+                                  </div>
+                                  <span className="font-bold text-[var(--text-primary)] truncate">
+                                    {((msg.model || (msg.provider ? providerSelectedModels[msg.provider] : '') || activeModel || '').split('/').pop()) || 'Assistant'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="text-[9px] font-mono bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-1.5 py-0.5 rounded text-[var(--text-secondary)]">
+                                    {msg.providerLabel || ((msg.provider === 'local' || (!msg.provider && activeProviderId === 'local')) ? (localEngine === 'docker' ? 'Docker Models' : (localEngine === 'ollama' ? 'Ollama' : 'vLLM')) : (PROVIDERS.find(p => p.id === (msg.provider || activeProviderId))?.label || 'Cloud API'))}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Message Body */}
+                            {msg.sender === 'user' ? (
+                              <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                            ) : (
+                              <div
+                                className="prose-chat w-full max-w-none min-w-0"
+                                data-msg-body
+                                data-density={density}
+                              >
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm, remarkMath]}
+                                  rehypePlugins={[rehypeKatex]}
+                                  components={{
+                                    pre(props: any) {
+                                      const child = props?.children;
+                                      if (child && child.props) {
+                                        const className = child.props.className || '';
+                                        const match = /language-(\w+)/.exec(className);
+                                        const codeString = String(child.props.children || '').replace(/\n$/, '');
+                                        return <CodeBlock language={match ? match[1] : ''} code={codeString} />;
+                                      }
+                                      return <div className="not-prose my-3">{props.children}</div>;
+                                    },
+                                    code({ className, children, ...props }: any) {
+                                      return (
+                                        <code className="px-1.5 py-0.5 rounded bg-[#0db7ed]/10 border border-[#0db7ed]/20 text-[#0db7ed] font-mono text-[0.88em]" {...props}>
+                                          {children}
+                                        </code>
+                                      );
+                                    },
+                                    table({ children }: any) {
+                                      return (
+                                        <div className="msg-table-scroll my-3 overflow-x-auto border border-[var(--border-subtle)] rounded-xl bg-[var(--bg-surface)] shadow-sm">
+                                          <table className="w-full text-left border-collapse text-xs">
+                                            {children}
+                                          </table>
+                                        </div>
+                                      );
+                                    },
+                                    th({ children }: any) {
+                                      return (
+                                        <th className="px-3 py-2 font-semibold text-[var(--text-primary)] border-b border-[var(--border-subtle)] bg-[#0db7ed]/5 text-[11px] uppercase tracking-wider">
+                                          {children}
+                                        </th>
+                                      );
+                                    },
+                                    td({ children }: any) {
+                                      return (
+                                        <td className="px-3 py-2 text-[var(--text-secondary)] border-b border-[var(--border-subtle)]/60 text-xs">
+                                          {children}
+                                        </td>
+                                      );
+                                    },
+                                    blockquote({ children }: any) {
+                                      return (
+                                        <blockquote className="my-2.5 pl-3 py-1 border-l-2 border-[#0db7ed] bg-[#0db7ed]/5 rounded-r-lg text-[var(--text-secondary)] italic">
+                                          {children}
+                                        </blockquote>
+                                      );
+                                    },
+                                    a({ href, children }: any) {
+                                      return (
+                                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#0db7ed] hover:underline font-medium">
+                                          {children}
+                                        </a>
+                                      );
+                                    }
+                                  }}
+                                >
+                                  {msg.content}
+                                </ReactMarkdown>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Toolbar Below Message */}
+                          {isBot ? (
+                            <div
+                              data-msg-actions
+                              className="flex items-center gap-2 mt-1.5 pl-1 text-[11px] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 select-none"
                             >
-                              {msg.content}
-                            </ReactMarkdown>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center justify-between gap-4 px-1 text-[10px] text-[var(--text-muted)]">
-                        {msg.workspaceUsed && (
-                          <div className="font-mono truncate max-w-[150px]" title={msg.workspaceUsed}>
-                            Workspace: {msg.workspaceUsed}
-                          </div>
-                        )}
-                        {msg.latencyMs !== undefined && (
-                          <div className="font-mono flex items-center gap-1 shrink-0 ml-auto">
-                            <Activity className="w-3 h-3 text-[#0db7ed]" />
-                            <span>Latency: {msg.latencyMs.toLocaleString()} ms ({(msg.latencyMs / 1000).toFixed(2)}s)</span>
-                          </div>
-                        )}
+                              {msg.latencyMs !== undefined && (
+                                <span
+                                  className="inline-flex items-center gap-1 font-mono text-[10.5px] text-[var(--text-muted)]"
+                                  title="Time taken to generate response"
+                                >
+                                  <Clock className="w-3 h-3 text-[#0db7ed]" />
+                                  <span>{(msg.latencyMs / 1000).toFixed(2)}s</span>
+                                </span>
+                              )}
+
+                              {/* Copy response */}
+                              <button
+                                type="button"
+                                onClick={() => handleCopyMessage(msg.id, msg.content)}
+                                title="Copy response"
+                                className="p-1 rounded-md hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer flex items-center gap-1"
+                              >
+                                {isCopied ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+
+                              {/* Density toggle button */}
+                              <button
+                                type="button"
+                                data-btn-density-toggle
+                                onClick={() => toggleMessageDensity(msg.id)}
+                                title={isCompact ? 'Format: Compact — click to switch to Roomy view' : 'Format: Roomy — click to switch to Compact view'}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-primary)] text-[10.5px] font-mono transition-colors cursor-pointer"
+                              >
+                                <AlignJustify className="w-3.5 h-3.5 text-[#0db7ed]" />
+                                <span>{isCompact ? 'Compact' : 'Roomy'}</span>
+                              </button>
+
+                              {/* Reference this chat */}
+                              <button
+                                type="button"
+                                onClick={() => handleReferenceMessage(msg)}
+                                title="Reference this chat in input"
+                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:bg-[#0db7ed]/10 hover:border-[#0db7ed]/40 hover:text-[#0db7ed] text-[var(--text-secondary)] text-[10.5px] font-medium transition-colors cursor-pointer"
+                              >
+                                <TextQuote className="w-3 h-3" />
+                                <span>Reference this chat</span>
+                              </button>
+
+                              {msg.workspaceUsed && (
+                                <span className="font-mono text-[9px] text-[var(--text-muted)] truncate max-w-[150px] ml-auto" title={msg.workspaceUsed}>
+                                  {msg.workspaceUsed.split('/').pop()}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div
+                              data-msg-actions
+                              className="flex items-center justify-end gap-1.5 mt-1 pr-1 text-[11px] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 select-none"
+                            >
+                              {msg.timestamp && (
+                                <span className="text-[11px] font-sans text-[var(--text-muted)] mr-1">
+                                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              )}
+                              {/* Copy prompt button */}
+                              <button
+                                type="button"
+                                onClick={() => handleCopyMessage(msg.id, msg.content)}
+                                title="Copy prompt"
+                                className="p-1 rounded-md hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                              >
+                                {isCopied ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                              {/* Restore prompt button */}
+                              <button
+                                type="button"
+                                onClick={() => handleRestorePrompt(msg.content)}
+                                title="Restore to input dock"
+                                className="p-1 rounded-md hover:bg-white/10 text-[var(--text-muted)] hover:text-[#0db7ed] transition-colors cursor-pointer"
+                              >
+                                <Undo2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
               {loading && (
                 <div className="flex gap-2.5 mr-auto max-w-[80%]">
