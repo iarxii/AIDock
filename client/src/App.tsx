@@ -1116,6 +1116,38 @@ function App() {
   // Sessions (Chats) state
   const [sessionsList, setSessionsList] = useState<ChatSessionItem[]>([]);
 
+  // Dynamic active chat title derived from sessionsList, metadata, or first prompt
+  const activeChatTitle = useMemo(() => {
+    const found = sessionsList.find(s => {
+      const sid = s.session_id || String(s.id || '');
+      return sid === sessionId || 
+             sid === `session_${sessionId}` || 
+             `session_${sid}` === sessionId ||
+             (Boolean(sessionId && sid) && (sessionId.endsWith(sid) || sid.endsWith(sessionId)));
+    });
+
+    if (found?.title && found.title.trim()) {
+      // If the stored title is just the raw folder name session_*, fall back to the first user prompt if available
+      if (found.title.startsWith('session_')) {
+        const firstUser = messages.find(m => m.sender === 'user');
+        if (firstUser?.content) {
+          const firstLine = firstUser.content.trim().split('\n')[0].replace(/^[#>\s-]+/, '');
+          if (firstLine) return firstLine;
+        }
+      }
+      return found.title;
+    }
+
+    // Fallback: derive title from first user message if available
+    const firstUser = messages.find(m => m.sender === 'user');
+    if (firstUser?.content) {
+      const firstLine = firstUser.content.trim().split('\n')[0].replace(/^[#>\s-]+/, '');
+      if (firstLine) return firstLine;
+    }
+
+    return 'New Chat Session';
+  }, [sessionsList, sessionId, messages]);
+
   const fetchSessionsList = async () => {
     try {
       const res = await fetch(getBackendUrl('sessions'));
@@ -2606,14 +2638,19 @@ function App() {
 
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             
-            {/* Chat Area Header with Export Menu & Global Density Toggle */}
+            {/* Chat Area Header with Dynamic Active Chat Title, Export Menu & Density / Line Toggles */}
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs font-bold text-[var(--text-primary)] tracking-wide uppercase">Active Session Stream</span>
+              <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span 
+                  className="text-xs font-bold text-[var(--text-primary)] tracking-wide truncate select-none"
+                  title={activeChatTitle}
+                >
+                  {activeChatTitle}
+                </span>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 {/* Global Code Line Numbers Toggle */}
                 <button
                   type="button"
